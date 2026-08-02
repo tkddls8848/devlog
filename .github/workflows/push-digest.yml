@@ -12,7 +12,9 @@ name: 개발 일지 초안 생성
 # 만들어지는 글은 draft: true 라서 병합해도 사이트에 나오지 않습니다.
 # 내용을 확인하고 draft 줄을 지워야 발행됩니다.
 #
-# 준비: Settings → Secrets and variables → Actions → Secrets 에
+# 준비: Settings → Secrets and variables → Actions → Secrets 의
+# **Repository secrets** 에 (Environment secrets 가 아닙니다 — 그쪽에 넣으면
+# environment 를 선언한 잡에서만 보여서 이 워크플로가 읽지 못합니다):
 #   CF_ACCOUNT_ID   Cloudflare 계정 ID
 #   CF_API_TOKEN    Workers AI 권한을 가진 API 토큰
 # (Cloudflare 대시보드 → Workers AI → "Use REST API" 에서 둘 다 받을 수 있습니다.)
@@ -68,6 +70,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          # 모델을 바꿔 보려면 코드 대신 이 변수를 설정하세요.
+          # (Settings → Secrets and variables → Actions → Variables)
+          # 비어 있으면 tools/push-digest.mjs 의 DEFAULT_MODEL 을 씁니다.
+          CF_AI_MODEL: ${{ vars.CF_AI_MODEL }}
         run: npm run digest
 
       - name: 변경 여부 확인

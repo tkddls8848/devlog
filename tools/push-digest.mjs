@@ -44,8 +44,17 @@ import path from "node:path";
 const POSTS_DIR = path.resolve("src/posts");
 const STATE_FILE = path.resolve(".state/last-seen.json");
 
-/** Cloudflare Workers AI 가 호스팅하는 IBM Granite. */
-const DEFAULT_MODEL = "@cf/ibm-granite/granite-4.0-h-micro";
+/**
+ * Cloudflare Workers AI 가 호스팅하는 모델.
+ *
+ * 처음에는 IBM Granite 4.0 h-micro 를 썼는데, 한국어 글쓰기가 약해서 8B 로
+ * 옮겼습니다. 같은 크기라도 한국어는 모델별 편차가 커서, Workers AI 에 있는
+ * 소형 모델 중에서는 이쪽이 낫습니다.
+ *
+ * 코드를 고치지 않고 바꿔 보려면 저장소 변수 CF_AI_MODEL 을 설정하세요
+ * (Settings → Secrets and variables → Actions → Variables).
+ */
+const DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
 
 const GENERATE_TIMEOUT_MS = 3 * 60 * 1000;
 
@@ -609,7 +618,9 @@ for (const repo of ranges.keys()) {
   if (info) repoMeta.set(repo, { description: info.description, language: info.language });
 }
 
-console.log(`IBM Granite 로 초안 ${days.length}편 생성 중…`);
+// 모델 이름은 여기서 한 번만 찍습니다. 날짜마다 부르므로 generate() 안에서
+// 찍으면 같은 줄이 편 수만큼 반복됩니다.
+console.log(`초안 ${days.length}편 생성 중… (모델 ${process.env.CF_AI_MODEL || DEFAULT_MODEL})`);
 
 // 실제로 글이 된 커밋만 seenShas 에 남겨야 합니다. 상한에 걸려 못 쓴 날의
 // 커밋까지 "봤다" 고 적으면 그 날은 영영 글이 되지 않습니다.

@@ -10,7 +10,7 @@ GitHub 공개 저장소의 푸시를 모아 개발 일지 초안을 만들고, �
   → GitHub Events API 로 내 공개 푸시 수집
   → 커밋 상세(변경 파일·증감 줄 수) 조회
   → 커밋을 작성한 날(KST)로 묶기
-  → 날짜마다 Cloudflare Workers AI (IBM Granite) 로 한국어 초안 작성
+  → 날짜마다 Cloudflare Workers AI (Llama 3.1 8B) 로 한국어 초안 작성
   → src/posts/YYYY-MM-DD-devlog.md 에 draft: true 로 저장 (하루에 한 편)
   → PR 생성 (blog-draft/push-digest 브랜치)
 
@@ -28,11 +28,15 @@ GitHub 공개 저장소의 푸시를 모아 개발 일지 초안을 만들고, �
 
 ## 처음 설정
 
-1. **Secrets** — Settings → Secrets and variables → Actions
+1. **Secrets** — Settings → Secrets and variables → Actions → **Repository secrets**
    - `CF_ACCOUNT_ID` — Cloudflare 계정 ID
    - `CF_API_TOKEN` — Workers AI 권한을 가진 API 토큰
 
    둘 다 Cloudflare 대시보드 → Workers AI → "Use REST API" 에서 받습니다.
+
+   > 같은 화면 아래쪽의 **Environment secrets** 가 아니라 위쪽의 **Repository
+   > secrets** 에 넣어야 합니다. Environment 시크릿은 `environment:` 를 선언한
+   > 잡에서만 보여서, 초안 워크플로가 값을 읽지 못하고 조용히 건너뜁니다.
 
 2. **Pages** — Settings → Pages → Source 를 **GitHub Actions** 로 변경
    (기본값 "Deploy from a branch" 로 두면 배포 워크플로 결과가 무시됩니다.)
@@ -79,6 +83,20 @@ CF_ACCOUNT_ID=... CF_API_TOKEN=... GH_TOKEN=$(gh auth token) npm run digest
 
 조정하려면 `tools/push-digest.mjs` 위쪽의 `SKIP_MESSAGE`, `SKIP_AUTHOR` 를
 고치세요.
+
+## 모델 바꾸기
+
+기본값은 `tools/push-digest.mjs` 의 `DEFAULT_MODEL`
+(`@cf/meta/llama-3.1-8b-instruct-fast`) 입니다. 코드를 고치지 않고 바꾸려면
+Settings → Secrets and variables → Actions → **Variables** 에 `CF_AI_MODEL` 을
+만들고 모델 ID 를 넣으세요. 로컬에서는 환경 변수로 넘기면 됩니다:
+
+```bash
+CF_AI_MODEL=@cf/meta/llama-3.2-3b-instruct npm run digest
+```
+
+쓸 수 있는 모델 ID 는 Cloudflare Workers AI 모델 목록에서 확인합니다.
+같은 크기라도 한국어 품질 편차가 크니, 바꾼 뒤 나온 초안을 직접 읽어 보세요.
 
 ## 한 번에 만드는 글 수
 
