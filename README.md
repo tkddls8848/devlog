@@ -10,7 +10,7 @@ GitHub 공개 저장소의 푸시를 모아 개발 일지 초안을 만들고, �
   → GitHub Events API 로 내 공개 푸시 수집
   → 커밋 상세(변경 파일·증감 줄 수) 조회
   → 커밋을 작성한 날(KST)로 묶기
-  → 날짜마다 Cloudflare Workers AI (Llama 3.1 8B) 로 한국어 초안 작성
+  → 날짜마다 Cloudflare Workers AI (Llama 3.3 70B) 로 한국어 초안 작성
   → src/posts/YYYY-MM-DD-devlog.md 에 draft: true 로 저장 (하루에 한 편)
   → PR 생성 (blog-draft/push-digest 브랜치)
 
@@ -87,16 +87,34 @@ CF_ACCOUNT_ID=... CF_API_TOKEN=... GH_TOKEN=$(gh auth token) npm run digest
 ## 모델 바꾸기
 
 기본값은 `tools/push-digest.mjs` 의 `DEFAULT_MODEL`
-(`@cf/meta/llama-3.1-8b-instruct-fast`) 입니다. 코드를 고치지 않고 바꾸려면
-Settings → Secrets and variables → Actions → **Variables** 에 `CF_AI_MODEL` 을
-만들고 모델 ID 를 넣으세요. 로컬에서는 환경 변수로 넘기면 됩니다:
+(`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) 입니다. 코드를 고치지 않고
+바꾸려면 Settings → Secrets and variables → Actions → **Variables** 에
+`CF_AI_MODEL` 을 만들고 모델 ID 를 넣으세요. 로컬에서는 환경 변수로 넘깁니다:
 
 ```bash
-CF_AI_MODEL=@cf/meta/llama-3.2-3b-instruct npm run digest
+CF_AI_MODEL=@cf/mistralai/mistral-small-3.1-24b-instruct npm run digest
 ```
 
-쓸 수 있는 모델 ID 는 Cloudflare Workers AI 모델 목록에서 확인합니다.
-같은 크기라도 한국어 품질 편차가 크니, 바꾼 뒤 나온 초안을 직접 읽어 보세요.
+### 비용
+
+글 한 편이 대략 입력 2,500 / 출력 900 토큰입니다. 무료 한도는 하루
+10,000 Neurons 이고, 하루 한 편이면 어느 모델을 써도 한참 남습니다.
+
+| 모델 | 편당 Neurons | 하루 한 편 기준 |
+|---|---|---|
+| `@cf/mistralai/mistral-small-3.1-24b-instruct` | 약 125 | 1.3% |
+| `@cf/qwen/qwen3-30b-a3b-fp8` | 약 230 | 2.3% |
+| `@cf/meta/llama-3.3-70b-instruct-fp8-fast` | 약 251 | 2.5% |
+
+한도에 걸리는 경우는 과거를 한꺼번에 훑는 첫 실행뿐입니다(21편이면 약 5,300).
+
+### 고를 때 볼 것
+
+- **추론형 모델은 `<think>` 블록을 뱉습니다** (qwen3-30b-a3b, qwq-32b,
+  deepseek-r1 계열). `saveDraft` 가 걷어내지만 그만큼 출력 토큰을 더 씁니다.
+- **coder 모델은 피하세요** (qwen2.5-coder 등). 코드에 특화된 만큼 한국어
+  산문은 일반 instruct 모델보다 못합니다.
+- 같은 크기라도 한국어 편차가 큽니다. 바꾼 뒤 나온 초안을 꼭 직접 읽어 보세요.
 
 ## 한 번에 만드는 글 수
 

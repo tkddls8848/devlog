@@ -47,14 +47,21 @@ const STATE_FILE = path.resolve(".state/last-seen.json");
 /**
  * Cloudflare Workers AI 가 호스팅하는 모델.
  *
- * 처음에는 IBM Granite 4.0 h-micro 를 썼는데, 한국어 글쓰기가 약해서 8B 로
- * 옮겼습니다. 같은 크기라도 한국어는 모델별 편차가 커서, Workers AI 에 있는
- * 소형 모델 중에서는 이쪽이 낫습니다.
+ * Granite 4.0 h-micro → Llama 3.1 8B → Llama 3.3 70B 순으로 옮겼습니다.
+ * 8B 는 커밋이 열 건 넘는 날에 글이 무너졌습니다 — 커밋 메시지를 그대로
+ * 이어붙이고 같은 문장을 반복했습니다.
+ *
+ * 글 한 편이 대략 입력 2,500 / 출력 900 토큰이라 70B 도 250 Neurons 남짓입니다.
+ * 무료 한도가 하루 10,000 Neurons 이니 하루 한 편으로는 넉넉합니다.
+ *
+ * ⚠️ 추론형 모델(qwen3-30b-a3b, qwq-32b, deepseek-r1 계열)을 고를 때는 주의하세요.
+ *    <think> 블록을 뱉는데 Workers AI 에서 끄는 방법이 문서화되어 있지 않습니다.
+ *    saveDraft 가 걷어내기는 하지만, 그만큼 출력 토큰을 더 씁니다.
  *
  * 코드를 고치지 않고 바꿔 보려면 저장소 변수 CF_AI_MODEL 을 설정하세요
  * (Settings → Secrets and variables → Actions → Variables).
  */
-const DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
+const DEFAULT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
 const GENERATE_TIMEOUT_MS = 3 * 60 * 1000;
 
@@ -477,7 +484,12 @@ function freeFilename(day) {
 }
 
 function saveDraft(day, generated, byRepo) {
-  const lines = generated.split("\n");
+  /*
+   * 추론형 모델은 답변 앞에 <think>…</think> 로 사고 과정을 붙입니다. 그대로
+   * 두면 TITLE 표시를 사고 과정 안에서 찾거나, 사고 과정이 본문으로 실립니다.
+   * 모델을 바꿔 볼 때마다 걸리는 문제라 여기서 한 번에 걷어냅니다.
+   */
+  const lines = generated.replace(/<think>[\s\S]*?<\/think>/gi, "").trim().split("\n");
 
   /*
    * 모델이 표시 앞에 공백이나 군더더기를 붙이는 일이 흔합니다.
@@ -504,7 +516,17 @@ function saveDraft(day, generated, byRepo) {
    * 그리는 일이 잦은데, front matter 바로 뒤에 오면 파서가 두 번째 front
    * matter 로 읽어 글머리가 깨집니다.
    */
-  const body = rawBody.replace(/^(\s*(-{3,}|\*{3,}|_{3,})\s*\n)+/, "").trim();
+  const body = rawBody
+    .replace(/^(\s*(-{3,}|\*{3,}|_{3,})\s*\n)+/, "")
+    /*
+     * 본문 끝에 지어낸 앵커 링크를 걷어냅니다.
+     *
+     * 모델이 "[커밋 기록](#project)" 처럼 없는 앵커를 가리키는 링크를 붙이는
+     * 일이 잦습니다. 그대로 발행하면 죽은 링크가 됩니다. 커밋 목록은 글 아래에
+     * 템플릿이 따로 렌더하므로 본문에는 있을 이유가 없습니다.
+     */
+    .replace(/(?:^|\n)[ \t]*(?:\[[^\]\n]*\]\(#[^)\n]*\)[ \t]*)+$/, "")
+    .trim();
 
   if (titleAt === -1 || summaryAt === -1) {
     console.warn(`  ⚠️ ${day}: 출력에서 TITLE/SUMMARY 를 찾지 못했습니다. 검토할 때 채워 주세요.`);
