@@ -47,21 +47,26 @@ const STATE_FILE = path.resolve(".state/last-seen.json");
 /**
  * Cloudflare Workers AI 가 호스팅하는 모델.
  *
- * Granite 4.0 h-micro → Llama 3.1 8B → Llama 3.3 70B 순으로 옮겼습니다.
- * 8B 는 커밋이 열 건 넘는 날에 글이 무너졌습니다 — 커밋 메시지를 그대로
- * 이어붙이고 같은 문장을 반복했습니다.
+ * Granite 4.0 h-micro → Llama 3.1 8B 로 옮겼습니다. Granite 는 한국어가
+ * 특히 약했습니다.
  *
- * 글 한 편이 대략 입력 2,500 / 출력 900 토큰이라 70B 도 250 Neurons 남짓입니다.
- * 무료 한도가 하루 10,000 Neurons 이니 하루 한 편으로는 넉넉합니다.
+ * 8B 의 한계는 알고 씁니다. 커밋이 열 건 넘는 날에는 커밋 메시지를 그대로
+ * 이어붙이고 같은 마무리 문장을 반복합니다. 커밋이 두세 건인 보통 날에는
+ * 읽을 만하게 나옵니다. 어차피 draft 로 두고 사람이 검토하는 구조라
+ * 8B 에 머무릅니다.
  *
- * ⚠️ 추론형 모델(qwen3-30b-a3b, qwq-32b, deepseek-r1 계열)을 고를 때는 주의하세요.
- *    <think> 블록을 뱉는데 Workers AI 에서 끄는 방법이 문서화되어 있지 않습니다.
+ * 더 키우려면 CF_AI_MODEL 로 바꿔 보세요. 비용은 걸림돌이 아닙니다 — 글 한
+ * 편이 대략 입력 2,500 / 출력 900 토큰이라 70B 라도 250 Neurons 남짓이고,
+ * 무료 한도가 하루 10,000 Neurons 입니다.
+ *
+ * ⚠️ 추론형 모델(qwen3-30b-a3b, qwq-32b, deepseek-r1 계열)은 주의하세요.
+ *    사고 블록을 뱉는데 Workers AI 에서 끄는 방법이 문서화되어 있지 않습니다.
  *    saveDraft 가 걷어내기는 하지만, 그만큼 출력 토큰을 더 씁니다.
  *
  * 코드를 고치지 않고 바꿔 보려면 저장소 변수 CF_AI_MODEL 을 설정하세요
  * (Settings → Secrets and variables → Actions → Variables).
  */
-const DEFAULT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+const DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
 
 const GENERATE_TIMEOUT_MS = 3 * 60 * 1000;
 

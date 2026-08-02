@@ -10,7 +10,7 @@ GitHub 공개 저장소의 푸시를 모아 개발 일지 초안을 만들고, �
   → GitHub Events API 로 내 공개 푸시 수집
   → 커밋 상세(변경 파일·증감 줄 수) 조회
   → 커밋을 작성한 날(KST)로 묶기
-  → 날짜마다 Cloudflare Workers AI (Llama 3.3 70B) 로 한국어 초안 작성
+  → 날짜마다 Cloudflare Workers AI (Llama 3.1 8B) 로 한국어 초안 작성
   → src/posts/YYYY-MM-DD-devlog.md 에 draft: true 로 저장 (하루에 한 편)
   → PR 생성 (blog-draft/push-digest 브랜치)
 
@@ -87,18 +87,24 @@ CF_ACCOUNT_ID=... CF_API_TOKEN=... GH_TOKEN=$(gh auth token) npm run digest
 ## 모델 바꾸기
 
 기본값은 `tools/push-digest.mjs` 의 `DEFAULT_MODEL`
-(`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) 입니다. 코드를 고치지 않고
-바꾸려면 Settings → Secrets and variables → Actions → **Variables** 에
-`CF_AI_MODEL` 을 만들고 모델 ID 를 넣으세요. 로컬에서는 환경 변수로 넘깁니다:
+(`@cf/meta/llama-3.1-8b-instruct-fast`) 입니다. 코드를 고치지 않고 바꾸려면
+Settings → Secrets and variables → Actions → **Variables** 에 `CF_AI_MODEL` 을
+만들고 모델 ID 를 넣으세요. 로컬에서는 환경 변수로 넘깁니다:
 
 ```bash
-CF_AI_MODEL=@cf/mistralai/mistral-small-3.1-24b-instruct npm run digest
+CF_AI_MODEL=@cf/meta/llama-3.3-70b-instruct-fp8-fast npm run digest
 ```
 
-### 비용
+### 8B 의 한계
+
+커밋이 열 건 넘는 날에는 글이 무너집니다 — 커밋 메시지를 그대로 이어붙이고
+같은 마무리 문장을 반복합니다. 커밋이 두세 건인 보통 날에는 읽을 만합니다.
+`draft: true` 로 두고 사람이 검토하는 구조라 이 정도를 감수하고 씁니다.
+
+### 비용은 걸림돌이 아닙니다
 
 글 한 편이 대략 입력 2,500 / 출력 900 토큰입니다. 무료 한도는 하루
-10,000 Neurons 이고, 하루 한 편이면 어느 모델을 써도 한참 남습니다.
+10,000 Neurons 이라, 하루 한 편이면 아래 어느 모델을 써도 한참 남습니다.
 
 | 모델 | 편당 Neurons | 하루 한 편 기준 |
 |---|---|---|
