@@ -7,7 +7,7 @@ layout: layouts/base.njk
     <h1>{{ title }}</h1>
     <p class="post-meta">
       <time datetime="{{ date | isoDate }}">{{ date | postDate }}</time>
-      {% if aiDraft %}<span class="badge" title="AI 가 초안을 쓰고 사람이 검토한 글입니다">AI 초안</span>{% endif %}
+      {% if aiGenerated %}<span class="badge" title="AI가 커밋 기록을 정리한 글입니다">AI 생성</span>{% endif %}
     </p>
     {% if summary %}<p class="post-summary">{{ summary }}</p>{% endif %}
   </header>

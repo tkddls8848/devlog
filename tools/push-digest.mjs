@@ -1,5 +1,5 @@
 /**
- * 내 GitHub 공개 푸시를 모아 개발 일지 초안을 만듭니다.
+ * 내 GitHub 공개 푸시를 모아 개발 일지를 만듭니다.
  *
  *   node tools/push-digest.mjs
  *   node tools/push-digest.mjs --seed    (글을 만들지 않고 기준점만 현재로)
@@ -9,7 +9,7 @@
  *   2. 저장소별로 before...head 를 compare 해서 커밋 목록을 받습니다.
  *   3. 커밋마다 변경 파일·증감 줄 수를 조회합니다.
  *   4. 커밋을 "작성한 날(KST)" 로 묶어, 하루에 글 한 편씩 만듭니다.
- *   5. src/posts/ 에 draft: true 인 Markdown 으로 저장하고 watermark 를 갱신합니다.
+ *   5. src/posts/ 에 발행 가능한 Markdown 으로 저장하고 watermark 를 갱신합니다.
  *
  * ⚠️ 하루치가 글 한 편입니다.
  *    실행 한 번에 글 한 편을 만들면, 처음 돌릴 때 90일치 커밋이 "오늘" 날짜의
@@ -24,11 +24,8 @@
  *    commits 는 비워서 보냅니다. 그것만 믿으면 푸시를 아무리 많이 해도 글감이
  *    0건이 됩니다. 그래서 두 해시로 compare 를 겁니다.
  *
- * watermark 를 왜 PR 안에서 같이 옮기는가:
- *    초안 PR 을 병합하지 않고 닫으면 그 기간의 커밋은 영영 글이 되지 않습니다.
- *    그래서 .state/last-seen.json 을 main 에 바로 커밋하지 않고 초안과 같은
- *    브랜치에 넣습니다. 병합해야 지점이 넘어가므로, PR 을 열어 둔 동안에는
- *    다음 실행이 같은 구간을 다시 요약해 PR 을 갱신합니다.
+ * watermark 는 생성된 글과 같은 커밋에서 옮깁니다. 글 저장과 처리 지점 갱신이
+ * 함께 반영되어야 다음 실행에서 누락이나 중복이 생기지 않습니다.
  *
  * 필요한 환경 변수
  *   GH_TOKEN        GitHub API 조회용 (Actions 의 GITHUB_TOKEN)
@@ -52,8 +49,7 @@ const STATE_FILE = path.resolve(".state/last-seen.json");
  *
  * 8B 의 한계는 알고 씁니다. 커밋이 열 건 넘는 날에는 커밋 메시지를 그대로
  * 이어붙이고 같은 마무리 문장을 반복합니다. 커밋이 두세 건인 보통 날에는
- * 읽을 만하게 나옵니다. 어차피 draft 로 두고 사람이 검토하는 구조라
- * 8B 에 머무릅니다.
+ * 읽을 만하게 나옵니다. 자동 발행되므로 출력 품질은 주기적으로 확인해야 합니다.
  *
  * 더 키우려면 CF_AI_MODEL 로 바꿔 보세요. 비용은 걸림돌이 아닙니다 — 글 한
  * 편이 대략 입력 2,500 / 출력 900 토큰이라 70B 라도 250 Neurons 남짓이고,
@@ -61,7 +57,7 @@ const STATE_FILE = path.resolve(".state/last-seen.json");
  *
  * ⚠️ 추론형 모델(qwen3-30b-a3b, qwq-32b, deepseek-r1 계열)은 주의하세요.
  *    사고 블록을 뱉는데 Workers AI 에서 끄는 방법이 문서화되어 있지 않습니다.
- *    saveDraft 가 걷어내기는 하지만, 그만큼 출력 토큰을 더 씁니다.
+ *    savePost 가 걷어내기는 하지만, 그만큼 출력 토큰을 더 씁니다.
  *
  * 코드를 고치지 않고 바꿔 보려면 저장소 변수 CF_AI_MODEL 을 설정하세요
  * (Settings → Secrets and variables → Actions → Variables).
@@ -77,8 +73,8 @@ const EVENT_PAGES = 3;
  * 한 번에 만들 글(=날짜) 수 상한.
  *
  * 날짜마다 모델을 한 번씩 부르므로, 처음 90일치를 훑으면 그만큼 호출이 몰립니다.
- * 상한에 걸리면 오래된 날부터 채우고 기준점을 그대로 둡니다 — PR 을 병합하면
- * 실린 커밋이 seenShas 에 남아 다음 실행이 그다음 날짜부터 이어갑니다.
+ * 상한에 걸리면 오래된 날부터 채우고 기준점을 그대로 둡니다. 자동 커밋된 글의
+ * 커밋이 seenShas 에 남아 다음 실행이 그다음 날짜부터 이어갑니다.
  */
 const MAX_POSTS_PER_RUN = 30;
 
@@ -172,7 +168,7 @@ function loadState() {
     };
   } catch (error) {
     // 상태 파일이 깨졌다고 멈추면 자동화가 죽습니다. 처음부터 다시 보는 쪽이
-    // 낫습니다 — 중복은 사람이 PR 에서 걸러낼 수 있지만 멈춘 건 아무도 모릅니다.
+    // 낫습니다. 중복은 seenShas 로 제거하지만 멈추면 새 글이 발행되지 않습니다.
     console.warn(`  ⚠️ 상태 파일을 읽지 못해 처음부터 봅니다: ${error.message}`);
     return { lastEventId: null, seenShas: [] };
   }
@@ -221,7 +217,7 @@ async function collectRanges(state) {
       if (event.type !== "PushEvent") continue;
 
       const repo = event.repo?.name || "";
-      // 블로그 저장소 자신은 뺍니다. 자동 생성된 초안 커밋이 다음 글의 소재가
+      // 블로그 저장소 자신은 뺍니다. 자동 생성된 글 커밋이 다음 글의 소재가
       // 되어 스스로를 계속 요약하는 되먹임을 막습니다.
       if (!repo || repo.toLowerCase() === blogRepo) continue;
 
@@ -419,7 +415,7 @@ async function generate(prompt) {
         ],
         // 기본값 256 은 글 한 편에 턱없이 모자랍니다.
         max_tokens: 1500,
-        // 낮출수록 지시를 잘 지킵니다. 초안이라 창의성보다 그쪽이 중요합니다.
+        // 낮출수록 지시를 잘 지킵니다. 개발 기록이라 창의성보다 그쪽이 중요합니다.
         temperature: 0.4,
       }),
       signal: AbortSignal.timeout(GENERATE_TIMEOUT_MS),
@@ -488,7 +484,7 @@ function freeFilename(day) {
   return file;
 }
 
-function saveDraft(day, generated, byRepo) {
+function savePost(day, generated, byRepo) {
   /*
    * 추론형 모델은 답변 앞에 <think>…</think> 로 사고 과정을 붙입니다. 그대로
    * 두면 TITLE 표시를 사고 과정 안에서 찾거나, 사고 과정이 본문으로 실립니다.
@@ -512,7 +508,7 @@ function saveDraft(day, generated, byRepo) {
   const summary = after(summaryAt, "SUMMARY:");
 
   // 표시를 하나도 못 찾으면 출력 전체를 본문으로 봅니다(형식이 어긋나도 내용을
-  // 잃지 않게). 사람이 검토하면서 제목·요약을 채우면 됩니다.
+  // 잃지 않게). 형식이 어긋나도 본문은 보존하고 기본 제목·요약을 사용합니다.
   const lastMarker = Math.max(titleAt, summaryAt);
   const rawBody = (lastMarker === -1 ? lines : lines.slice(lastMarker + 1)).join("\n").trim();
 
@@ -534,7 +530,7 @@ function saveDraft(day, generated, byRepo) {
     .trim();
 
   if (titleAt === -1 || summaryAt === -1) {
-    console.warn(`  ⚠️ ${day}: 출력에서 TITLE/SUMMARY 를 찾지 못했습니다. 검토할 때 채워 주세요.`);
+    console.warn(`  ⚠️ ${day}: 출력에서 TITLE/SUMMARY 를 찾지 못해 기본값으로 발행합니다.`);
   }
 
   const commitBlock = [];
@@ -552,9 +548,7 @@ function saveDraft(day, generated, byRepo) {
     `title: ${yamlString(title)}`,
     `date: ${day}`,
     `summary: ${yamlString(summary)}`,
-    "aiDraft: true",
-    "# 검토를 마치면 아래 draft 줄을 지우세요. 그전까지는 사이트에 나오지 않습니다.",
-    "draft: true",
+    "aiGenerated: true",
     "commits:",
     ...commitBlock,
     "---",
@@ -601,7 +595,7 @@ if (process.argv.includes("--seed")) {
 }
 
 if (ranges.size === 0) {
-  console.log("새 푸시가 없어 초안을 만들지 않았습니다.");
+  console.log("새 푸시가 없어 글을 만들지 않았습니다.");
   process.exit(0);
 }
 
@@ -610,7 +604,7 @@ const commits = await collectCommits(ranges, seen);
 console.log(`  글감 커밋 ${commits.length}건`);
 
 if (commits.length === 0) {
-  console.log("글로 쓸 만한 커밋이 없어 초안을 만들지 않았습니다.");
+  console.log("글로 쓸 만한 커밋이 없어 글을 만들지 않았습니다.");
   process.exit(0);
 }
 
@@ -647,7 +641,7 @@ for (const repo of ranges.keys()) {
 
 // 모델 이름은 여기서 한 번만 찍습니다. 날짜마다 부르므로 generate() 안에서
 // 찍으면 같은 줄이 편 수만큼 반복됩니다.
-console.log(`초안 ${days.length}편 생성 중… (모델 ${process.env.CF_AI_MODEL || DEFAULT_MODEL})`);
+console.log(`개발 일지 ${days.length}편 생성 중… (모델 ${process.env.CF_AI_MODEL || DEFAULT_MODEL})`);
 
 // 실제로 글이 된 커밋만 seenShas 에 남겨야 합니다. 상한에 걸려 못 쓴 날의
 // 커밋까지 "봤다" 고 적으면 그 날은 영영 글이 되지 않습니다.
@@ -656,7 +650,7 @@ const written = [];
 
 for (const [day, byRepo] of days) {
   const generated = await generate(buildPrompt(day, byRepo, repoMeta));
-  const file = saveDraft(day, generated, byRepo);
+  const file = savePost(day, generated, byRepo);
   for (const list of byRepo.values()) for (const c of list) published.add(c.sha);
   written.push(file);
   console.log(`  ${day} → ${path.relative(process.cwd(), file)}`);
@@ -669,5 +663,5 @@ for (const [day, byRepo] of days) {
  */
 saveState(truncated ? state.lastEventId : newestEventId, published);
 
-console.log(`\n초안 ${written.length}편을 저장했습니다.`);
-console.log("draft: true 상태라 사이트에는 나오지 않습니다. 검토 후 그 줄을 지우세요.");
+console.log(`\n개발 일지 ${written.length}편을 저장했습니다.`);
+console.log("생성된 글은 자동으로 발행됩니다.");

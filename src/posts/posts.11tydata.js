@@ -12,10 +12,6 @@ export default {
 
   eleventyComputed: {
     /*
-     * draft: true 인 글은 아예 페이지를 만들지 않습니다.
-     * 목록에서만 빼면 주소를 아는 사람에게는 열리므로, 검토를 마치지 않은
-     * 글이 공개된 것과 같습니다.
-     *
      * 주소는 파일 이름(inputPath)에서 직접 만듭니다.
      *
      * fileSlug 와 filePathStem 은 둘 다 파일명 앞의 날짜(2026-08-02-)를 떼어
@@ -24,7 +20,6 @@ export default {
      * 지난 글이 덮어써집니다. inputPath 만 날짜를 그대로 갖고 있습니다.
      */
     permalink: (data) => {
-      if (data.draft) return false;
       const name = data.page.inputPath.split(/[\\/]/).pop().replace(/\.[^.]+$/, "");
       return `/posts/${name}/`;
     },

@@ -28,18 +28,10 @@ export default function (eleventyConfig) {
   eleventyConfig.addFilter("shortSha", (sha) => String(sha || "").slice(0, 7));
 
   // ── 컬렉션 ─────────────────────────────────────────────────────────────
-  /**
-   * 발행된 글. 최신순.
-   *
-   * `draft: true` 인 글은 목록에서 빼되 파일은 저장소에 남겨 둡니다.
-   * posts.11tydata.js 가 permalink 도 함께 꺼서 페이지 자체가 생성되지
-   * 않습니다 — 목록에만 없고 주소로는 열리면 검토 전 글이 공개된 것과
-   * 같기 때문입니다.
-   */
+  /** 발행된 글. 최신순. */
   eleventyConfig.addCollection("posts", (collection) =>
     collection
       .getFilteredByTag("posts")
-      .filter((item) => !item.data.draft)
       .sort((a, b) => b.date - a.date)
   );
 

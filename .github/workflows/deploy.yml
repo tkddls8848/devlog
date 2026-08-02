@@ -1,7 +1,6 @@
 name: GitHub Pages 배포
 
 # main 에 올라온 내용을 빌드해 GitHub Pages 로 내보냅니다.
-# 초안 PR 을 병합하고 draft 줄을 지웠을 때 실제 발행이 일어나는 지점입니다.
 #
 # 준비: Settings → Pages → Source 를 "GitHub Actions" 로 바꿔야 합니다.
 # (기본값인 "Deploy from a branch" 로 두면 이 워크플로의 결과가 무시됩니다.)
