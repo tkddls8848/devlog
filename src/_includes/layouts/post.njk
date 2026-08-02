@@ -1,0 +1,39 @@
+---
+layout: layouts/base.njk
+---
+
+<article class="post">
+  <header class="post-header">
+    <h1>{{ title }}</h1>
+    <p class="post-meta">
+      <time datetime="{{ date | isoDate }}">{{ date | postDate }}</time>
+      {% if aiDraft %}<span class="badge" title="AI 가 초안을 쓰고 사람이 검토한 글입니다">AI 초안</span>{% endif %}
+    </p>
+    {% if summary %}<p class="post-summary">{{ summary }}</p>{% endif %}
+  </header>
+
+  {{ content | safe }}
+
+  {#
+    글의 근거가 된 실제 커밋. 요약이 미덥지 않을 때 원본을 바로 확인할 수
+    있어야 해서 항상 남깁니다.
+  #}
+  {% if commits %}
+    <section class="sources">
+      <h2>참고한 커밋</h2>
+      {% for repo in commits %}
+        <h3><a href="https://github.com/{{ repo.repo }}">{{ repo.repo }}</a></h3>
+        <ul>
+          {% for c in repo.items %}
+            <li>
+              <a href="https://github.com/{{ repo.repo }}/commit/{{ c.sha }}"><code>{{ c.sha | shortSha }}</code></a>
+              {{ c.message }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  <p class="back"><a href="{{ '/' | url }}">← 목록으로</a></p>
+</article>

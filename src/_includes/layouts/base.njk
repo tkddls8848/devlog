@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% if title %}{{ title }} · {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
+    <meta name="description" content="{{ summary or site.tagline }}" />
+    <link rel="stylesheet" href="{{ '/assets/css/main.css' | url }}" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="site-title" href="{{ '/' | url }}">{{ site.title }}</a>
+      <p class="site-tagline">{{ site.tagline }}</p>
+    </header>
+
+    <main>{{ content | safe }}</main>
+
+    <footer class="site-footer">
+      <p>
+        © {{ '' | year }} {{ site.author }} ·
+        <a href="https://github.com/{{ site.githubUser }}">GitHub</a>
+      </p>
+    </footer>
+  </body>
+</html>

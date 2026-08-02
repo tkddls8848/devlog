@@ -1,0 +1,15 @@
+---
+layout: layouts/base.njk
+---
+
+<ul class="post-list">
+  {% for post in collections.posts %}
+    <li>
+      <time datetime="{{ post.date | isoDate }}">{{ post.date | postDate }}</time>
+      <a href="{{ post.url | url }}">{{ post.data.title }}</a>
+      {% if post.data.summary %}<p>{{ post.data.summary }}</p>{% endif %}
+    </li>
+  {% else %}
+    <li class="empty">아직 발행된 글이 없습니다.</li>
+  {% endfor %}
+</ul>
