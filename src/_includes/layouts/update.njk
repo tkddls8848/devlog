@@ -1,0 +1,56 @@
+---
+layout: layouts/base.njk
+---
+
+<article class="post">
+  <header class="post-header">
+    <h1>{{ title }}</h1>
+    <p class="post-meta">
+      <time datetime="{{ date | isoDate }}">{{ date | postDate }}</time>
+      {% if aiGenerated %}<span class="badge" title="AI가 갱신 목록을 정리한 글입니다">AI 생성</span>{% endif %}
+      {% if total %}<span class="badge">{{ total }}건</span>{% endif %}
+    </p>
+    {% if summary %}<p class="post-summary">{{ summary }}</p>{% endif %}
+  </header>
+
+  {{ content | safe }}
+
+  {#
+    수집이 실패한 소스는 숨기지 않고 적어 둡니다. 그날 목록이 비어 보이는 게
+    "갱신이 없었다" 인지 "못 가져왔다" 인지 구분되어야 기록으로 쓸모가 있습니다.
+  #}
+  {% if failed %}
+    <section class="failed">
+      <h2>가져오지 못한 소스</h2>
+      <ul>
+        {% for f in failed %}<li>{{ f }}</li>{% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {#
+    요약이 미덥지 않을 때 원문을 바로 확인할 수 있어야 해서 관측된 문서를
+    전부 남깁니다. 요약은 사라져도 이 목록이 기록의 본체입니다.
+  #}
+  {% if entries %}
+    <section class="sources">
+      <h2>관측된 문서</h2>
+      {% for group in entries %}
+        <h3>{{ group.vendor }} <span class="count">{{ group.items | length }}건</span></h3>
+        <ul class="doc-list">
+          {% for item in group.items %}
+            <li>
+              <time datetime="{{ item.date }}">{{ item.date }}</time>
+              <a href="{{ item.url }}" rel="noopener">{{ item.title }}</a>
+              <span class="kind">{{ item.kind }}</span>
+              {% if item.ref %}<code>{{ item.ref }}</code>{% endif %}
+              {% if item.note %}<p class="note">{{ item.note }}</p>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  <p class="back"><a href="{{ '/updates/' | url }}">← 갱신 일지 목록</a></p>
+</article>

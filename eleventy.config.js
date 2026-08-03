@@ -27,11 +27,32 @@ export default function (eleventyConfig) {
   /** 커밋 해시 표기용 앞 7자 */
   eleventyConfig.addFilter("shortSha", (sha) => String(sha || "").slice(0, 7));
 
+  /** 아카이브에서 특정 벤더의 문서 수 */
+  eleventyConfig.addFilter("vendorCount", (records, vendor) =>
+    (records || []).filter((r) => r.vendor === vendor).length
+  );
+
+  /**
+   * 아카이브 표에 실을 행 수 상한.
+   *
+   * 아카이브는 계속 쌓이기만 합니다. 전부 렌더하면 언젠가 한 페이지가
+   * 수 MB 가 되어 열리지 않습니다. 원본은 vendorArchive.json 에 그대로
+   * 남으므로 화면에서만 잘라 냅니다.
+   */
+  eleventyConfig.addFilter("limitArchive", (records) => (records || []).slice(0, 1500));
+
   // ── 컬렉션 ─────────────────────────────────────────────────────────────
   /** 발행된 글. 최신순. */
   eleventyConfig.addCollection("posts", (collection) =>
     collection
       .getFilteredByTag("posts")
+      .sort((a, b) => b.date - a.date)
+  );
+
+  /** 벤더 문서 갱신 일지. 최신순. */
+  eleventyConfig.addCollection("updates", (collection) =>
+    collection
+      .getFilteredByTag("updates")
       .sort((a, b) => b.date - a.date)
   );
 
