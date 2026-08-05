@@ -81,6 +81,10 @@ src/_data/vendorArchive.json  누적 아카이브        (자동 생성)
    날짜별로 나뉘므로 하루에 한 편씩, 활동한 날 수만큼 글이 나옵니다.  
    그대로 두면 과거가 전부 날짜별 일지로 채워집니다. 지난 것은 넘기고  
    앞으로의 푸시만 쓰고 싶으면:
+  ```bash
+   GH_TOKEN=$(gh auth token) npm run digest -- --seed
+   git add .state && git commit -m "기준점 초기화" && git push
+  ```
 
 시크릿을 넣기 전에는 자동 발행 워크플로가 조용히 건너뜁니다(15분마다 실패 메일이  
 오지 않도록). 배포 워크플로는 시크릿 없이도 동작합니다.
