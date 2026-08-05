@@ -1,5 +1,7 @@
 # devlog
 
+**<https://tkddls8848.github.io/devlog/>**
+
 기록을 자동으로 모아 발행하는 정적 사이트입니다. 두 가지를 추적합니다.
 
 | 무엇 | 어디서 | 만들어지는 것 |
@@ -8,6 +10,30 @@
 | 벤더 제품 문서 갱신 | IBM · Lenovo · HPE | `/updates/` 갱신 일지, `/archive/` 아카이브 |
 
 앞쪽은 아래에서, 뒤쪽은 [벤더 문서 갱신 수집](#벤더-문서-갱신-수집)에서 설명합니다.
+
+## 무엇이 어디에 있는가
+
+```
+tools/push-digest.mjs         커밋 → 개발 일지
+tools/vendor-watch.mjs        벤더 문서 → 갱신 일지 · 아카이브
+tools/sources/*.mjs           벤더별 수집 어댑터 (ibm · lenovo · hpe)
+
+src/posts/                    발행된 개발 일지     (자동 생성)
+src/updates/                  발행된 갱신 일지     (자동 생성)
+src/_data/vendorArchive.json  누적 아카이브        (자동 생성)
+.state/                       어디까지 처리했는지  (자동 갱신)
+```
+
+워크플로는 셋입니다.
+
+| 워크플로 | 언제 | 하는 일 |
+|---|---|---|
+| `push-digest.yml` | 15분마다 | 개발 일지 생성 → 커밋 → 배포 |
+| `vendor-watch.yml` | 매일 09:10 KST | 벤더 문서 수집 → 커밋 → 배포 |
+| `deploy.yml` | `main` 에 푸시될 때 | 빌드해서 Pages 로 배포 |
+
+앞의 둘은 글을 만든 뒤 스스로 빌드·배포까지 합니다. `deploy.yml` 은 사람이
+직접 고친 것(템플릿, CSS, 설정)을 올릴 때 도는 쪽입니다.
 
 ## 개발 일지 동작
 
@@ -67,9 +93,13 @@
 
 ## 로컬에서
 
+Node 20 이상이 필요합니다. CI 는 `.nvmrc` 의 24 를 씁니다.
+
 ```bash
 npm install
 npm run dev            # http://localhost:8080
+npm run build          # _site/ 에 정적 파일 생성
+npm run clean          # _site/ 삭제
 
 # 글 생성을 직접 돌려 보기 (Cloudflare 자격 증명 필요)
 CF_ACCOUNT_ID=... CF_API_TOKEN=... GH_TOKEN=$(gh auth token) npm run digest
@@ -113,6 +143,9 @@ CF_AI_MODEL=@cf/meta/llama-3.3-70b-instruct-fp8-fast npm run digest
 | `@cf/qwen/qwen3-30b-a3b-fp8` | 약 230 | 2.3% |
 | `@cf/meta/llama-3.3-70b-instruct-fp8-fast` | 약 251 | 2.5% |
 
+갱신 일지도 같은 계정의 같은 한도를 씁니다. 평상시 호출은 하루 두 번
+(개발 일지 한 편 + 갱신 일지 한 편)이라 표의 두 배로 보면 됩니다.
+
 한도에 걸리는 경우는 과거를 한꺼번에 훑는 첫 실행뿐입니다(21편이면 약 5,300).
 
 ### 고를 때 볼 것
@@ -132,8 +165,8 @@ CF_AI_MODEL=@cf/meta/llama-3.3-70b-instruct-fp8-fast npm run digest
 ## 어디까지 처리했는지
 
 `.state/last-seen.json` 에 마지막으로 본 이벤트 id 와 최근 커밋 해시가
-들어 있습니다. 이 파일은 생성된 글과 같은 자동 커밋에 담기므로 다음 실행은
-그 이후의 푸시부터 처리합니다.
+(최대 1,000개) 들어 있습니다. 이 파일은 생성된 글과 같은 자동 커밋에 담기므로
+다음 실행은 그 이후의 푸시부터 처리합니다.
 
 처음부터 다시 훑고 싶으면 `lastEventId` 를 `null` 로 되돌리세요.
 
@@ -145,7 +178,7 @@ CF_AI_MODEL=@cf/meta/llama-3.3-70b-instruct-fp8-fast npm run digest
 커밋 로그를 쌓듯이 쌓아 두고, 하루치를 글 한 편으로 정리합니다.
 
 ```
-하루 한 번 (또는 수동 실행)
+매일 09:10 KST (또는 수동 실행)
   → IBM · Lenovo · HPE 에서 최근 문서 목록 수집
   → 지난번에 본 것과 대조해 새로 올라온 것만 추림
   → src/_data/vendorArchive.json 에 누적 (아카이브)
@@ -164,6 +197,9 @@ CF_AI_MODEL=@cf/meta/llama-3.3-70b-instruct-fp8-fast npm run digest
 
 **IBM** 공고 페이지는 SPA 라 HTML 을 긁을 수 없지만, 그 화면이 부르는
 엔드포인트가 인증 없이 JSON 을 줍니다. `region` 으로 지역을 고릅니다(기본 `AP`).
+지역마다 발표 날짜와 목록이 조금씩 다릅니다. 바꾸려면 Settings → Secrets and
+variables → Actions → **Variables** 에 `IBM_REGION` 을 만드세요. 로컬에서는
+환경 변수로 넘깁니다(`IBM_REGION=US npm run watch:vendors`).
 
 **Lenovo** 는 셋 중 유일하게 공개 RSS 가 있고, 그 안에 `Change History` 가
 들어 있습니다. "갱신됨" 이 아니라 "무엇이 바뀌었는지" 까지 벤더가 직접 적어
@@ -173,14 +209,15 @@ CF_AI_MODEL=@cf/meta/llama-3.3-70b-instruct-fp8-fast npm run digest
 검색을 얹은 구조라 두 단계를 거칩니다.
 
 1. 검색 페이지에서 Aura 컨텍스트(`fwuid`, 앱 빌드 id)를 긁는다
-2. Apex 액션 `DCEHPESearch.getToken` 으로 익명 Coveo 토큰을 받는다
+2. Apex 액션 `DCEHPESearchController.getToken` 으로 익명 Coveo 토큰을 받는다
 3. 그 토큰으로 Coveo 검색 API 를 친다
 
 토큰은 HPE 가 로그인하지 않은 방문자에게 자기 엔드포인트로 발급하는 게스트
 토큰입니다. 검색 화면을 여는 사람 누구나 같은 것을 받습니다.
 
-QuickSpecs 만 걸러 내는 필터는 `@kmdoctypedetails==cv66000043` 입니다.
-이 `cv…` 코드가 무엇인지는 HPE 가 공개 API 로 풀어 줍니다:
+거르는 조건은 `@kmdoctypedetails==cv66000043`(QuickSpecs)와
+`@kmdoclanguagecode==cv1871440`(영어)입니다. 이 `cv…` 코드가 무엇인지는 HPE 가
+공개 API 로 풀어 줍니다:
 
 ```bash
 curl -s "https://support.hpe.com/hpesc/public/km/api/coveo_cv/en_US" | jq '.cv66000043'
@@ -224,6 +261,11 @@ Dell 을 넣으려면 사람이 직접 접근할 수 있는 다른 경로 — �
 문서 날짜로 훑어보는 건 아카이브 페이지가 맡습니다.
 **글은 흐름(무엇이 새로 나왔나), 아카이브는 자료(무엇이 있나)** 입니다.
 
+아카이브는 계속 쌓이기만 하므로 화면에는 최근 1,500건만 렌더합니다
+(`eleventy.config.js` 의 `limitArchive`). 전부 그리면 언젠가 한 페이지가 수 MB
+가 되어 열리지 않습니다. 잘린 건 화면에서만이고 원본은
+`src/_data/vendorArchive.json` 에 그대로 남습니다.
+
 ## 롤링 창 주의
 
 세 소스 모두 최근 것만 줍니다 — IBM 약 2주치(70건 안팎), Lenovo 48건,
@@ -252,10 +294,14 @@ CF_ACCOUNT_ID=... CF_API_TOKEN=... npm run watch:vendors
 시크릿이 없으면 워크플로는 `--no-ai` 로 돕니다. 요약은 못 만들어도 그날 갱신을
 놓치면 복구할 수 없기 때문에, 목록만이라도 남기는 쪽을 택했습니다.
 
+따로 넣을 시크릿은 없습니다. 개발 일지와 같은 `CF_ACCOUNT_ID`·`CF_API_TOKEN`·
+`CF_AI_MODEL` 을 그대로 씁니다.
+
 ## 어디까지 처리했는지
 
-`.state/vendor-seen.json` 에 이미 본 문서의 지문이 들어 있습니다. 지문은
-`문서id:날짜` 라서, 같은 문서라도 벤더가 날짜를 새로 찍으면 갱신으로 잡힙니다.
+`.state/vendor-seen.json` 에 이미 본 문서의 지문이 최근 20,000개까지 들어
+있습니다. 지문은 `문서id:날짜` 라서, 같은 문서라도 벤더가 날짜를 새로 찍으면
+갱신으로 잡힙니다.
 
 전체를 다시 훑고 싶으면 이 파일을 지우세요. 누적된 아카이브
 (`src/_data/vendorArchive.json`)는 지문으로 중복을 막으므로 그대로 두어도 됩니다.
