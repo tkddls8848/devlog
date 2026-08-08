@@ -13,6 +13,32 @@
   "seenAt": "2026-08-06"
  },
  {
+  "vendor": "HPE",
+  "id": "a00094630enw",
+  "title": "HPE MSA 2062 Storage Array QuickSpecs",
+  "url": "https://support.hpe.com/hpesc/public/docDisplay?docId=a00094630enw",
+  "date": "2026-08-07",
+  "kind": "QuickSpecs",
+  "tag": null,
+  "ref": "a00094630enw",
+  "note": null,
+  "fingerprint": "a00094630enw:2026-08-07",
+  "seenAt": "2026-08-08"
+ },
+ {
+  "vendor": "HPE",
+  "id": "a50009249enw",
+  "title": "NVIDIA GB200 NVL4 by HPE QuickSpecs",
+  "url": "https://support.hpe.com/hpesc/public/docDisplay?docId=a50009249enw",
+  "date": "2026-08-07",
+  "kind": "QuickSpecs",
+  "tag": null,
+  "ref": "a50009249enw",
+  "note": null,
+  "fingerprint": "a50009249enw:2026-08-07",
+  "seenAt": "2026-08-08"
+ },
+ {
   "vendor": "IBM",
   "id": "82790",
   "title": "IBM Network Intelligence Software (On-Premises) offers AI-native network management to accelerate the journey from automation to autonomous network operations",
@@ -37,6 +63,32 @@
   "note": null,
   "fingerprint": "82868:2026-08-07",
   "seenAt": "2026-08-07"
+ },
+ {
+  "vendor": "Lenovo",
+  "title": "Lenovo ThinkSystem DM5000H Unified Hybrid Storage Array",
+  "url": "https://lenovopress.lenovo.com/lp0885-lenovo-thinksystem-dm5000h-unified-hybrid-storage-array",
+  "date": "2026-08-07",
+  "kind": "Product Guide",
+  "tag": null,
+  "ref": "lp0885",
+  "note": null,
+  "id": "lp0885-lenovo-thinksystem-dm5000h-unified-hybrid-storage-array",
+  "fingerprint": "https://lenovopress.lenovo.com/lp0885-lenovo-thinksystem-dm5000h-unified-hybrid-storage-array:2026-08-07",
+  "seenAt": "2026-08-08"
+ },
+ {
+  "vendor": "Lenovo",
+  "title": "Reference Architecture: Multi-Node HPC Workload Scaling with Cornelis CN5000 Omni-Path on Lenovo ThinkSystem Servers",
+  "url": "https://lenovopress.lenovo.com/lp2486-multi-node-hpc-workload-scaling-with-cornelis-cn5000-omni-path-ra",
+  "date": "2026-08-07",
+  "kind": "Reference Architecture",
+  "tag": null,
+  "ref": "lp2486",
+  "note": null,
+  "id": "lp2486-multi-node-hpc-workload-scaling-with-cornelis-cn5000-omni-path-ra",
+  "fingerprint": "https://lenovopress.lenovo.com/lp2486-multi-node-hpc-workload-scaling-with-cornelis-cn5000-omni-path-ra:2026-08-07",
+  "seenAt": "2026-08-08"
  },
  {
   "vendor": "HPE",
