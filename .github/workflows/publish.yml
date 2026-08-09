@@ -1,10 +1,8 @@
-name: 개발 일지 자동 발행
-
-# 공개 저장소의 푸시를 모아 개발 일지를 만들고 즉시 GitHub Pages에 발행합니다.
+name: 기록 자동 발행
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "10 0 * * *"
   workflow_dispatch:
 
 permissions:
@@ -13,41 +11,21 @@ permissions:
   id-token: write
 
 concurrency:
-  group: push-digest
-  cancel-in-progress: false
+  group: publish
+  cancel-in-progress: true
 
 jobs:
-  digest:
+  publish:
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.changed.outputs.any }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: 시크릿 확인
-        id: secrets
-        env:
-          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-        run: |
-          if [ -z "$CF_ACCOUNT_ID" ] || [ -z "$CF_API_TOKEN" ]; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Cloudflare Workers AI 시크릿이 없어 건너뜁니다."
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/setup-node@v4
-        if: steps.secrets.outputs.ready == 'true'
         with:
           node-version-file: .nvmrc
-          cache: npm
-
-      - run: npm ci
-        if: steps.secrets.outputs.ready == 'true'
 
       - name: 개발 일지 생성
-        if: steps.secrets.outputs.ready == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
@@ -55,16 +33,26 @@ jobs:
           CF_AI_MODEL: ${{ vars.CF_AI_MODEL }}
         run: npm run digest
 
-      - name: 변경 여부 확인
+      - name: 벤더 갱신 일지 생성
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_AI_MODEL: ${{ vars.CF_AI_MODEL }}
+          IBM_REGION: ${{ vars.IBM_REGION }}
+        run: npm run watch:vendors
+
+      - name: 변경 확인
         id: changed
-        if: steps.secrets.outputs.ready == 'true'
         run: |
-          if [ -z "$(git status --porcelain src/posts .state)" ]; then
+          if [ -z "$(git status --porcelain src .state)" ]; then
             echo "any=false" >> "$GITHUB_OUTPUT"
-            echo "새 푸시가 없어 발행할 글이 없습니다."
+            echo "새 기록이 없습니다."
           else
             echo "any=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - run: npm ci
+        if: steps.changed.outputs.any == 'true'
 
       - name: 빌드
         if: steps.changed.outputs.any == 'true'
@@ -72,14 +60,14 @@ jobs:
           PATH_PREFIX: /devlog/
         run: npm run build
 
-      - name: 변경사항 커밋
+      - name: 변경사항 저장
         if: steps.changed.outputs.any == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/posts .state
-          git commit -m "개발 일지 자동 발행"
-          git push origin HEAD:main
+          git add src .state
+          git commit -m "기록 자동 발행"
+          git push
 
       - uses: actions/configure-pages@v5
         if: steps.changed.outputs.any == 'true'
@@ -90,8 +78,8 @@ jobs:
           path: _site
 
   deploy:
-    needs: digest
-    if: needs.digest.outputs.changed == 'true'
+    needs: publish
+    if: needs.publish.outputs.changed == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

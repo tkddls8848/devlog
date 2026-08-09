@@ -4,13 +4,6 @@ title: 아카이브
 wide: true
 ---
 
-{#
-  수집한 문서 전체를 한 화면에서 훑어보는 자료 페이지.
-
-  글(갱신 일지)이 "무엇이 새로 나왔나" 라면 여기는 "무엇이 있나" 입니다.
-  검색·필터는 서버 없이 돌아야 해서 렌더된 행을 자바스크립트로 걸러 냅니다.
-#}
-
 {% set records = vendorArchive %}
 
 <p class="page-intro">
@@ -67,7 +60,7 @@ wide: true
         </tr>
       </thead>
       <tbody id="rows">
-        {% for r in records | limitArchive %}
+        {% for r in records %}
           <tr data-vendor="{{ r.vendor }}" data-text="{{ r.title | lower }} {{ r.ref | lower }}">
             <td class="c-date"><time datetime="{{ r.date }}">{{ r.date }}</time></td>
             <td class="c-vendor"><span class="tag tag-{{ r.vendor | lower }}">{{ r.vendor }}</span></td>
@@ -87,15 +80,7 @@ wide: true
 
   <p class="empty-hit" id="empty" hidden>거른 조건에 맞는 문서가 없습니다.</p>
 
-  {% if records | length > 1500 %}
-    <p class="page-note">
-      화면에는 최근 1,500건만 싣습니다. 전체는 저장소의
-      <code>src/_data/vendorArchive.json</code> 에 들어 있습니다.
-    </p>
-  {% endif %}
-
   <script>
-    // 서버 없이 도는 표 필터. 행이 수천 개라 매 입력마다 훑지 않고 조금 미뤄서 처리합니다.
     (function () {
       var q = document.getElementById("q");
       var rows = Array.prototype.slice.call(document.querySelectorAll("#rows tr"));

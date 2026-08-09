@@ -7,27 +7,24 @@ layout: layouts/base.njk
     <h1>{{ title }}</h1>
     <p class="post-meta">
       <time datetime="{{ date | isoDate }}">{{ date | postDate }}</time>
-      {% if aiGenerated %}<span class="badge" title="AI가 커밋 기록을 정리한 글입니다">AI 생성</span>{% endif %}
+      {% if aiGenerated %}<span class="badge">AI 생성</span>{% endif %}
+      {% if total %}<span class="badge">{{ total }}건</span>{% endif %}
     </p>
     {% if summary %}<p class="post-summary">{{ summary }}</p>{% endif %}
   </header>
 
   {{ content | safe }}
 
-  {#
-    글의 근거가 된 실제 커밋. 요약이 미덥지 않을 때 원본을 바로 확인할 수
-    있어야 해서 항상 남깁니다.
-  #}
   {% if commits %}
     <section class="sources">
       <h2>참고한 커밋</h2>
       {% for repo in commits %}
         <h3><a href="https://github.com/{{ repo.repo }}">{{ repo.repo }}</a></h3>
         <ul>
-          {% for c in repo.items %}
+          {% for commit in repo.items %}
             <li>
-              <a href="https://github.com/{{ repo.repo }}/commit/{{ c.sha }}"><code>{{ c.sha | shortSha }}</code></a>
-              {{ c.message }}
+              <a href="https://github.com/{{ repo.repo }}/commit/{{ commit.sha }}"><code>{{ commit.sha | shortSha }}</code></a>
+              {{ commit.message }}
             </li>
           {% endfor %}
         </ul>
@@ -35,5 +32,11 @@ layout: layouts/base.njk
     </section>
   {% endif %}
 
-  <p class="back"><a href="{{ '/' | url }}">← 목록으로</a></p>
+  <p class="back">
+    {% if total %}
+      <a href="{{ '/updates/' | url }}">← 갱신 일지</a> · <a href="{{ '/archive/' | url }}">전체 문서</a>
+    {% else %}
+      <a href="{{ '/' | url }}">← 개발 일지</a>
+    {% endif %}
+  </p>
 </article>

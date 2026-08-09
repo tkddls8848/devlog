@@ -1,10 +1,5 @@
 name: GitHub Pages 배포
 
-# main 에 올라온 내용을 빌드해 GitHub Pages 로 내보냅니다.
-#
-# 준비: Settings → Pages → Source 를 "GitHub Actions" 로 바꿔야 합니다.
-# (기본값인 "Deploy from a branch" 로 두면 이 워크플로의 결과가 무시됩니다.)
-
 on:
   push:
     branches: [main]
@@ -15,10 +10,9 @@ permissions:
   pages: write
   id-token: write
 
-# 배포는 하나씩. 진행 중인 배포를 취소하지 않습니다.
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -34,9 +28,6 @@ jobs:
       - run: npm ci
 
       - name: 빌드
-        # 프로젝트 사이트라 주소에 저장소 이름이 붙습니다
-        # (https://tkddls8848.github.io/devlog/). 이 접두사를 주지 않으면
-        # CSS 와 링크가 전부 404 가 됩니다.
         env:
           PATH_PREFIX: /devlog/
         run: npm run build
