@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: publish
@@ -15,6 +17,8 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.changed.outputs.any }}
     steps:
       - uses: actions/checkout@v4
 
@@ -84,8 +88,27 @@ jobs:
           git commit -m "기록 자동 발행"
           git push origin HEAD:main
 
+      - uses: actions/configure-pages@v5
+        if: steps.changed.outputs.any == 'true'
+
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.changed.outputs.any == 'true'
+        with:
+          path: _site
+
       - name: 수집 실패 알림
         if: always() && (steps.digest.outcome == 'failure' || steps.vendors.outcome == 'failure')
         run: |
           echo "::error::일부 수집이 실패했습니다. 성공한 결과는 이미 저장·배포 절차로 넘겼습니다."
           exit 1
+
+  deploy:
+    needs: publish
+    if: always() && needs.publish.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
