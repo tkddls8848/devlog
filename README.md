@@ -25,7 +25,7 @@ src/_data/vendorArchive.json  벤더 문서 아카이브
 
 ## 수집 방식
 
-개발 일지는 GitHub Events API의 최근 3페이지를 매번 다시 읽어 `main`·`master`
+개발 일지는 GitHub Events API의 최근 3페이지를 매번 다시 읽어 `main`·`master`·`dev`
 커밋만 남기고, 커밋 작성일(KST)로 묶어 날짜마다 한 편씩 씁니다. 이벤트 ID는
 시간순이 아니므로 중단 기준으로 쓰지 않습니다. 기존 글에 저장된 커밋 SHA로
 중복을 제거하며, 병합 커밋, 리버트, 봇 커밋, `chore:`·`bump` 같은 메시지와 이

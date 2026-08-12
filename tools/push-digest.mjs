@@ -54,7 +54,7 @@ function collectRanges(events) {
     if (
       event.type !== "PushEvent" ||
       event.repo?.name === BLOG_REPO ||
-      !/^refs\/heads\/(main|master)$/.test(event.payload?.ref || "")
+      !/^refs\/heads\/(main|master|dev)$/.test(event.payload?.ref || "")
     ) {
       continue;
     }
