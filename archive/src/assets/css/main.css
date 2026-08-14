@@ -12,6 +12,8 @@
   --lenovo-bg: #fdecec;
   --hpe: #017a5a;
   --hpe-bg: #e4f5ee;
+  --dell: #0063b0;
+  --dell-bg: #e6f1fb;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -29,6 +31,8 @@
     --lenovo-bg: #3a1f22;
     --hpe: #4fd1a5;
     --hpe-bg: #12332a;
+    --dell: #6cb4f0;
+    --dell-bg: #142a3f;
   }
 }
 
@@ -128,6 +132,7 @@ table.archive tbody tr:hover { background: var(--panel); }
 .tag-ibm { background: var(--ibm-bg); color: var(--ibm); }
 .tag-lenovo { background: var(--lenovo-bg); color: var(--lenovo); }
 .tag-hpe { background: var(--hpe-bg); color: var(--hpe); }
+.tag-dell { background: var(--dell-bg); color: var(--dell); }
 
 @media (max-width: 34rem) {
   body { padding: 1.75rem 1rem 3rem; }

@@ -5,7 +5,7 @@ layout: layouts/base.njk
 {% set records = vendorArchive %}
 
 <p class="page-intro">
-  IBM · Lenovo · HPE 제품 문서에서 관측한 갱신을 쌓아 둔 자료입니다.
+  IBM · Lenovo · HPE · Dell 제품 문서에서 관측한 갱신을 쌓아 둔 자료입니다.
   날짜는 벤더가 밝힌 발표일 또는 갱신일입니다.
 </p>
 
@@ -16,7 +16,7 @@ layout: layouts/base.njk
       <strong>{{ records | length }}</strong>
       <span>전체 문서</span>
     </div>
-    {% for v in ["IBM", "Lenovo", "HPE"] %}
+    {% for v in ["IBM", "Lenovo", "HPE", "Dell"] %}
       {% set n = records | vendorCount(v) %}
       {% if n %}
         <div class="stat">
@@ -37,7 +37,7 @@ layout: layouts/base.njk
     />
     <div class="chips" role="group" aria-label="벤더 선택">
       <button type="button" class="chip is-on" data-vendor="">전체</button>
-      {% for v in ["IBM", "Lenovo", "HPE"] %}
+      {% for v in ["IBM", "Lenovo", "HPE", "Dell"] %}
         {% if records | vendorCount(v) %}
           <button type="button" class="chip" data-vendor="{{ v }}">{{ v }}</button>
         {% endif %}

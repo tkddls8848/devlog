@@ -7,7 +7,7 @@
 | 폴더 | 사이트 | 하는 일 |
 | --- | --- | --- |
 | [`devlog/`](devlog/) | <https://tkddls8848.github.io/devlog/> | GitHub 공개 커밋을 날짜별 개발 일지로 발행 |
-| [`archive/`](archive/) | <https://tkddls8848.github.io/devlog/archive/> | IBM·Lenovo·HPE 제품 문서 갱신을 목록으로 축적 |
+| [`archive/`](archive/) | <https://tkddls8848.github.io/devlog/archive/> | IBM·Lenovo·HPE·Dell 제품 문서 갱신을 목록으로 축적 |
 
 두 사이트는 서로를 내비게이션 링크로만 가리킵니다. 링크 주소는 각 폴더의
 `src/_data/site.js`에 있고 환경 변수(`ARCHIVE_URL`, `DEVLOG_URL`)로 덮어쓸 수 있습니다.

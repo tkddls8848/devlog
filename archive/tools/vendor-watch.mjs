@@ -1,10 +1,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
+import * as dell from "./sources/dell.mjs";
 import * as hpe from "./sources/hpe.mjs";
 import * as ibm from "./sources/ibm.mjs";
 import * as lenovo from "./sources/lenovo.mjs";
 
 const ARCHIVE_FILE = "src/_data/vendorArchive.json";
-const sources = [ibm, lenovo, hpe];
+const sources = [ibm, lenovo, hpe, dell];
 const DRY_RUN = process.argv.includes("--dry-run");
 const keyOf = (item) => `${item.vendor}:${item.url}:${item.date}`;
 
