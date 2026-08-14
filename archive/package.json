@@ -13,5 +13,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
   }
 }

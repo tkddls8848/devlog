@@ -29,12 +29,28 @@ IBM 공고 API, Lenovo Press RSS, HPE QuickSpecs(Coveo 검색), Dell 펌웨어 �
 없습니다. HPE는 공식 API가 아니라 검색 화면이 쓰는 내부 호출이라 HPE가 구조를
 바꾸면 멈출 수 있습니다.
 
-Dell만 성격이 다릅니다. `downloads.dell.com/catalog/Catalog.gz`는 롤링 목록이 아니라
-PowerEdge 계열의 펌웨어·드라이버 **전체** 카탈로그(1,800건 이상)라, 날짜 내림차순
-150건으로 잘라 다른 벤더와 분량을 맞춥니다. 같은 릴리스가 지원 시스템 묶음마다
-반복되므로 `releaseID`로 묶고 지원 모델 목록은 합칩니다. 카탈로그 자체는 월 단위로
-갱신되어 대부분의 날은 새 문서가 없고 한 번에 몰려 들어옵니다. 독립 스토리지
-어레이(PowerStore·PowerScale·PowerMax)와 PowerSwitch는 이 카탈로그에 없습니다.
+Dell은 `delltechnologies.com/asset/.../technical-support/*.pdf`의 스펙 시트를 받아
+PDF 메타데이터에서 제목과 수정일을 읽습니다. HPE QuickSpecs, Lenovo Product Guide와
+같은 프리세일즈 문서입니다.
+
+문서 목록을 주는 API가 Dell에는 없어서 후보를 만들어 두드립니다. 서버는 펌웨어
+카탈로그(`downloads.dell.com/catalog/Catalog.gz`)의 지원 시스템 이름으로
+`poweredge-<모델>-spec-sheet.pdf` 슬러그를 만들어 신제품까지 자동으로 따라갑니다.
+스토리지와 네트워크는 파일 이름에 규칙이 없어(`dell-powerstore-gen3-spec-sheet`,
+`dell_emc_networking_s4048t_on_series_spec_sheet`) 확인된 목록을 `dell.mjs`의
+`CURATED`에 직접 둡니다. 새 제품은 여기에 추가하면 됩니다.
+
+메타데이터는 평문으로 박혀 있을 때도, 압축 객체 스트림 안에 있을 때도 있습니다.
+두 방식이 성공하는 파일이 서로 달라 정규식을 먼저 보고 실패하면 `pdf-lib`로
+넘깁니다. 날짜를 못 읽은 문서는 버립니다.
+
+한 번에 200개 가까이 두드리므로 8개씩 묶어 돌리고, 전체가 1분 남짓 걸립니다.
+받는 양은 20MB 정도입니다.
+
+Info Hub(`infohub.delltechnologies.com`)에도 날짜가 붙은 기술 문서가 1,700여 건
+있지만 쓰지 않습니다. reCAPTCHA Enterprise 챌린지가 걸려 있어 헤드리스 브라우저는
+403이고, 헤디드로 통과해도 쿠키가 3시간짜리인 데다 세션이 새것일수록 점수가
+불리해 CI에서는 통과를 기대하기 어렵습니다.
 
 ## 자동 갱신
 
