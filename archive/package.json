@@ -1,0 +1,17 @@
+{
+  "name": "archive",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "eleventy --serve --incremental",
+    "build": "eleventy",
+    "watch:vendors": "node tools/vendor-watch.mjs",
+    "watch:vendors:dry": "node tools/vendor-watch.mjs --dry-run"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.1.6"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,126 @@
+---
+layout: layouts/base.njk
+---
+
+{% set records = vendorArchive %}
+
+<p class="page-intro">
+  IBM · Lenovo · HPE 제품 문서에서 관측한 갱신을 쌓아 둔 자료입니다.
+  날짜는 벤더가 밝힌 발표일 또는 갱신일입니다.
+</p>
+
+{% if records and records.length %}
+  {% set counts = {} %}
+  <section class="stats">
+    <div class="stat">
+      <strong>{{ records | length }}</strong>
+      <span>전체 문서</span>
+    </div>
+    {% for v in ["IBM", "Lenovo", "HPE"] %}
+      {% set n = records | vendorCount(v) %}
+      {% if n %}
+        <div class="stat">
+          <strong>{{ n }}</strong>
+          <span>{{ v }}</span>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </section>
+
+  <div class="filters">
+    <input
+      type="search"
+      id="q"
+      placeholder="제목 · 문서번호로 거르기"
+      aria-label="문서 검색"
+      autocomplete="off"
+    />
+    <div class="chips" role="group" aria-label="벤더 선택">
+      <button type="button" class="chip is-on" data-vendor="">전체</button>
+      {% for v in ["IBM", "Lenovo", "HPE"] %}
+        {% if records | vendorCount(v) %}
+          <button type="button" class="chip" data-vendor="{{ v }}">{{ v }}</button>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <p class="result-count" id="count" aria-live="polite"></p>
+
+  <div class="table-wrap">
+    <table class="archive">
+      <thead>
+        <tr>
+          <th scope="col">날짜</th>
+          <th scope="col">벤더</th>
+          <th scope="col">문서</th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        {% for r in records %}
+          <tr data-vendor="{{ r.vendor }}" data-text="{{ r.title | lower }} {{ r.ref | lower }}">
+            <td class="c-date"><time datetime="{{ r.date }}">{{ r.date }}</time></td>
+            <td class="c-vendor"><span class="tag tag-{{ r.vendor | lower }}">{{ r.vendor }}</span></td>
+            <td class="c-doc">
+              <a href="{{ r.url }}" rel="noopener">{{ r.title }}</a>
+              <span class="meta">
+                {{ r.kind }}{% if r.tag %} · {{ r.tag }}{% endif %}
+                {% if r.ref %} · <code>{{ r.ref }}</code>{% endif %}
+              </span>
+              {% if r.note %}<p class="note">{{ r.note }}</p>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="empty-hit" id="empty" hidden>거른 조건에 맞는 문서가 없습니다.</p>
+
+  <script>
+    (function () {
+      var q = document.getElementById("q");
+      var rows = Array.prototype.slice.call(document.querySelectorAll("#rows tr"));
+      var count = document.getElementById("count");
+      var empty = document.getElementById("empty");
+      var chips = Array.prototype.slice.call(document.querySelectorAll(".chip"));
+      var vendor = "";
+      var timer;
+
+      function apply() {
+        var term = q.value.trim().toLowerCase();
+        var shown = 0;
+        for (var i = 0; i < rows.length; i++) {
+          var row = rows[i];
+          var ok =
+            (!vendor || row.dataset.vendor === vendor) &&
+            (!term || row.dataset.text.indexOf(term) !== -1);
+          row.hidden = !ok;
+          if (ok) shown++;
+        }
+        count.textContent = shown + "건";
+        empty.hidden = shown !== 0;
+      }
+
+      q.addEventListener("input", function () {
+        clearTimeout(timer);
+        timer = setTimeout(apply, 120);
+      });
+
+      chips.forEach(function (chip) {
+        chip.addEventListener("click", function () {
+          chips.forEach(function (c) {
+            c.classList.remove("is-on");
+          });
+          chip.classList.add("is-on");
+          vendor = chip.dataset.vendor;
+          apply();
+        });
+      });
+
+      apply();
+    })();
+  </script>
+{% else %}
+  <p class="page-intro">아직 수집된 문서가 없습니다.</p>
+{% endif %}

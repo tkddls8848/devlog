@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% if title %}{{ title }} · {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
+    <meta name="description" content="{{ summary or site.tagline }}" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="stylesheet" href="{{ '/assets/css/main.css' | url }}" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-brand">
+        <a class="site-title" href="{{ '/' | url }}">{{ site.title }}</a>
+        <p class="site-tagline">{{ site.tagline }}</p>
+      </div>
+      {# 개발 일지는 별도 사이트라 site.devlogUrl을 그대로 쓴다. #}
+      <nav class="site-nav" aria-label="주요">
+        <a href="{{ site.devlogUrl }}">개발 일지</a>
+        <a href="{{ '/' | url }}"{% if page.url == '/' %} aria-current="page"{% endif %}>아카이브</a>
+      </nav>
+    </header>
+
+    <main>{{ content | safe }}</main>
+
+    <footer class="site-footer">
+      <p>
+        © {{ '' | year }} {{ site.githubUser }} ·
+        <a href="https://github.com/{{ site.githubUser }}">GitHub</a>
+      </p>
+    </footer>
+  </body>
+</html>

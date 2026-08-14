@@ -1,8 +1,11 @@
 name: GitHub Pages 배포
 
+# GitHub Pages는 저장소당 사이트 하나만 배포한다. devlog와 archive는 따로 빌드한 뒤
+# 여기서만 하나의 아티팩트로 합친다. 두 서비스를 저장소째 분리하면 이 파일도 각자 가져간다.
 on:
   push:
     branches: [main]
+  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -20,22 +23,53 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: devlog Node 준비
+        uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
+          node-version-file: devlog/.nvmrc
           cache: npm
+          cache-dependency-path: devlog/package-lock.json
 
-      - run: npm ci
+      - name: devlog 의존성 설치
+        working-directory: devlog
+        run: npm ci
 
-      - name: 빌드
+      - name: devlog 빌드
+        working-directory: devlog
         env:
           PATH_PREFIX: /devlog/
+          ARCHIVE_URL: /devlog/archive/
         run: npm run build
+
+      - name: archive Node 준비
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: archive/.nvmrc
+          cache: npm
+          cache-dependency-path: archive/package-lock.json
+
+      - name: archive 의존성 설치
+        working-directory: archive
+        run: npm ci
+
+      - name: archive 빌드
+        working-directory: archive
+        env:
+          PATH_PREFIX: /devlog/archive/
+          DEVLOG_URL: /devlog/
+        run: npm run build
+
+      - name: 두 사이트 합치기
+        run: |
+          mkdir -p dist
+          cp -r devlog/_site/. dist/
+          mkdir -p dist/archive
+          cp -r archive/_site/. dist/archive/
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: dist
 
   deploy:
     needs: build

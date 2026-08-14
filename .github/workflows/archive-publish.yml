@@ -1,0 +1,85 @@
+name: 아카이브 자동 갱신
+
+on:
+  schedule:
+    - cron: "25 0 * * *" # 09:25 KST. 개발 일지 발행과 푸시가 겹치지 않게 띄운다.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-archive
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.changed.outputs.any }}
+    defaults:
+      run:
+        working-directory: archive
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: archive/.nvmrc
+          cache: npm
+          cache-dependency-path: archive/package-lock.json
+
+      - run: npm ci
+
+      - name: 벤더 문서 수집
+        id: vendors
+        continue-on-error: true
+        env:
+          IBM_REGION: ${{ vars.IBM_REGION }}
+        run: npm run watch:vendors
+
+      - name: 수집 상태 기록
+        if: always()
+        run: |
+          echo "### 벤더 문서 수집 결과" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 결과: ${{ steps.vendors.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.vendors.outcome }}" = "failure" ]; then
+            echo "::warning::벤더 수집 일부가 실패했습니다. 성공한 수집 결과는 계속 저장합니다."
+          fi
+
+      - name: 변경 확인
+        id: changed
+        if: always()
+        run: |
+          if [ -z "$(git status --porcelain src)" ]; then
+            echo "any=false" >> "$GITHUB_OUTPUT"
+            echo "새 문서가 없습니다."
+          else
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 변경사항 저장
+        if: steps.changed.outputs.any == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src
+          git commit -m "벤더 문서 아카이브 갱신"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: 수집 실패 알림
+        if: always() && steps.vendors.outcome == 'failure'
+        run: |
+          echo "::error::벤더 수집이 실패했습니다. 저장·배포 절차는 성공한 결과만 넘겼습니다."
+          exit 1
+
+  # GITHUB_TOKEN으로 민 커밋은 push 워크플로를 깨우지 않는다. 배포를 직접 부른다.
+  deploy:
+    needs: collect
+    if: always() && needs.collect.outputs.changed == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
