@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import * as dell from "./sources/dell.mjs";
 import * as hpe from "./sources/hpe.mjs";
 import * as ibm from "./sources/ibm.mjs";
@@ -11,7 +11,10 @@ const keyOf = (item) => `${item.vendor}:${item.url}:${item.date}`;
 
 function saveArchive(records) {
   records.sort((a, b) => b.date.localeCompare(a.date) || a.vendor.localeCompare(b.vendor));
-  writeFileSync(ARCHIVE_FILE, `[\n${records.map(JSON.stringify).join(",\n")}\n]\n`, "utf8");
+  // 대상 파일을 직접 덮어쓰다 중단되면 잘린 JSON이 남아 다음 실행의 parse가
+  // 영구히 실패한다. 임시 파일에 다 쓴 뒤 한 번에 바꾼다.
+  writeFileSync(`${ARCHIVE_FILE}.tmp`, `[\n${records.map(JSON.stringify).join(",\n")}\n]\n`, "utf8");
+  renameSync(`${ARCHIVE_FILE}.tmp`, ARCHIVE_FILE);
 }
 
 async function collectAll() {
@@ -22,6 +25,11 @@ async function collectAll() {
     const vendor = sources[index].vendor;
     if (result.status === "fulfilled") {
       console.log(`  ${vendor}: ${result.value.length}건 수집`);
+      // 네 소스 모두 항상 최근 문서를 돌려준다. 0건은 실패는 아니지만
+      // 응답 구조가 바뀌었다는 신호에 가깝다.
+      if (!result.value.length) {
+        console.warn(`  ⚠️ ${vendor}가 문서를 하나도 돌려주지 않았습니다. 소스 구조 변경을 의심하세요.`);
+      }
       records.push(...result.value);
     } else {
       const message = result.reason?.message || String(result.reason);

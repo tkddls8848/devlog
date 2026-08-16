@@ -2,3 +2,6 @@ node_modules/
 _site/
 .env
 *.log
+
+# 아카이브 저장이 중단되면 남는 임시 파일. 커밋에 섞이지 않게 한다.
+*.tmp

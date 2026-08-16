@@ -67,17 +67,23 @@ async function metadata(buffer) {
   const modified = stampOf(raw, "ModDate");
   if (title && modified) return { title, date: modified };
 
+  let parsedTitle = null;
+  let parsedDate = null;
   try {
     const doc = await PDFDocument.load(buffer, { updateMetadata: false });
-    const parsed = doc.getModificationDate() || doc.getCreationDate();
-    return {
-      title: title || doc.getTitle()?.trim() || null,
-      date: modified || parsed?.toISOString().slice(0, 10) || null,
-    };
+    parsedTitle = doc.getTitle()?.trim() || null;
+    parsedDate =
+      (doc.getModificationDate() || doc.getCreationDate())?.toISOString().slice(0, 10) || null;
   } catch {
-    // 파서까지 실패하면 평문 생성일이라도 쓴다.
-    return { title: title || null, date: modified || stampOf(raw, "CreationDate") || null };
+    // 파서가 아예 못 여는 PDF도 있다. 평문에서 찾은 값으로 계속 간다.
   }
+
+  return {
+    title: title || parsedTitle,
+    // 수정일 → 파서가 읽은 날짜 → 평문 생성일 순으로 내려간다. 파서가 예외를
+    // 던지지 않고 날짜만 못 읽는 경우가 있어 마지막 단계를 catch 밖에 둔다.
+    date: modified || parsedDate || stampOf(raw, "CreationDate"),
+  };
 }
 
 const titleOf = (slug) =>
@@ -89,7 +95,9 @@ const titleOf = (slug) =>
     .trim()
     .toUpperCase();
 
-async function fetchOne([category, slug]) {
+// 후보 대부분은 존재하지 않는 문서라 404는 정상이다. 반면 타임아웃이나 네트워크
+// 오류는 "문서 없음"과 구분되어야 해서 failures에 따로 모은다.
+async function fetchOne([category, slug], failures) {
   const url = `${ASSET}/${category}/technical-support/${slug}.pdf`;
   try {
     const response = await fetch(url, {
@@ -112,7 +120,8 @@ async function fetchOne([category, slug]) {
       tag: kinds[category],
       ref: slug,
     };
-  } catch {
+  } catch (error) {
+    failures.push(`${slug}: ${error.message}`);
     return null;
   }
 }
@@ -120,13 +129,23 @@ async function fetchOne([category, slug]) {
 export async function collect() {
   const targets = [...(await serverCandidates()), ...CURATED];
   const found = [];
+  const failures = [];
 
   // 후보가 200개 가까이 되고 대부분은 없는 문서라, 동시 요청 수를 묶어 돌린다.
   for (let index = 0; index < targets.length; index += CONCURRENCY) {
-    const batch = await Promise.all(targets.slice(index, index + CONCURRENCY).map(fetchOne));
+    const batch = await Promise.all(
+      targets.slice(index, index + CONCURRENCY).map((target) => fetchOne(target, failures))
+    );
     found.push(...batch.filter(Boolean));
   }
   if (!found.length) throw new Error("Dell 스펙 시트를 하나도 받지 못했습니다.");
+
+  if (failures.length) {
+    const sample = failures.slice(0, 3).join(" / ");
+    console.warn(
+      `  ⚠️ Dell 후보 ${failures.length}건을 오류로 건너뛰었습니다: ${sample}${failures.length > 3 ? " 외" : ""}`
+    );
+  }
 
   return found.sort((a, b) => b.date.localeCompare(a.date));
 }
