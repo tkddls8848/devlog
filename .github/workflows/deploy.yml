@@ -21,7 +21,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # 수집 워크플로가 커밋·푸시한 뒤 이 워크플로를 부른다. ref를 비워 두면
+      # 호출자 이벤트의 SHA, 즉 그 커밋 직전 상태를 체크아웃해 한 주기 뒤처진다.
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: devlog Node 준비
         uses: actions/setup-node@v4

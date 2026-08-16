@@ -38,7 +38,11 @@ export async function collect() {
     const url = tag(item, "link") || tag(item, "guid");
     const title = tag(item, "title");
     if (!url || !title) return [];
-    const date = new Date(tag(item, "pubDate")).toISOString().slice(0, 10);
+    // pubDate가 비거나 깨지면 toISOString이 던진다. flatMap 안이라 그대로 두면
+    // 항목 하나 때문에 Lenovo 수집 전체가 실패한다.
+    const published = new Date(tag(item, "pubDate"));
+    if (Number.isNaN(published.getTime())) return [];
+    const date = published.toISOString().slice(0, 10);
     const description = decode(item.match(/<description>([\s\S]*?)<\/description>/)?.[1]);
     const note = latestChange(description);
     const ref = url.match(/\/(lp\d+|ds\d+|tips\d+)/i)?.[1];

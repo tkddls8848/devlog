@@ -21,7 +21,14 @@ export async function collect() {
   if (!response.ok) throw new Error(`IBM API ${response.status}`);
 
   return (await response.json())
-    .filter((item) => !item.internalOnly && item.urlKey && item.name)
+    .filter(
+      (item) =>
+        !item.internalOnly &&
+        item.urlKey &&
+        item.name &&
+        // 날짜가 없으면 아래 slice가 문자열 "undefined"를 날짜로 만들어 그대로 저장된다.
+        /^\d{4}-\d{2}-\d{2}/.test(String(item.announcementDate))
+    )
     .map((item) => {
       const date = String(item.announcementDate).slice(0, 10);
       const tag = labels[String(item.rfaType || "").toLowerCase()];

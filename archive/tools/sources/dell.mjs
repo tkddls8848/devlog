@@ -44,24 +44,39 @@ async function serverCandidates() {
   return [...models].map((model) => ["servers", `poweredge-${model}-spec-sheet`]);
 }
 
+// 증분 업데이트된 PDF는 개정 이력만큼 날짜가 여러 번 박힌다. 앞에서부터 찾으면
+// 가장 오래된 개정본을 집으므로 전부 모아 최신을 고른다.
+const stampOf = (raw, field) => {
+  const stamps = [...raw.matchAll(new RegExp(`/${field}\\s*\\(D:(\\d{8})`, "g"))].map(
+    (match) => match[1]
+  );
+  if (!stamps.length) return null;
+  const latest = stamps.sort().at(-1);
+  return `${latest.slice(0, 4)}-${latest.slice(4, 6)}-${latest.slice(6)}`;
+};
+
 // PDF 메타데이터는 평문일 때도, 압축 객체 스트림에 있을 때도 있다. 두 방법의
 // 성공하는 파일이 서로 달라 정규식을 먼저 보고 실패하면 파서로 넘긴다.
+//
+// 찾는 순서가 중요하다. 개정 감지가 목적이므로 수정일이 생성일보다 앞선다.
+// ModDate와 CreationDate를 한 패턴으로 묶으면 파일에서 먼저 나오는 생성일이
+// 잡히는데, Dell 스펙 시트는 생성일이 먼저라 재발행을 통째로 놓친다.
 async function metadata(buffer) {
   const raw = buffer.toString("latin1");
   const title = raw.match(/\/Title\s*\(([^)]*)\)/)?.[1]?.trim();
-  const stamp = raw.match(/\/(?:ModDate|CreationDate)\s*\(D:(\d{8})/)?.[1];
-  const date = stamp && `${stamp.slice(0, 4)}-${stamp.slice(4, 6)}-${stamp.slice(6)}`;
-  if (title && date) return { title, date };
+  const modified = stampOf(raw, "ModDate");
+  if (title && modified) return { title, date: modified };
 
   try {
     const doc = await PDFDocument.load(buffer, { updateMetadata: false });
     const parsed = doc.getModificationDate() || doc.getCreationDate();
     return {
       title: title || doc.getTitle()?.trim() || null,
-      date: date || parsed?.toISOString().slice(0, 10) || null,
+      date: modified || parsed?.toISOString().slice(0, 10) || null,
     };
   } catch {
-    return { title: title || null, date: date || null };
+    // 파서까지 실패하면 평문 생성일이라도 쓴다.
+    return { title: title || null, date: modified || stampOf(raw, "CreationDate") || null };
   }
 }
 
