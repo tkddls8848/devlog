@@ -10,11 +10,13 @@ GitHub 공개 저장소에 올린 커밋을 매일 한 편의 일지로 기록�
 ## 구성
 
 ```text
-tools/push-digest.mjs   GitHub 커밋 → 개발 일지
-tools/lib.mjs           Cloudflare Workers AI 호출과 초안 파싱
-src/posts/              발행된 글
-src/_data/site.js       사이트 제목과 아카이브 링크
-.state/last-seen.json   마지막 GitHub 이벤트 조회 시점(진단용)
+tools/push-digest.mjs      GitHub 커밋 → 개발 일지
+tools/lib.mjs              Cloudflare Workers AI 호출과 초안 파싱
+test/lib.test.mjs          AI 호출과 초안 파싱을 검증
+test/push-digest.test.mjs  수집·중복 제거·발행을 하위 프로세스로 검증
+src/posts/                 발행된 글
+src/_data/site.js          사이트 제목과 아카이브 링크
+.state/last-seen.json      마지막 GitHub 이벤트 조회 시점(진단용)
 ```
 
 ## 수집 방식

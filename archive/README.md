@@ -14,6 +14,7 @@ IBM·Lenovo·HPE·Dell 제품 문서에서 관측한 갱신을 쌓아 두고, �
 tools/vendor-watch.mjs        벤더 문서 → 아카이브
 tools/sources/                IBM·Lenovo·HPE·Dell 수집기
 test/sources.test.mjs         fetch를 스텁해 수집기 파싱을 검증
+test/vendor-watch.test.mjs    수집·중복 제거·저장을 하위 프로세스로 검증
 src/_data/vendorArchive.json  누적된 문서 목록
 src/_data/site.js             사이트 제목과 개발 일지 링크
 src/index.njk                 목록 표와 거르기 화면
