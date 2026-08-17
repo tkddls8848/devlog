@@ -17,6 +17,7 @@
 ```text
 .github/workflows/devlog-publish.yml    09:10 KST, devlog/ 만 수집·커밋
 .github/workflows/archive-publish.yml   09:25 KST, archive/ 만 수집·커밋
+.github/workflows/test.yml              두 폴더의 테스트를 각각 실행
 .github/workflows/deploy.yml            두 빌드를 합쳐 GitHub Pages로 배포
 ```
 
@@ -25,6 +26,12 @@
 하나만 배포하기 때문이며, 두 서비스를 저장소로 나누면 각자 자기 배포를 가집니다.
 `GITHUB_TOKEN`으로 민 커밋은 `push` 워크플로를 깨우지 않으므로, 각 수집
 워크플로가 새 기록을 커밋한 뒤 `deploy.yml`을 직접 호출합니다.
+
+테스트는 `main` 푸시와 풀 리퀘스트에서 폴더별로 돕니다. 네트워크와 비밀값 없이
+돌도록 만들어져 있어 수집 워크플로와 무관하게 언제든 실행할 수 있습니다.
+`deploy.yml`은 테스트와 README만 바뀐 푸시에서는 돌지 않습니다. 산출물이 그대로인
+빌드를 다시 올릴 이유가 없기 때문이며, 산출물과 관련된 파일이 하나라도 섞이면
+그대로 배포합니다.
 
 ## 설정
 

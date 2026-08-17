@@ -5,6 +5,12 @@ name: GitHub Pages 배포
 on:
   push:
     branches: [main]
+    # 사이트 산출물을 바꿀 수 없는 파일만 뺀다. 한 푸시에 다른 파일이 하나라도
+    # 섞이면 그대로 배포되므로, 애매하면 빼지 않는 편이 안전하다.
+    paths-ignore:
+      - "**/test/**"
+      - "**/README.md"
+      - ".github/workflows/test.yml"
   workflow_call:
   workflow_dispatch:
 

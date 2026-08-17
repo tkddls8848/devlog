@@ -1,0 +1,41 @@
+name: 테스트
+
+# 두 폴더는 서로 독립된 프로젝트라 각자 의존성과 테스트를 가진다. 한쪽이
+# 깨져도 다른 쪽 결과는 그대로 보여야 하므로 매트릭스로 나눠 돌린다.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        folder: [devlog, archive]
+    defaults:
+      run:
+        working-directory: ${{ matrix.folder }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ matrix.folder }}/.nvmrc
+          cache: npm
+          cache-dependency-path: ${{ matrix.folder }}/package-lock.json
+
+      - run: npm ci
+
+      # 수집기 테스트는 fetch를 스텁하고, 스크립트 테스트는 임시 폴더에서
+      # 하위 프로세스로 돈다. 네트워크도 비밀값도 필요하지 않다.
+      - run: npm test
