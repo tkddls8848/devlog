@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-08-18T10:16:23.380Z",
+  "windowHours": 24,
+  "since": "2026-08-17T10:16:22.094Z",
+  "picked": {
+    "Hacker News": 6,
+    "AWS 뉴스 블로그": 1,
+    "GitHub 블로그": 1,
+    "Ars Technica": 6,
+    "The Verge": 6
+  },
+  "failed": []
+}
