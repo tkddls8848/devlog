@@ -1,7 +1,7 @@
 name: GitHub Pages 배포
 
-# GitHub Pages는 저장소당 사이트 하나만 배포한다. devlog와 archive는 따로 빌드한 뒤
-# 여기서만 하나의 아티팩트로 합친다. 두 서비스를 저장소째 분리하면 이 파일도 각자 가져간다.
+# GitHub Pages는 저장소당 사이트 하나만 배포한다. devlog·archive·news는 따로 빌드한 뒤
+# 여기서만 하나의 아티팩트로 합친다. 세 서비스를 저장소째 분리하면 이 파일도 각자 가져간다.
 on:
   push:
     branches: [main]
@@ -49,6 +49,7 @@ jobs:
         env:
           PATH_PREFIX: /devlog/
           ARCHIVE_URL: /devlog/archive/
+          NEWS_URL: /devlog/news/
         run: npm run build
 
       - name: archive Node 준비
@@ -67,14 +68,35 @@ jobs:
         env:
           PATH_PREFIX: /devlog/archive/
           DEVLOG_URL: /devlog/
+          NEWS_URL: /devlog/news/
         run: npm run build
 
-      - name: 두 사이트 합치기
+      - name: news Node 준비
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: news/.nvmrc
+          cache: npm
+          cache-dependency-path: news/package-lock.json
+
+      - name: news 의존성 설치
+        working-directory: news
+        run: npm ci
+
+      - name: news 빌드
+        working-directory: news
+        env:
+          PATH_PREFIX: /devlog/news/
+          DEVLOG_URL: /devlog/
+          ARCHIVE_URL: /devlog/archive/
+        run: npm run build
+
+      - name: 세 사이트 합치기
         run: |
           mkdir -p dist
           cp -r devlog/_site/. dist/
-          mkdir -p dist/archive
+          mkdir -p dist/archive dist/news
           cp -r archive/_site/. dist/archive/
+          cp -r news/_site/. dist/news/
 
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

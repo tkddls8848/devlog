@@ -1,0 +1,24 @@
+---
+layout: layouts/base.njk
+---
+
+<p class="page-intro">
+  IT 업계 뉴스와 엔지니어링 블로그에서 하루치 소식을 모아 한 편으로 묶은 뉴스레터입니다.
+  직접 쓴 코드 기록은 <a href="{{ site.devlogUrl }}">개발 일지</a>에,
+  벤더 제품 문서 갱신은 <a href="{{ site.archiveUrl }}">아카이브</a>에 따로 쌓입니다.
+</p>
+
+<ul class="post-list">
+  {% for issue in collections.issues %}
+    <li>
+      <time datetime="{{ issue.date | isoDate }}">{{ issue.date | issueDate }}</time>
+      <a href="{{ issue.url | url }}">{{ issue.data.title }}</a>
+      {% if issue.data.summary %}<p>{{ issue.data.summary }}</p>{% endif %}
+      {% if issue.data.sources %}
+        <p class="meta">소식 {{ issue.data.sources | entryCount }}건 · {{ issue.data.sources | length }}곳</p>
+      {% endif %}
+    </li>
+  {% else %}
+    <li class="empty">아직 발행된 뉴스레터가 없습니다.</li>
+  {% endfor %}
+</ul>

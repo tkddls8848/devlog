@@ -14,10 +14,11 @@
         <a class="site-title" href="{{ '/' | url }}">{{ site.title }}</a>
         <p class="site-tagline">{{ site.tagline }}</p>
       </div>
-      {# 개발 일지는 별도 사이트라 site.devlogUrl을 그대로 쓴다. #}
+      {# 개발 일지와 뉴스레터는 별도 사이트라 site.*Url을 그대로 쓴다. #}
       <nav class="site-nav" aria-label="주요">
         <a href="{{ site.devlogUrl }}">개발 일지</a>
         <a href="{{ '/' | url }}"{% if page.url == '/' %} aria-current="page"{% endif %}>아카이브</a>
+        <a href="{{ site.newsUrl }}">뉴스레터</a>
       </nav>
     </header>
 

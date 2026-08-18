@@ -1,0 +1,18 @@
+{
+  "name": "news",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "dev": "eleventy --serve --incremental",
+    "build": "eleventy",
+    "digest": "node tools/news-digest.mjs",
+    "digest:dry": "node tools/news-digest.mjs --dry-run"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.1.6"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

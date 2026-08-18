@@ -1,29 +1,32 @@
 # devlog
 
-서로 독립된 Eleventy 사이트 두 개를 한 저장소에 담고 있습니다. 각 폴더는 자기
-`package.json`, 빌드, 수집기, 문서를 따로 가지며 상대 폴더의 코드를 참조하지
+서로 독립된 Eleventy 사이트 세 개를 한 저장소에 담고 있습니다. 각 폴더는 자기
+`package.json`, 빌드, 수집기, 문서를 따로 가지며 다른 폴더의 코드를 참조하지
 않습니다. 나중에 저장소째 떼어내도 폴더를 그대로 옮기면 됩니다.
 
 | 폴더 | 사이트 | 하는 일 |
 | --- | --- | --- |
 | [`devlog/`](devlog/) | <https://tkddls8848.github.io/devlog/> | GitHub 공개 커밋을 날짜별 개발 일지로 발행 |
 | [`archive/`](archive/) | <https://tkddls8848.github.io/devlog/archive/> | IBM·Lenovo·HPE·Dell 제품 문서 갱신을 목록으로 축적 |
+| [`news/`](news/) | <https://tkddls8848.github.io/devlog/news/> | IT 업계 뉴스·블로그의 하루치 소식을 뉴스레터로 발행 |
 
-두 사이트는 서로를 내비게이션 링크로만 가리킵니다. 링크 주소는 각 폴더의
-`src/_data/site.js`에 있고 환경 변수(`ARCHIVE_URL`, `DEVLOG_URL`)로 덮어쓸 수 있습니다.
+세 사이트는 서로를 내비게이션 링크로만 가리킵니다. 링크 주소는 각 폴더의
+`src/_data/site.js`에 있고 환경 변수(`DEVLOG_URL`, `ARCHIVE_URL`, `NEWS_URL`)로
+덮어쓸 수 있습니다.
 
 ## 워크플로
 
 ```text
 .github/workflows/devlog-publish.yml    09:10 KST, devlog/ 만 수집·커밋
 .github/workflows/archive-publish.yml   09:25 KST, archive/ 만 수집·커밋
-.github/workflows/test.yml              두 폴더의 테스트를 각각 실행
-.github/workflows/deploy.yml            두 빌드를 합쳐 GitHub Pages로 배포
+.github/workflows/news-publish.yml      09:40 KST, news/ 만 수집·커밋
+.github/workflows/test.yml              세 폴더의 테스트를 각각 실행
+.github/workflows/deploy.yml            세 빌드를 합쳐 GitHub Pages로 배포
 ```
 
-수집 워크플로는 폴더별로 완전히 분리되어 있고, 한쪽이 실패해도 다른 쪽은 그대로
-돕니다. `deploy.yml`만 두 폴더를 함께 봅니다. GitHub Pages가 저장소당 사이트
-하나만 배포하기 때문이며, 두 서비스를 저장소로 나누면 각자 자기 배포를 가집니다.
+수집 워크플로는 폴더별로 완전히 분리되어 있고, 하나가 실패해도 나머지는 그대로
+돕니다. `deploy.yml`만 세 폴더를 함께 봅니다. GitHub Pages가 저장소당 사이트
+하나만 배포하기 때문이며, 세 서비스를 저장소로 나누면 각자 자기 배포를 가집니다.
 `GITHUB_TOKEN`으로 민 커밋은 `push` 워크플로를 깨우지 않으므로, 각 수집
 워크플로가 새 기록을 커밋한 뒤 `deploy.yml`을 직접 호출합니다.
 
@@ -35,14 +38,15 @@
 
 ## 설정
 
-Actions secrets에 다음 값을 등록합니다. 개발 일지 수집만 사용합니다.
+Actions secrets에 다음 값을 등록합니다. 개발 일지와 뉴스레터 수집이 사용합니다.
 
 - `CF_ACCOUNT_ID`: Cloudflare 계정 ID
 - `CF_API_TOKEN`: Workers AI 권한이 있는 API 토큰
 
-Actions variables로 `CF_AI_MODEL`(개발 일지)과 `IBM_REGION`(아카이브)을 바꿀 수
-있습니다. 기본값은 각각 `@cf/meta/llama-3.1-8b-instruct-fast`, `AP`입니다.
-GitHub API는 워크플로가 자동으로 받는 `GITHUB_TOKEN`을 씁니다.
+Actions variables로 `CF_AI_MODEL`(개발 일지·뉴스레터), `IBM_REGION`(아카이브),
+`NEWS_WINDOW_HOURS`(뉴스레터)를 바꿀 수 있습니다. 기본값은 각각
+`@cf/meta/llama-3.1-8b-instruct-fast`, `AP`, 24입니다. GitHub API는 워크플로가
+자동으로 받는 `GITHUB_TOKEN`을 씁니다.
 
 Settings → Pages의 Source는 `GitHub Actions`, Settings → Actions의 Workflow
 permissions는 `Read and write permissions`로 설정합니다.
@@ -54,6 +58,7 @@ permissions는 `Read and write permissions`로 설정합니다.
 ```bash
 cd devlog && npm install && npm run dev
 cd archive && npm install && npm run dev
+cd news && npm install && npm run dev
 ```
 
 자세한 내용은 각 폴더의 README를 보세요.
