@@ -148,6 +148,61 @@ test("CDATA와 HTML 엔티티를 풀어서 읽는다", () => {
   assert.equal(rows[0].url, "https://example.com/a?x=1&y=2");
 });
 
+test("숫자 문자 참조를 풀어서 읽는다", () => {
+  // The Verge는 제목의 작은따옴표를 &#8217;로 보낸다. 풀지 않으면 목록에
+  // 그대로 노출된다.
+  const rows = parseFeed(
+    rss([
+      rssItem({
+        title: "Apple&#8217;s camera-equipped AirPods",
+        link: "https://www.theverge.com/1",
+        pubDate: "Mon, 17 Aug 2026 00:00:00 GMT",
+      }),
+      rssItem({
+        title: "Hex &#x2019;quote&#x2019;",
+        link: "https://www.theverge.com/2",
+        pubDate: "Mon, 17 Aug 2026 00:00:00 GMT",
+      }),
+    ])
+  );
+
+  assert.deepEqual(
+    rows.map((row) => row.title),
+    ["Apple\u2019s camera-equipped AirPods", "Hex \u2019quote\u2019"]
+  );
+});
+
+test("두 번 감싼 숫자 참조도 한 번에 푼다", () => {
+  // &amp;를 먼저 풀어야 안쪽 &#8217;이 드러난다.
+  const rows = parseFeed(
+    rss([
+      rssItem({
+        title: "ABC&amp;#8217;s livestreamed show",
+        link: "https://www.theverge.com/1",
+        pubDate: "Mon, 17 Aug 2026 00:00:00 GMT",
+      }),
+    ])
+  );
+
+  assert.equal(rows[0].title, "ABC\u2019s livestreamed show");
+});
+
+test("범위를 벗어난 숫자 참조는 원문 그대로 둔다", () => {
+  // fromCodePoint가 던지면 flatMap 안이라 소스 전체가 실패한다.
+  const rows = parseFeed(
+    rss([
+      rssItem({
+        title: "Broken &#999999999; ref",
+        link: "https://www.theverge.com/1",
+        pubDate: "Mon, 17 Aug 2026 00:00:00 GMT",
+      }),
+    ])
+  );
+
+  assert.equal(rows.length, 1, "던지지 않고 항목을 살려야 한다");
+  assert.equal(rows[0].title, "Broken &#999999999; ref");
+});
+
 test("link가 없으면 guid를 주소로 쓴다", () => {
   const rows = parseFeed(
     rss([

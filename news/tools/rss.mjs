@@ -2,16 +2,30 @@
 // 늘릴 때마다 같은 코드를 다시 쓰게 되므로 한 파서가 둘 다 읽는다.
 const UA = "news-digest/1.0";
 
+// 잘못된 코드 포인트는 fromCodePoint가 던진다. 항목 하나 때문에 소스 전체가
+// 실패하지 않게 못 읽은 참조는 원문 그대로 둔다.
+const character = (raw, code) => {
+  try {
+    return String.fromCodePoint(code);
+  } catch {
+    return raw;
+  }
+};
+
 const decode = (value) =>
   String(value || "")
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
+    // 숫자 참조(&#8217; &#x2019;)는 &amp;를 푼 뒤에 처리한다. The Verge처럼
+    // &amp;#8217;로 두 번 감싸 보내는 피드까지 한 번에 풀린다.
+    .replace(/&#(\d+);|&#x([0-9a-f]+);/gi, (raw, dec, hex) =>
+      character(raw, dec ? Number(dec) : parseInt(hex, 16))
+    )
     .trim();
 
 const tag = (xml, name) =>
