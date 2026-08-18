@@ -16,13 +16,12 @@ const STUB = `
 import { readFileSync } from "node:fs";
 
 const fixture = JSON.parse(readFileSync(process.env.NEWS_FIXTURE, "utf8"));
-const text = (body, status = 200) => new Response(body, { status });
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
-const items = (name) => fixture[name].items ?? [];
+const text = (body, status = 200) => new Response(body, { status });
 
-const rss = (name) =>
+const rss = (items) =>
   "<rss><channel>" +
-  items(name)
+  items
     .map(
       (doc) =>
         "<item><title>" + doc.title + "</title><link>" + doc.url + "</link>" +
@@ -31,21 +30,13 @@ const rss = (name) =>
     .join("") +
   "</channel></rss>";
 
-const feeds = {
-  "aws.amazon.com": "aws",
-  "cloudblog.withgoogle.com": "googlecloud",
-  "github.blog": "github",
-  "arstechnica.com": "arstechnica",
-  "theverge.com": "theverge",
-};
-
 globalThis.fetch = async (url) => {
   const target = String(url);
 
   if (target.includes("hn.algolia.com")) {
-    if (fixture.hackernews.fail) return json({ message: "다운" }, 500);
+    if (fixture.hackernews?.fail) return json({ message: "다운" }, 500);
     return json({
-      hits: items("hackernews").map((doc, index) => ({
+      hits: (fixture.hackernews?.items ?? []).map((doc, index) => ({
         objectID: String(index + 1),
         title: doc.title,
         url: doc.url,
@@ -61,23 +52,24 @@ globalThis.fetch = async (url) => {
     return json({ success: true, result: { response: fixture.ai.response } });
   }
 
-  for (const [host, name] of Object.entries(feeds)) {
-    if (target.includes(host)) {
-      if (fixture[name].fail) return text("", 503);
-      return text(rss(name));
-    }
+  // 피드는 feeds.mjs의 후보 주소로 들어온다. 붙박이 목록을 테스트에 복사해 두면
+  // 표가 바뀔 때마다 같이 고쳐야 하므로, 주소 안에 든 호스트로 픽스처를 찾는다.
+  for (const [host, doc] of Object.entries(fixture.feeds ?? {})) {
+    if (!target.includes(host)) continue;
+    if (doc.fail) return text("", 503);
+    return text(rss(doc.items ?? []));
   }
-
-  throw new Error("예상치 못한 요청: " + target);
+  // 픽스처에 없는 소스는 조용한 피드로 둔다. 실패가 아니라 0건이다.
+  return text(rss([]));
 };
 `;
 
 const NOTHING = { items: [] };
 const AI_RESPONSE = [
   "TITLE: 오늘의 IT 다이제스트",
-  "SUMMARY: 클라우드와 커뮤니티 소식을 묶었습니다.",
+  "SUMMARY: 국내외 소식을 묶었습니다.",
   "",
-  "## 클라우드",
+  "## 국내 미디어",
   "",
   "본문입니다.",
 ].join("\n");
@@ -88,11 +80,7 @@ const hoursAgo = (hours) => new Date(Date.now() - hours * 3600 * 1000).toISOStri
 function run({
   issues = {},
   hackernews = NOTHING,
-  aws = NOTHING,
-  googlecloud = NOTHING,
-  github = NOTHING,
-  arstechnica = NOTHING,
-  theverge = NOTHING,
+  feeds = {},
   ai = { response: AI_RESPONSE },
   args = [],
   env = {},
@@ -101,11 +89,7 @@ function run({
   const fixture = path.join(dir, "fixture.json");
   const stub = path.join(dir, "stub.mjs");
 
-  writeFileSync(
-    fixture,
-    JSON.stringify({ hackernews, aws, googlecloud, github, arstechnica, theverge, ai }),
-    "utf8"
-  );
+  writeFileSync(fixture, JSON.stringify({ hackernews, feeds, ai }), "utf8");
   writeFileSync(stub, STUB, "utf8");
   mkdirSync(path.join(dir, ISSUES), { recursive: true });
   for (const [name, body] of Object.entries(issues)) {
@@ -146,11 +130,19 @@ function run({
 
 const story = (title, url, hours = 2) => ({ title, url, at: hoursAgo(hours) });
 
+// 픽스처 키는 feeds.mjs 후보 주소의 호스트다. 표에 실제로 있는 소스만 쓴다.
+const ZDNET = "zdnet.co.kr";
+const BYLINE = "byline.network";
+const REGISTER = "theregister.com";
+const TOSS = "toss.tech";
+
 test("여러 소스의 소식을 한 편으로 묶어 발행한다", () => {
   const result = run({
     hackernews: { items: [story("HN 글", "https://example.com/hn")] },
-    aws: { items: [story("AWS 글", "https://aws.amazon.com/blogs/aws/a/")] },
-    theverge: { items: [story("Verge 글", "https://www.theverge.com/1")] },
+    feeds: {
+      [ZDNET]: { items: [story("지디넷 기사", "https://zdnet.co.kr/view/?no=1")] },
+      [REGISTER]: { items: [story("Register 기사", "https://www.theregister.com/2026/08/18/a/")] },
+    },
   });
 
   assert.equal(result.status, 0);
@@ -161,9 +153,19 @@ test("여러 소스의 소식을 한 편으로 묶어 발행한다", () => {
   assert.match(result.issue, /본문입니다\./);
   // 앞머리는 소스별로 묶인다. 레이아웃이 이 모양을 그대로 읽는다.
   assert.match(result.issue, /source: "Hacker News"\n {4}kind: "커뮤니티"\n {4}entries:/);
-  assert.match(result.issue, /url: "https:\/\/aws\.amazon\.com\/blogs\/aws\/a\/"/);
+  assert.match(result.issue, /source: "지디넷코리아"\n {4}kind: "국내 미디어"/);
+  assert.match(result.issue, /url: "https:\/\/zdnet\.co\.kr\/view\/\?no=1"/);
   assert.match(result.issue, /note: "300 points · 댓글 42"/);
   assert.deepEqual(result.leftovers, [], "임시 파일을 남기지 않는다");
+});
+
+test("표에 있는 소스는 모두 수집을 시도한다", () => {
+  // 픽스처에 없는 소스는 조용한 피드로 답한다. 표 전체가 한 번씩 불려야 한다.
+  const result = run({ feeds: { [ZDNET]: { items: [story("지디넷 기사", "https://zdnet.co.kr/view/?no=1")] } } });
+
+  for (const name of ["Hacker News", "전자신문", "GeekNews", "The Register", "토스 테크"]) {
+    assert.match(result.output, new RegExp(`${name}: \\d+건 수집`), `${name}를 수집하지 않았다`);
+  }
 });
 
 test("발행한 이슈에 담긴 링크는 다시 싣지 않는다", () => {
@@ -172,9 +174,9 @@ test("발행한 이슈에 담긴 링크는 다시 싣지 않는다", () => {
     'title: "어제 이슈"',
     "date: 2026-08-17",
     "sources:",
-    '  - source: "AWS 뉴스 블로그"',
+    '  - source: "지디넷코리아"',
     "    entries:",
-    '      - url: "https://aws.amazon.com/blogs/aws/a/"',
+    '      - url: "https://zdnet.co.kr/view/?no=1"',
     "---",
     "",
   ].join("\n");
@@ -182,7 +184,7 @@ test("발행한 이슈에 담긴 링크는 다시 싣지 않는다", () => {
   const result = run({
     issues: { "2026-08-17-news.md": previous },
     // 추적 파라미터와 www만 다른 같은 글이다.
-    aws: { items: [story("AWS 글", "https://www.aws.amazon.com/blogs/aws/a/?utm_source=rss")] },
+    feeds: { [ZDNET]: { items: [story("지디넷 기사", "https://www.zdnet.co.kr/view/?no=1&utm_source=rss")] } },
   });
 
   assert.equal(result.status, 0);
@@ -192,11 +194,13 @@ test("발행한 이슈에 담긴 링크는 다시 싣지 않는다", () => {
 
 test("한 수집에서 중복으로 올라온 글은 하나만 담는다", () => {
   const result = run({
-    aws: {
-      items: [
-        story("AWS 글", "https://aws.amazon.com/blogs/aws/a/"),
-        story("AWS 글 재발행", "https://aws.amazon.com/blogs/aws/a/?utm_medium=feed"),
-      ],
+    feeds: {
+      [BYLINE]: {
+        items: [
+          story("바이라인 기사", "https://byline.network/2026/08/a/"),
+          story("바이라인 기사 재발행", "https://byline.network/2026/08/a/?utm_medium=feed"),
+        ],
+      },
     },
   });
 
@@ -205,8 +209,10 @@ test("한 수집에서 중복으로 올라온 글은 하나만 담는다", () =>
 
 test("수집 창보다 오래된 글은 빼고 센다", () => {
   const result = run({
-    aws: { items: [story("어제 글", "https://aws.amazon.com/blogs/aws/old/", 30)] },
-    github: { items: [story("오늘 글", "https://github.blog/new/", 3)] },
+    feeds: {
+      [BYLINE]: { items: [story("어제 글", "https://byline.network/old/", 30)] },
+      [TOSS]: { items: [story("오늘 글", "https://toss.tech/article/new", 3)] },
+    },
   });
 
   assert.match(result.output, /수집 2건, 창 안의 새 소식 1건/);
@@ -216,7 +222,7 @@ test("수집 창보다 오래된 글은 빼고 센다", () => {
 
 test("수집 창은 NEWS_WINDOW_HOURS로 늘릴 수 있다", () => {
   const result = run({
-    aws: { items: [story("이틀 전 글", "https://aws.amazon.com/blogs/aws/old/", 40)] },
+    feeds: { [BYLINE]: { items: [story("이틀 전 글", "https://byline.network/old/", 40)] } },
     env: { NEWS_WINDOW_HOURS: "48" },
   });
 
@@ -227,28 +233,32 @@ test("수집 창은 NEWS_WINDOW_HOURS로 늘릴 수 있다", () => {
 
 test("한 소스가 뉴스레터를 다 채우지 못하게 자른다", () => {
   const many = Array.from({ length: 9 }, (_, index) =>
-    story(`AWS ${index}`, `https://aws.amazon.com/blogs/aws/${index}/`, index + 1)
+    story(`지디넷 ${index}`, `https://zdnet.co.kr/view/?no=${index}`, index + 1)
   );
   const result = run({
-    aws: { items: many },
-    github: { items: [story("GitHub 글", "https://github.blog/x/")] },
+    feeds: {
+      [ZDNET]: { items: many },
+      [TOSS]: { items: [story("토스 글", "https://toss.tech/article/x")] },
+    },
     env: { NEWS_PER_SOURCE: "3" },
   });
 
   assert.match(result.output, /뉴스레터에 담을 4건/);
-  assert.equal(result.state.picked["AWS 뉴스 블로그"], 3);
-  assert.equal(result.state.picked["GitHub 블로그"], 1);
+  assert.equal(result.state.picked["지디넷코리아"], 3);
+  assert.equal(result.state.picked["토스 테크"], 1);
 });
 
 test("전체 개수 상한을 넘으면 최신 글부터 남긴다", () => {
   const result = run({
-    aws: {
-      items: [
-        story("가장 새 글", "https://aws.amazon.com/blogs/aws/1/", 1),
-        story("중간 글", "https://aws.amazon.com/blogs/aws/2/", 5),
-      ],
+    feeds: {
+      [ZDNET]: {
+        items: [
+          story("가장 새 글", "https://zdnet.co.kr/view/?no=1", 1),
+          story("중간 글", "https://zdnet.co.kr/view/?no=2", 5),
+        ],
+      },
+      [TOSS]: { items: [story("가장 옛 글", "https://toss.tech/article/3", 9)] },
     },
-    github: { items: [story("가장 옛 글", "https://github.blog/3/", 9)] },
     env: { NEWS_MAX_ITEMS: "2" },
   });
 
@@ -260,7 +270,7 @@ test("전체 개수 상한을 넘으면 최신 글부터 남긴다", () => {
 
 test("AI가 실패해도 링크 목록으로 뉴스레터를 낸다", () => {
   const result = run({
-    aws: { items: [story("AWS 글", "https://aws.amazon.com/blogs/aws/a/")] },
+    feeds: { [ZDNET]: { items: [story("지디넷 기사", "https://zdnet.co.kr/view/?no=1")] } },
     ai: { fail: true },
   });
 
@@ -268,32 +278,28 @@ test("AI가 실패해도 링크 목록으로 뉴스레터를 낸다", () => {
   assert.match(result.output, /AI 요약 실패, 링크 목록만 저장합니다/);
   assert.match(result.issue, /aiGenerated: false/);
   assert.match(result.issue, /IT 뉴스 다이제스트/);
-  assert.match(result.issue, /\[AWS 글\]\(https:\/\/aws\.amazon\.com\/blogs\/aws\/a\/\)/);
+  assert.match(result.issue, /\[지디넷 기사\]\(https:\/\/zdnet\.co\.kr\/view\/\?no=1\)/);
 });
 
 test("일부 소스가 실패해도 나머지는 발행하고 종료 코드로 알린다", () => {
   const result = run({
-    aws: { items: [story("AWS 글", "https://aws.amazon.com/blogs/aws/a/")] },
+    feeds: {
+      [ZDNET]: { items: [story("지디넷 기사", "https://zdnet.co.kr/view/?no=1")] },
+      [REGISTER]: { fail: true },
+    },
     hackernews: { fail: true },
-    theverge: { fail: true },
   });
 
   assert.equal(result.status, 1, "부분 실패는 조용히 지나가면 안 된다");
   assert.match(result.output, /Hacker News 수집 실패, 다른 소스는 계속 처리합니다/);
-  assert.match(result.output, /The Verge 수집 실패/);
+  assert.match(result.output, /The Register 피드를 찾지 못했습니다/);
   assert.equal(result.published.length, 1, "성공한 소스의 결과는 그대로 발행한다");
-  assert.deepEqual(result.state.failed, ["Hacker News", "The Verge"]);
+  assert.deepEqual(result.state.failed, ["Hacker News", "The Register"]);
 });
 
 test("모든 소스가 실패하면 아무것도 쓰지 않는다", () => {
-  const result = run({
-    hackernews: { fail: true },
-    aws: { fail: true },
-    googlecloud: { fail: true },
-    github: { fail: true },
-    arstechnica: { fail: true },
-    theverge: { fail: true },
-  });
+  // 픽스처 하나가 표의 모든 호스트를 덮도록 빈 문자열 키를 쓴다.
+  const result = run({ hackernews: { fail: true }, feeds: { "": { fail: true } } });
 
   assert.notEqual(result.status, 0);
   assert.match(result.output, /모든 뉴스 소스 수집에 실패했습니다/);
@@ -302,22 +308,22 @@ test("모든 소스가 실패하면 아무것도 쓰지 않는다", () => {
 });
 
 test("글을 하나도 못 받은 소스는 구조 변경을 의심하라고 경고한다", () => {
-  const result = run({ aws: { items: [story("AWS 글", "https://aws.amazon.com/blogs/aws/a/")] } });
+  const result = run({ feeds: { [ZDNET]: { items: [story("지디넷 기사", "https://zdnet.co.kr/view/?no=1")] } } });
 
   assert.equal(result.status, 0, "0건은 실패가 아니다");
-  assert.match(result.output, /Hacker News가 글을 하나도 돌려주지 않았습니다/);
+  assert.match(result.output, /전자신문가 글을 하나도 돌려주지 않았습니다/);
   assert.match(result.output, /피드 구조 변경을 의심하세요/);
 });
 
 test("드라이런은 담을 소식을 보여 주고 저장하지 않는다", () => {
   const result = run({
-    aws: { items: [story("AWS 글", "https://aws.amazon.com/blogs/aws/a/")] },
+    feeds: { [ZDNET]: { items: [story("지디넷 기사", "https://zdnet.co.kr/view/?no=1")] } },
     args: ["--dry-run"],
   });
 
   assert.equal(result.status, 0);
-  assert.match(result.output, /AWS 뉴스 블로그: 1건/);
-  assert.match(result.output, /- AWS 글/);
+  assert.match(result.output, /지디넷코리아: 1건/);
+  assert.match(result.output, /- 지디넷 기사/);
   assert.match(result.output, /드라이런이므로 파일을 저장하지 않았습니다/);
   assert.deepEqual(result.published, []);
   assert.equal(result.state, null);
@@ -326,8 +332,8 @@ test("드라이런은 담을 소식을 보여 주고 저장하지 않는다", ()
 test("같은 날 두 번 돌면 뒤 이슈에 번호를 붙인다", () => {
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
   const result = run({
-    issues: { [`${today}-news.md`]: "---\ntitle: \"아침 이슈\"\n---\n" },
-    aws: { items: [story("AWS 글", "https://aws.amazon.com/blogs/aws/a/")] },
+    issues: { [`${today}-news.md`]: '---\ntitle: "아침 이슈"\n---\n' },
+    feeds: { [ZDNET]: { items: [story("지디넷 기사", "https://zdnet.co.kr/view/?no=1")] } },
   });
 
   assert.deepEqual(result.published, [`${today}-news-2.md`]);

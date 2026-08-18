@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: "40 0 * * *" # 09:40 KST. 앞선 두 수집의 푸시와 겹치지 않게 띄운다.
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "실행 방식"
+        type: choice
+        default: publish
+        options:
+          - publish # 수집해서 발행하고 배포까지 부른다
+          - dry-run # 실제 피드를 두드려 보고 파일은 쓰지 않는다
+          - feeds-check # 피드 후보 주소가 살아 있는지만 확인한다
 
 permissions:
   contents: write
@@ -31,6 +40,9 @@ jobs:
 
       - run: npm ci
 
+      # dry-run과 feeds-check는 실제 피드를 그대로 두드려 보고 파일은 쓰지 않는다.
+      # 아무것도 바뀌지 않으므로 아래 저장·배포 단계가 저절로 건너뛰어진다.
+      # schedule로 도는 실행에는 inputs가 없어 늘 발행이다.
       - name: 뉴스 다이제스트 생성
         id: digest
         continue-on-error: true
@@ -39,12 +51,18 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_AI_MODEL: ${{ vars.CF_AI_MODEL }}
           NEWS_WINDOW_HOURS: ${{ vars.NEWS_WINDOW_HOURS }}
-        run: npm run digest
+        run: |
+          case "${{ inputs.mode || 'publish' }}" in
+            feeds-check) npm run feeds:check ;;
+            dry-run) npm run digest:dry ;;
+            *) npm run digest ;;
+          esac
 
       - name: 수집 상태 기록
         if: always()
         run: |
           echo "### 뉴스 다이제스트 수집 결과" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 모드: ${{ inputs.mode || 'publish' }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- 결과: ${{ steps.digest.outcome }}" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ steps.digest.outcome }}" = "failure" ]; then
             echo "::warning::뉴스 수집 일부가 실패했습니다. 성공한 소스의 결과는 계속 저장합니다."

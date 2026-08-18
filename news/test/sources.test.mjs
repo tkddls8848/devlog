@@ -1,17 +1,11 @@
 import assert from "node:assert/strict";
 import test, { afterEach } from "node:test";
 
-import { normalizeUrl, parseFeed } from "../tools/rss.mjs";
-import * as arstechnica from "../tools/sources/arstechnica.mjs";
-import * as aws from "../tools/sources/aws.mjs";
-import * as github from "../tools/sources/github.mjs";
-import * as googlecloud from "../tools/sources/googlecloud.mjs";
+import { feeds } from "../tools/feeds.mjs";
+import { feedSource, normalizeUrl, parseFeed } from "../tools/rss.mjs";
 import * as hackernews from "../tools/sources/hackernews.mjs";
-import * as theverge from "../tools/sources/theverge.mjs";
 
-const all = [hackernews, aws, googlecloud, github, arstechnica, theverge];
-
-// 수집기는 source·kind·collect()만 내보내고 안쪽은 감춰져 있다. 네트워크를
+// 소스는 이름·분류·collect()만 내보내고 안쪽은 감춰져 있다. 네트워크를
 // 스텁해 실제 코드 경로를 그대로 태운다.
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -29,22 +23,38 @@ const stub = (handler) => {
 
 const SINCE = new Date("2026-08-17T00:00:00.000Z");
 
-test("여섯 수집기 모두 이름과 분류, collect()를 내보낸다", () => {
+test("Hacker News 수집기는 이름과 분류, collect()를 내보낸다", () => {
   // news-digest는 sources[index].source로 실패 로그와 묶음 제목을 만든다.
   // 이름이 빠지면 수집이 조용히 "undefined: 0건"이 된다.
-  for (const source of all) {
-    assert.equal(typeof source.source, "string");
-    assert.ok(source.source.length);
-    assert.equal(typeof source.kind, "string");
-    assert.ok(source.kind.length);
-    assert.equal(typeof source.collect, "function");
+  assert.equal(typeof hackernews.source, "string");
+  assert.ok(hackernews.source.length);
+  assert.equal(typeof hackernews.kind, "string");
+  assert.ok(hackernews.kind.length);
+  assert.equal(typeof hackernews.collect, "function");
+});
+
+test("피드 표의 모든 소스가 이름·분류·후보 주소를 갖춘다", () => {
+  for (const feed of feeds) {
+    assert.ok(feed.source?.length, `이름 없는 소스: ${JSON.stringify(feed)}`);
+    assert.ok(feed.kind?.length, `${feed.source}에 분류가 없다`);
+    assert.ok(Array.isArray(feed.urls) && feed.urls.length, `${feed.source}에 후보 주소가 없다`);
+    for (const url of feed.urls) {
+      assert.match(url, /^https:\/\//, `${feed.source}의 후보는 https여야 한다: ${url}`);
+    }
   }
 });
 
-test("수집기 이름은 서로 겹치지 않는다", () => {
+test("소스 이름은 서로 겹치지 않는다", () => {
   // 이름이 겹치면 묶기에서 한쪽이 다른 쪽 항목을 통째로 잃는다.
-  const names = all.map((source) => source.source);
+  const names = [hackernews.source, ...feeds.map((feed) => feed.source)];
   assert.equal(new Set(names).size, names.length);
+});
+
+test("후보 주소는 소스 안에서 중복되지 않는다", () => {
+  // 같은 주소를 두 번 두드려 봐야 결과는 같고 실패만 두 배로 걸린다.
+  for (const feed of feeds) {
+    assert.equal(new Set(feed.urls).size, feed.urls.length, `${feed.source}에 같은 후보가 두 번 있다`);
+  }
 });
 
 // ------------------------------------------------------------------ 피드 파서
@@ -175,35 +185,102 @@ test("질의 문자열이 다르면 다른 글로 본다", () => {
 
 // ------------------------------------------------------------ 피드 수집기
 
+const TEST_FEED = {
+  source: "테스트 소스",
+  kind: "기술 블로그",
+  urls: ["https://example.com/first.xml", "https://example.com/second.xml"],
+  limit: 2,
+};
+
 test("피드 수집기는 최신 글부터 limit만큼 담는다", async () => {
   const calls = stub(
     () =>
       new Response(
         rss([
-          rssItem({ title: "옛 글", link: "https://github.blog/old/", pubDate: "Mon, 10 Aug 2026 00:00:00 GMT" }),
-          rssItem({ title: "새 글", link: "https://github.blog/new/", pubDate: "Mon, 17 Aug 2026 00:00:00 GMT" }),
+          rssItem({ title: "옛 글", link: "https://example.com/old/", pubDate: "Mon, 10 Aug 2026 00:00:00 GMT" }),
+          rssItem({ title: "새 글", link: "https://example.com/new/", pubDate: "Mon, 17 Aug 2026 00:00:00 GMT" }),
+          rssItem({ title: "중간 글", link: "https://example.com/mid/", pubDate: "Fri, 14 Aug 2026 00:00:00 GMT" }),
         ]),
         { status: 200 }
       )
   );
 
-  const rows = await github.collect(SINCE);
+  const rows = await feedSource(TEST_FEED)();
 
-  assert.equal(calls[0].url, "https://github.blog/feed/");
+  assert.equal(calls.length, 1, "첫 후보가 되면 다음 후보는 두드리지 않는다");
+  assert.equal(calls[0].url, TEST_FEED.urls[0]);
   assert.deepEqual(
     rows.map((row) => row.title),
-    ["새 글", "옛 글"],
-    "최신 글이 앞에 온다"
+    ["새 글", "중간 글"],
+    "최신 글부터 limit만큼 남는다"
   );
-  assert.equal(rows[0].source, github.source);
-  assert.equal(rows[0].kind, github.kind);
+  assert.equal(rows[0].source, TEST_FEED.source);
+  assert.equal(rows[0].kind, TEST_FEED.kind);
   assert.equal(rows[0].at, "2026-08-17T00:00:00.000Z", "at은 ISO 문자열이다");
 });
 
-test("피드가 오류를 돌려주면 수집기가 던진다", async () => {
-  // 던져야 news-digest가 부분 실패로 잡고 종료 코드에 싣는다.
+test("첫 후보가 막히면 다음 후보를 두드린다", async () => {
+  const calls = stub((url) =>
+    url === TEST_FEED.urls[0]
+      ? new Response("", { status: 404 })
+      : new Response(
+          rss([rssItem({ title: "두 번째 후보", link: "https://example.com/a", pubDate: "Mon, 17 Aug 2026 00:00:00 GMT" })]),
+          { status: 200 }
+        )
+  );
+
+  const rows = await feedSource(TEST_FEED)();
+
+  assert.equal(calls.length, 2);
+  assert.deepEqual(
+    rows.map((row) => row.title),
+    ["두 번째 후보"]
+  );
+});
+
+test("피드가 아닌 200 응답은 후보 실패로 본다", async () => {
+  // 개편된 사이트는 없는 피드 자리에 200과 함께 안내 HTML을 준다. 이걸 빈
+  // 피드로 받아들이면 살아 있는 다음 후보를 놓친다.
+  const calls = stub((url) =>
+    url === TEST_FEED.urls[0]
+      ? new Response("<html><body>피드가 이전되었습니다</body></html>", { status: 200 })
+      : new Response(
+          rss([rssItem({ title: "옮겨 간 피드", link: "https://example.com/a", pubDate: "Mon, 17 Aug 2026 00:00:00 GMT" })]),
+          { status: 200 }
+        )
+  );
+
+  const rows = await feedSource(TEST_FEED)();
+
+  assert.equal(calls.length, 2);
+  assert.deepEqual(
+    rows.map((row) => row.title),
+    ["옮겨 간 피드"]
+  );
+});
+
+test("항목이 0건이어도 피드로 읽히면 그 후보를 쓴다", async () => {
+  // 조용한 날과 죽은 주소는 다르다. 0건 경고는 news-digest가 따로 남긴다.
+  const calls = stub(() => new Response(rss([]), { status: 200 }));
+
+  const rows = await feedSource(TEST_FEED)();
+
+  assert.equal(calls.length, 1, "0건이라고 다음 후보로 넘어가지 않는다");
+  assert.deepEqual(rows, []);
+});
+
+test("후보가 모두 막히면 두드린 주소를 모아 던진다", async () => {
+  // 던져야 news-digest가 부분 실패로 잡고 종료 코드에 싣는다. 어느 주소가
+  // 왜 막혔는지 함께 남겨야 feeds.mjs를 고칠 수 있다.
   stub(() => new Response("", { status: 503 }));
-  await assert.rejects(() => aws.collect(SINCE), /피드 503/);
+
+  await assert.rejects(() => feedSource(TEST_FEED)(), (error) => {
+    assert.match(error.message, /테스트 소스 피드를 찾지 못했습니다/);
+    assert.match(error.message, /first\.xml/);
+    assert.match(error.message, /second\.xml/);
+    assert.match(error.message, /503/);
+    return true;
+  });
 });
 
 // ------------------------------------------------------- Hacker News 수집기

@@ -1,25 +1,31 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { generate, model, parseDraft, yaml } from "./lib.mjs";
-import { normalizeUrl } from "./rss.mjs";
-import * as arstechnica from "./sources/arstechnica.mjs";
-import * as aws from "./sources/aws.mjs";
-import * as github from "./sources/github.mjs";
-import * as googlecloud from "./sources/googlecloud.mjs";
+import { feeds } from "./feeds.mjs";
+import { feedSource, normalizeUrl } from "./rss.mjs";
 import * as hackernews from "./sources/hackernews.mjs";
-import * as theverge from "./sources/theverge.mjs";
 
-const sources = [hackernews, aws, googlecloud, github, arstechnica, theverge];
 const ISSUES_DIR = "src/issues";
 const STATE_FILE = ".state/last-seen.json";
 const DRY_RUN = process.argv.includes("--dry-run");
 const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" });
 
-// 미국 시간대 소스가 많아 KST 오늘치만 담으면 아침 발행에 남는 소식이 없다.
-// 발행 시각 기준 최근 24시간을 하루로 본다.
+// 국내 매체는 KST로, 해외 소스는 미국 시간대로 글을 낸다. KST 오늘치만 담으면
+// 아침 발행에 해외 소식이 통째로 빠지므로 발행 시각 기준 최근 24시간을 하루로 본다.
 const WINDOW_HOURS = Number(process.env.NEWS_WINDOW_HOURS || 24);
-const PER_SOURCE = Number(process.env.NEWS_PER_SOURCE || 6);
-const MAX_ITEMS = Number(process.env.NEWS_MAX_ITEMS || 24);
+const PER_SOURCE = Number(process.env.NEWS_PER_SOURCE || 3);
+const MAX_ITEMS = Number(process.env.NEWS_MAX_ITEMS || 30);
+
+// Hacker News만 피드 대신 검색 API를 쓴다. 나머지는 표에 적힌 후보 주소를
+// 두드리는 같은 수집기이며, 소스를 늘릴 때 손댈 곳은 feeds.mjs 하나다.
+const sources = [
+  hackernews,
+  ...feeds.map((feed) => ({
+    source: feed.source,
+    kind: feed.kind,
+    collect: feedSource({ ...feed, limit: PER_SOURCE }),
+  })),
+];
 
 async function collectAll(since) {
   const settled = await Promise.allSettled(sources.map((source) => source.collect(since)));

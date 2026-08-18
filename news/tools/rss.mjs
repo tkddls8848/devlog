@@ -63,20 +63,39 @@ export function normalizeUrl(value) {
 
 export async function fetchFeed(url, label) {
   const response = await fetch(url, {
-    headers: { "User-Agent": UA, Accept: "application/rss+xml, application/atom+xml, text/xml" },
+    headers: { "User-Agent": UA, Accept: "application/rss+xml, application/atom+xml, text/xml, */*" },
     signal: AbortSignal.timeout(30000),
   });
-  if (!response.ok) throw new Error(`${label} 피드 ${response.status}`);
-  return parseFeed(await response.text());
+  if (!response.ok) throw new Error(`${label} 피드 ${response.status} (${url})`);
+  const body = await response.text();
+  // 개편된 사이트는 없는 피드 자리에 200과 함께 안내 HTML을 준다. 이걸 빈
+  // 피드로 받아들이면 다음 후보를 두드려 보지 못한다.
+  if (!/<(rss|feed|rdf:RDF)[\s>]/i.test(body)) {
+    throw new Error(`${label} 피드 형식이 아닙니다 (${url})`);
+  }
+  return parseFeed(body);
 }
 
-// 소스 모듈은 이 함수 한 줄로 끝난다. 소스별로 다른 건 이름·주소·분류뿐이다.
-export function feedSource({ source, kind, url, limit = 8 }) {
+// 후보를 순서대로 두드려 먼저 응답하는 주소를 쓴다. 피드로 읽히기만 하면
+// 항목이 0건이어도 그 주소를 쓴다. 조용한 날과 죽은 주소는 다르고, 0건은
+// news-digest가 따로 경고한다.
+export function feedSource({ source, kind, urls, limit = 5 }) {
+  const candidates = Array.isArray(urls) ? urls : [urls];
   return async function collect() {
-    const items = await fetchFeed(url, source);
-    return items
-      .sort((a, b) => b.at - a.at)
-      .slice(0, limit)
-      .map((item) => ({ source, kind, title: item.title, url: item.url, at: item.at.toISOString() }));
+    const failures = [];
+    for (const url of candidates) {
+      let items;
+      try {
+        items = await fetchFeed(url, source);
+      } catch (error) {
+        failures.push(error.message);
+        continue;
+      }
+      return items
+        .sort((a, b) => b.at - a.at)
+        .slice(0, limit)
+        .map((item) => ({ source, kind, title: item.title, url: item.url, at: item.at.toISOString() }));
+    }
+    throw new Error(`${source} 피드를 찾지 못했습니다: ${failures.join(" / ")}`);
   };
 }
