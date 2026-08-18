@@ -11,7 +11,7 @@ Eleventy 사이트입니다.
 ## 구성
 
 ```text
-tools/feeds.mjs            피드 소스 24곳의 이름·분류·후보 주소 표
+tools/feeds.mjs            피드 소스의 이름·분류·후보 주소 표
 tools/news-digest.mjs      소식 수집 → 하루 한 편의 이슈 발행
 tools/feed-check.mjs       피드 후보 주소가 살아 있는지 한 번에 점검
 tools/rss.mjs              RSS 2.0·Atom 공용 파서와 주소 정규화
@@ -26,16 +26,17 @@ src/index.njk              이슈 목록
 
 ## 소스
 
-소스 25곳을 봅니다. 목록과 피드 주소는 `tools/feeds.mjs` 한 곳에 있고, 소스를
+소스 6곳을 봅니다. 목록과 피드 주소는 `tools/feeds.mjs` 한 곳에 있고, 소스를
 늘리거나 주소를 고칠 때 손댈 곳도 여기뿐입니다.
 
-| 분류 | 소스 |
-| --- | --- |
-| 국내 미디어 | 지디넷코리아, 전자신문, 디지털데일리, 디지털타임스, 테크M, 지티티코리아, Byline Network, CIO Korea, ITWorld Korea |
-| 보안 | 보안뉴스, Palo Alto Networks 블로그 |
-| 커뮤니티 | Hacker News, GeekNews, 퀘이사존, 서버포럼 |
-| 기술 블로그 | 요즘IT, DEVOCEAN, 토스 테크, Samsung Tech Blog, Cloudflare 블로그, Unsloth AI, Making Software |
-| 해외 미디어 | The Register, The Next Platform, TechPowerUp |
+| 소스 | 분류 | 받는 곳 |
+| --- | --- | --- |
+| Hacker News | 커뮤니티 | Algolia 검색 API |
+| AWS 뉴스 블로그 | 클라우드 | RSS |
+| Google Cloud 블로그 | 클라우드 | RSS |
+| GitHub 블로그 | 개발자 도구 | RSS |
+| Ars Technica | 업계 뉴스 | RSS |
+| The Verge | 업계 뉴스 | Atom |
 
 Hacker News만 피드 대신 Algolia 검색 API를 씁니다. 프론트페이지 API는 지금 걸려
 있는 글만 돌려주므로, 하루에 한 번 도는 수집기가 놓치지 않도록 시간 범위로 검색하고
@@ -55,7 +56,7 @@ Hacker News만 피드 대신 Algolia 검색 API를 씁니다. 프론트페이지
 날과 죽은 주소는 다르기 때문이며, 0건은 따로 경고로 남깁니다.
 
 후보가 모두 막힌 소스는 어떤 주소를 왜 못 썼는지 로그에 남기고 그 소스만 실패
-처리합니다. 다음 명령으로 피드 소스 24곳의 후보를 한 번에 확인할 수 있습니다.
+처리합니다. 다음 명령으로 표의 후보를 한 번에 확인할 수 있습니다.
 
 ```bash
 npm run feeds:check
@@ -67,16 +68,15 @@ npm run feeds:check
 
 ## 수집 방식
 
-발행 시각 기준 최근 24시간(`NEWS_WINDOW_HOURS`)에 올라온 글만 모읍니다. 국내 매체는
-KST로, 해외 소스는 미국 시간대로 글을 내기 때문에 KST 오늘치만 담으면 아침 발행에
-해외 소식이 통째로 빠집니다.
+발행 시각 기준 최근 24시간(`NEWS_WINDOW_HOURS`)에 올라온 글만 모읍니다. 미국 시간대
+소스가 많아 KST 오늘치만 담으면 아침 발행에 남는 소식이 거의 없기 때문입니다.
 
 같은 글이 소스마다 추적 파라미터를 달리 붙여 오므로, `utm_*`·`www.`·끝 슬래시를
 지운 주소로 중복을 판정합니다. 이미 발행한 이슈의 앞머리에 있는 주소도 같은 방식으로
 비교해 다시 싣지 않습니다.
 
-출처 하나가 뉴스레터를 다 채우지 않도록 소스별로 3건(`NEWS_PER_SOURCE`)까지 자른 뒤,
-전체를 최신순 30건(`NEWS_MAX_ITEMS`)으로 다시 자릅니다.
+출처 하나가 뉴스레터를 다 채우지 않도록 소스별로 6건(`NEWS_PER_SOURCE`)까지 자른 뒤,
+전체를 최신순 24건(`NEWS_MAX_ITEMS`)으로 다시 자릅니다.
 
 한 소스가 실패해도 나머지 소스의 결과로 발행하고 종료 코드 1로 알립니다. 모든 소스가
 실패하면 아무것도 쓰지 않습니다.
@@ -115,7 +115,7 @@ CF_ACCOUNT_ID=... CF_API_TOKEN=... npm run digest
 # 저장하지 않고 오늘 담길 소식만 확인 (AI도 부르지 않는다)
 npm run digest:dry
 
-# 피드 소스 24곳의 후보 주소가 살아 있는지 확인
+# 피드 후보 주소가 살아 있는지 확인
 npm run feeds:check
 ```
 

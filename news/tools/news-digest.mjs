@@ -10,11 +10,11 @@ const STATE_FILE = ".state/last-seen.json";
 const DRY_RUN = process.argv.includes("--dry-run");
 const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" });
 
-// 국내 매체는 KST로, 해외 소스는 미국 시간대로 글을 낸다. KST 오늘치만 담으면
-// 아침 발행에 해외 소식이 통째로 빠지므로 발행 시각 기준 최근 24시간을 하루로 본다.
+// 미국 시간대 소스가 많아 KST 오늘치만 담으면 아침 발행에 남는 소식이 없다.
+// 발행 시각 기준 최근 24시간을 하루로 본다.
 const WINDOW_HOURS = Number(process.env.NEWS_WINDOW_HOURS || 24);
-const PER_SOURCE = Number(process.env.NEWS_PER_SOURCE || 3);
-const MAX_ITEMS = Number(process.env.NEWS_MAX_ITEMS || 30);
+const PER_SOURCE = Number(process.env.NEWS_PER_SOURCE || 6);
+const MAX_ITEMS = Number(process.env.NEWS_MAX_ITEMS || 24);
 
 // Hacker News만 피드 대신 검색 API를 쓴다. 나머지는 표에 적힌 후보 주소를
 // 두드리는 같은 수집기이며, 소스를 늘릴 때 손댈 곳은 feeds.mjs 하나다.
