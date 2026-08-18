@@ -2,7 +2,7 @@ name: 뉴스레터 자동 발행
 
 on:
   schedule:
-    - cron: "40 0 * * *" # 09:40 KST. 앞선 두 수집의 푸시와 겹치지 않게 띄운다.
+    - cron: "0 22 * * *" # 07:00 KST. UTC로는 전날 22:00이며, 개발 일지·아카이브 수집보다 앞선다.
   workflow_dispatch:
     inputs:
       mode:

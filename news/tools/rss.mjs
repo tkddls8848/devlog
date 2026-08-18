@@ -39,7 +39,19 @@ function linkOf(entry) {
   return decode(href) || tag(entry, "link") || tag(entry, "guid") || tag(entry, "id");
 }
 
+// 항목에 날짜 태그를 하나도 달지 않는 피드가 있다. 요즘IT와 rss.app이 만든 피드가
+// 그렇다. 날짜 없는 항목을 버리는 규칙만 두면 이런 소스는 통째로 0건이 되어 조용히
+// 빠진다. 채널이 스스로 밝힌 갱신 시각을 대신 쓴다. 지어낸 시각이 아니라서 갱신이
+// 멈춘 피드는 옛 시각 그대로 남고, 수집 창에서 저절로 걸러진다.
+function channelDate(xml) {
+  // 항목 안의 날짜를 채널 날짜로 착각하지 않게 첫 항목 앞까지만 본다.
+  const head = String(xml || "").split(/<(?:item|entry)(?:\s|>)/i)[0];
+  const at = new Date(tag(head, "lastBuildDate") || tag(head, "updated") || tag(head, "pubDate"));
+  return Number.isNaN(at.getTime()) ? null : at;
+}
+
 export function parseFeed(xml) {
+  const fallback = channelDate(xml);
   const blocks = String(xml || "").match(/<(item|entry)(?:\s[^>]*)?>[\s\S]*?<\/\1>/gi) || [];
   return blocks.flatMap((entry) => {
     const title = tag(entry, "title");
@@ -53,7 +65,7 @@ export function parseFeed(xml) {
       tag(entry, "updated") ||
       tag(entry, "dc:date");
     const at = new Date(stamp);
-    if (Number.isNaN(at.getTime())) return [];
+    if (Number.isNaN(at.getTime())) return fallback ? { title, url, at: new Date(fallback) } : [];
     return { title, url, at };
   });
 }

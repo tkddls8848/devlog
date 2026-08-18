@@ -13,8 +13,8 @@ const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" });
 // 미국 시간대 소스가 많아 KST 오늘치만 담으면 아침 발행에 남는 소식이 없다.
 // 발행 시각 기준 최근 24시간을 하루로 본다.
 const WINDOW_HOURS = Number(process.env.NEWS_WINDOW_HOURS || 24);
-const PER_SOURCE = Number(process.env.NEWS_PER_SOURCE || 6);
-const MAX_ITEMS = Number(process.env.NEWS_MAX_ITEMS || 24);
+const PER_SOURCE = Number(process.env.NEWS_PER_SOURCE || 3);
+const MAX_ITEMS = Number(process.env.NEWS_MAX_ITEMS || 30);
 
 // Hacker News만 피드 대신 검색 API를 쓴다. 나머지는 표에 적힌 후보 주소를
 // 두드리는 같은 수집기이며, 소스를 늘릴 때 손댈 곳은 feeds.mjs 하나다.
@@ -35,7 +35,7 @@ async function collectAll(since) {
     const name = sources[index].source;
     if (result.status === "fulfilled") {
       console.log(`  ${name}: ${result.value.length}건 수집`);
-      // 여섯 소스 모두 항상 최근 글을 돌려준다. 0건은 실패는 아니지만
+      // 표에 남긴 소스는 모두 항상 최근 글을 돌려준다. 0건은 실패는 아니지만
       // 피드 구조가 바뀌었다는 신호에 가깝다.
       if (!result.value.length) {
         console.warn(`  ⚠️ ${name}가 글을 하나도 돌려주지 않았습니다. 피드 구조 변경을 의심하세요.`);

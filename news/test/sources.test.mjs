@@ -133,6 +133,61 @@ test("제목·주소·날짜가 빠지거나 깨진 항목만 건너뛴다", () 
   );
 });
 
+test("항목에 날짜가 없으면 채널의 lastBuildDate로 메운다", () => {
+  // 요즘IT와 rss.app 피드는 항목에 날짜 태그를 하나도 달지 않는다. 버리기만
+  // 하면 소스가 통째로 0건이 되어 조용히 빠진다.
+  const rows = parseFeed(
+    `<rss><channel>
+       <title>요즘IT » 피드</title>
+       <lastBuildDate>Tue, 18 Aug 2026 14:35:09 +0000</lastBuildDate>
+       ${rssItem({ title: "날짜 없는 글", link: "https://yozm.wishket.com/magazine/detail/1" })}
+     </channel></rss>`
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].at.toISOString(), "2026-08-18T14:35:09.000Z");
+});
+
+test("채널 날짜는 항목이 자기 날짜를 가지면 밀어내지 않는다", () => {
+  const rows = parseFeed(
+    `<rss><channel>
+       <lastBuildDate>Tue, 18 Aug 2026 14:35:09 +0000</lastBuildDate>
+       ${rssItem({ title: "제 날짜가 있는 글", link: "https://example.com/a", pubDate: "Mon, 17 Aug 2026 00:00:00 GMT" })}
+     </channel></rss>`
+  );
+
+  assert.equal(rows[0].at.toISOString(), "2026-08-17T00:00:00.000Z");
+});
+
+test("항목 안의 날짜를 채널 날짜로 착각하지 않는다", () => {
+  // 첫 항목까지 훑으면 앞 항목의 pubDate가 뒤따르는 날짜 없는 항목에 번진다.
+  const rows = parseFeed(
+    rss([
+      rssItem({ title: "날짜 있음", link: "https://example.com/a", pubDate: "Mon, 17 Aug 2026 00:00:00 GMT" }),
+      rssItem({ title: "날짜 없음", link: "https://example.com/b" }),
+    ])
+  );
+
+  assert.deepEqual(
+    rows.map((row) => row.title),
+    ["날짜 있음"]
+  );
+});
+
+test("갱신이 멈춘 피드는 옛 채널 날짜를 그대로 받는다", () => {
+  // 퀘이사존의 rss.app 피드처럼 몇 해째 멈춘 피드가 있다. 수집 시각으로
+  // 메우면 옛 글이 오늘 소식으로 실린다. 옛 날짜를 남겨 수집 창이 거르게 한다.
+  const rows = parseFeed(
+    `<rss><channel>
+       <lastBuildDate>Mon, 07 Feb 2022 08:15:52 GMT</lastBuildDate>
+       ${rssItem({ title: "2022년 글", link: "https://example.com/old" })}
+     </channel></rss>`
+  );
+
+  assert.equal(rows[0].at.toISOString(), "2022-02-07T08:15:52.000Z");
+  assert.ok(rows[0].at < new Date("2026-01-01T00:00:00Z"));
+});
+
 test("CDATA와 HTML 엔티티를 풀어서 읽는다", () => {
   const rows = parseFeed(
     rss([
