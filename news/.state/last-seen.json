@@ -1,13 +1,22 @@
 {
-  "checkedAt": "2026-08-18T10:16:23.380Z",
+  "checkedAt": "2026-08-19T22:14:15.389Z",
   "windowHours": 24,
-  "since": "2026-08-17T10:16:22.094Z",
+  "since": "2026-08-18T22:14:09.800Z",
   "picked": {
-    "Hacker News": 6,
-    "AWS 뉴스 블로그": 1,
-    "GitHub 블로그": 1,
-    "Ars Technica": 6,
-    "The Verge": 6
+    "Hacker News": 3,
+    "지디넷코리아": 3,
+    "전자신문": 3,
+    "디지털데일리": 3,
+    "테크M": 3,
+    "지티티코리아": 3,
+    "Byline Network": 3,
+    "GeekNews": 3,
+    "The Register": 3,
+    "TechPowerUp": 3
   },
-  "failed": []
+  "failed": [
+    "서버포럼",
+    "요즘IT",
+    "The Next Platform"
+  ]
 }
