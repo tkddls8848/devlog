@@ -1,5 +1,11 @@
 [
 {"vendor":"IBM","title":"Revised statement of direction: IBM Instana Observability deprecation of agent version 1.x and statement of direction for agent version 2.x","url":"https://www.ibm.com/docs/en/announcements/revised-statement-direction-instana-observability-deprecation-agent-version-1x-statement-direction-agent-version-2x","date":"2026-12-31","kind":"공고","tag":"소프트웨어","ref":"AD26-0781"},
+{"vendor":"IBM","title":"5737-H76 IBM Cloud Pak for Data 4.5","url":"https://www.ibm.com/docs/en/announcements/cloud-pak-data-45","date":"2026-08-21","kind":"세일즈 매뉴얼","tag":"소프트웨어"},
+{"vendor":"IBM","title":"8B3793 - ORDER PERM SPEC FEAT CHINA 3","url":"https://www.ibm.com/docs/en/announcements/8b3793-order-perm-spec-feat-china-3","date":"2026-08-21","kind":"공고","tag":"RPQ","ref":"AD26-0932"},
+{"vendor":"HPE","title":"HPE Hard Disk Drives QuickSpecs","url":"https://support.hpe.com/hpesc/public/docDisplay?docId=a00001287enw","date":"2026-08-20","kind":"QuickSpecs","ref":"a00001287enw"},
+{"vendor":"HPE","title":"HPE ProLiant Compute DL380 Gen12 QuickSpecs","url":"https://support.hpe.com/hpesc/public/docDisplay?docId=a00073551enw","date":"2026-08-20","kind":"QuickSpecs","ref":"a00073551enw"},
+{"vendor":"Lenovo","title":"Lenovo WenTian 联想问天 WA5685 G5 Datasheet","url":"https://lenovopress.lenovo.com/lp2507-wentian-wa5685-g5-datasheet","date":"2026-08-20","kind":"Datasheet","ref":"lp2507"},
+{"vendor":"Lenovo","title":"Lenovo ThinkSystem SR665 V3 Server","url":"https://lenovopress.lenovo.com/lp1608-thinksystem-sr665-v3-server","date":"2026-08-20","kind":"Product Guide","ref":"lp1608"},
 {"vendor":"HPE","title":"NVIDIA GB300 NVL72 by HPE QuickSpecs","url":"https://support.hpe.com/hpesc/public/docDisplay?docId=a50009244enw","date":"2026-08-19","kind":"QuickSpecs","ref":"a50009244enw"},
 {"vendor":"HPE","title":"NVIDIA Virtual GPU Software QuickSpecs","url":"https://support.hpe.com/hpesc/public/docDisplay?docId=a00059765enw","date":"2026-08-19","kind":"QuickSpecs","ref":"a00059765enw"},
 {"vendor":"IBM","title":"5725-F93 IBM Spectrum Control 5.4","url":"https://www.ibm.com/docs/en/announcements/spectrum-control-54","date":"2026-08-19","kind":"세일즈 매뉴얼","tag":"소프트웨어"},
