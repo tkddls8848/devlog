@@ -1,10 +1,7 @@
+/* 공통 테마·헤더 스타일은 assets/css/theme.css(빌드 시 ../shared/theme.css에서
+   복사됨)에 있다. 여기는 archive 사이트에만 필요한 스타일과 벤더 태그 색상만 둔다. */
+
 :root {
-  --fg: #1c1c1f;
-  --soft: #6c6c74;
-  --bg: #fbfbfa;
-  --panel: #f2f2f0;
-  --line: rgba(28, 28, 31, 0.09);
-  --link: #2f5fdb;
   --ibm: #0f62fe;
   --ibm-bg: #e8f0ff;
   --lenovo: #b8202e;
@@ -17,12 +14,6 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --fg: #ececee;
-    --soft: #9c9ca4;
-    --bg: #16161a;
-    --panel: #1f1f24;
-    --line: rgba(255, 255, 255, 0.09);
-    --link: #8caaff;
     --ibm: #78a9ff;
     --ibm-bg: #1a2740;
     --lenovo: #ff8b93;
@@ -35,12 +26,6 @@
 }
 
 :root[data-theme="dark"] {
-  --fg: #ececee;
-  --soft: #9c9ca4;
-  --bg: #16161a;
-  --panel: #1f1f24;
-  --line: rgba(255, 255, 255, 0.09);
-  --link: #8caaff;
   --ibm: #78a9ff;
   --ibm-bg: #1a2740;
   --lenovo: #ff8b93;
@@ -51,90 +36,8 @@
   --dell-bg: #142a3f;
 }
 
-* { box-sizing: border-box; }
-
 /* 문서 표가 넓어 본문 폭을 개발 일지보다 크게 잡는다. */
-body {
-  max-width: 68rem;
-  margin: auto;
-  padding: 3rem 1.5rem 4.5rem;
-  background: var(--bg);
-  color: var(--fg);
-  font: 17px/1.7 "Pretendard", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  overflow-wrap: anywhere;
-  word-break: keep-all;
-  -webkit-font-smoothing: antialiased;
-}
-
-h1, h2, h3 { letter-spacing: -0.02em; }
-
-a { color: var(--link); text-underline-offset: .2em; }
-:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
-
-.site-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 3rem;
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.site-title { color: var(--fg); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; text-decoration: none; }
-.site-tagline { margin: .35rem 0 0; color: var(--soft); font-size: .86rem; }
-.site-controls { display: flex; align-items: center; gap: 1.25rem; }
-
-.site-nav { display: flex; gap: 1.5rem; font-size: .88rem; }
-.site-nav a { color: var(--soft); text-decoration: none; border-bottom: 2px solid transparent; padding-bottom: .2rem; transition: color .15s ease; }
-.site-nav a:hover,
-.site-nav a[aria-current="page"] { color: var(--fg); }
-.site-nav a[aria-current="page"] { border-bottom-color: var(--fg); font-weight: 600; }
-
-.theme-toggle {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 2.1rem;
-  height: 2.1rem;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel);
-  color: var(--soft);
-  cursor: pointer;
-  transition: color .15s ease, border-color .15s ease;
-}
-.theme-toggle:hover { color: var(--fg); }
-.theme-toggle .icon { width: 1.05rem; height: 1.05rem; }
-.theme-toggle .icon-moon { display: none; }
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .theme-toggle .icon-sun { display: none; }
-  :root:not([data-theme="light"]) .theme-toggle .icon-moon { display: block; }
-}
-:root[data-theme="dark"] .theme-toggle .icon-sun { display: none; }
-:root[data-theme="dark"] .theme-toggle .icon-moon { display: block; }
-
-.site-footer {
-  margin-top: 5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--line);
-  color: var(--soft);
-  font-size: .84rem;
-}
-
-.page-intro {
-  margin: 0 0 2.5rem;
-  padding-left: 1rem;
-  border-left: 2px solid var(--line);
-  color: var(--soft);
-  font-size: .92rem;
-}
-
-code { padding: .12rem .38rem; border-radius: 4px; background: var(--panel); font-size: .86em; }
+body { max-width: 68rem; }
 
 .stats { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 2rem; }
 .stat { flex: 1 1 7rem; padding: .85rem 1rem; border-radius: 10px; background: var(--panel); }
@@ -180,9 +83,3 @@ table.archive tbody tr:hover { background: var(--panel); }
 .tag-lenovo { background: var(--lenovo-bg); color: var(--lenovo); }
 .tag-hpe { background: var(--hpe-bg); color: var(--hpe); }
 .tag-dell { background: var(--dell-bg); color: var(--dell); }
-
-@media (max-width: 34rem) {
-  body { padding: 2rem 1.15rem 3rem; }
-  .site-header { align-items: start; flex-direction: column; }
-  .site-nav { gap: 1.1rem; }
-}

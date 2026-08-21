@@ -2,3 +2,9 @@ node_modules/
 _site/
 .env
 *.log
+
+# ../shared에서 빌드 시 복사되는 사본. 원본이 아니므로 커밋하지 않는다.
+src/assets/css/theme.css
+src/assets/js/theme-init.js
+src/assets/js/theme-toggle.js
+src/_includes/partials/theme-toggle.njk

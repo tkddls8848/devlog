@@ -1,113 +1,5 @@
-:root {
-  --fg: #1c1c1f;
-  --soft: #6c6c74;
-  --bg: #fbfbfa;
-  --panel: #f2f2f0;
-  --line: rgba(28, 28, 31, 0.09);
-  --link: #2f5fdb;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --fg: #ececee;
-    --soft: #9c9ca4;
-    --bg: #16161a;
-    --panel: #1f1f24;
-    --line: rgba(255, 255, 255, 0.09);
-    --link: #8caaff;
-  }
-}
-
-:root[data-theme="dark"] {
-  --fg: #ececee;
-  --soft: #9c9ca4;
-  --bg: #16161a;
-  --panel: #1f1f24;
-  --line: rgba(255, 255, 255, 0.09);
-  --link: #8caaff;
-}
-
-* { box-sizing: border-box; }
-
-body {
-  max-width: 44rem;
-  margin: auto;
-  padding: 3rem 1.5rem 4.5rem;
-  background: var(--bg);
-  color: var(--fg);
-  font: 17px/1.7 "Pretendard", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  overflow-wrap: anywhere;
-  word-break: keep-all;
-  -webkit-font-smoothing: antialiased;
-}
-
-h1, h2, h3 { letter-spacing: -0.02em; }
-
-a { color: var(--link); text-underline-offset: .2em; }
-:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
-
-.site-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 3rem;
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.site-title { color: var(--fg); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; text-decoration: none; }
-.site-tagline { margin: .35rem 0 0; color: var(--soft); font-size: .86rem; }
-.site-controls { display: flex; align-items: center; gap: 1.25rem; }
-
-.site-nav { display: flex; gap: 1.5rem; font-size: .88rem; }
-.site-nav a { color: var(--soft); text-decoration: none; border-bottom: 2px solid transparent; padding-bottom: .2rem; transition: color .15s ease; }
-.site-nav a:hover,
-.site-nav a[aria-current="page"] { color: var(--fg); }
-.site-nav a[aria-current="page"] { border-bottom-color: var(--fg); font-weight: 600; }
-
-.theme-toggle {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 2.1rem;
-  height: 2.1rem;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel);
-  color: var(--soft);
-  cursor: pointer;
-  transition: color .15s ease, border-color .15s ease;
-}
-.theme-toggle:hover { color: var(--fg); }
-.theme-toggle .icon { width: 1.05rem; height: 1.05rem; }
-.theme-toggle .icon-moon { display: none; }
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .theme-toggle .icon-sun { display: none; }
-  :root:not([data-theme="light"]) .theme-toggle .icon-moon { display: block; }
-}
-:root[data-theme="dark"] .theme-toggle .icon-sun { display: none; }
-:root[data-theme="dark"] .theme-toggle .icon-moon { display: block; }
-
-.site-footer {
-  margin-top: 5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--line);
-  color: var(--soft);
-  font-size: .84rem;
-}
-
-.page-intro {
-  margin: 0 0 2.5rem;
-  padding-left: 1rem;
-  border-left: 2px solid var(--line);
-  color: var(--soft);
-  font-size: .92rem;
-}
+/* 공통 테마·헤더 스타일은 assets/css/theme.css(빌드 시 ../shared/theme.css에서
+   복사됨)에 있다. 여기는 devlog 사이트에만 필요한 스타일만 둔다. */
 
 .post-list { margin: 0; padding: 0; list-style: none; }
 .post-list li { margin-bottom: .25rem; padding: 1.1rem .75rem; border-radius: 10px; transition: background .15s ease; }
@@ -125,19 +17,9 @@ a { color: var(--link); text-underline-offset: .2em; }
 .post h2 { margin-top: 2.5rem; font-size: 1.18rem; }
 .post h3 { margin-top: 1.75rem; font-size: 1rem; }
 
-code { padding: .12rem .38rem; border-radius: 4px; background: var(--panel); font-size: .86em; }
-pre { padding: 1.1rem; overflow-x: auto; border-radius: 10px; background: var(--panel); }
-pre code { padding: 0; background: none; }
-
 .sources { margin-top: 3.5rem; padding-top: 1.75rem; border-top: 1px solid var(--line); font-size: .88rem; }
 .sources h2 { margin-top: 0; font-size: .98rem; text-transform: uppercase; letter-spacing: .04em; color: var(--soft); }
 .sources h3 { margin-bottom: .4rem; font-size: .92rem; }
 .sources h3 a { color: var(--fg); text-decoration: none; }
 .sources ul { margin: 0 0 1.25rem; padding-left: 1.2rem; color: var(--soft); }
 .back { margin-top: 3.5rem; font-size: .9rem; }
-
-@media (max-width: 34rem) {
-  body { padding: 2rem 1.15rem 3rem; }
-  .site-header { align-items: start; flex-direction: column; }
-  .site-nav { gap: 1.1rem; }
-}

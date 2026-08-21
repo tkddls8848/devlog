@@ -5,3 +5,9 @@ _site/
 
 # 이슈 저장이 중단되면 남는 임시 파일. 커밋에 섞이지 않게 한다.
 *.tmp
+
+# ../shared에서 빌드 시 복사되는 사본. 원본이 아니므로 커밋하지 않는다.
+src/assets/css/theme.css
+src/assets/js/theme-init.js
+src/assets/js/theme-toggle.js
+src/_includes/partials/theme-toggle.njk
