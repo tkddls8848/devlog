@@ -7,6 +7,14 @@
     <meta name="description" content="{{ summary or site.tagline }}" />
     <meta name="color-scheme" content="light dark" />
     <link rel="stylesheet" href="{{ '/assets/css/main.css' | url }}" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("theme");
+          if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <header class="site-header">
@@ -14,12 +22,23 @@
         <a class="site-title" href="{{ '/' | url }}">{{ site.title }}</a>
         <p class="site-tagline">{{ site.tagline }}</p>
       </div>
-      {# 개발 일지와 뉴스레터는 별도 사이트라 site.*Url을 그대로 쓴다. #}
-      <nav class="site-nav" aria-label="주요">
-        <a href="{{ site.devlogUrl }}">개발 일지</a>
-        <a href="{{ '/' | url }}"{% if page.url == '/' %} aria-current="page"{% endif %}>아카이브</a>
-        <a href="{{ site.newsUrl }}">뉴스레터</a>
-      </nav>
+      <div class="site-controls">
+        {# 개발 일지와 뉴스레터는 별도 사이트라 site.*Url을 그대로 쓴다. #}
+        <nav class="site-nav" aria-label="주요">
+          <a href="{{ site.devlogUrl }}">개발 일지</a>
+          <a href="{{ '/' | url }}"{% if page.url == '/' %} aria-current="page"{% endif %}>아카이브</a>
+          <a href="{{ site.newsUrl }}">뉴스레터</a>
+        </nav>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="라이트/다크 모드 전환">
+          <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+          <svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
+          </svg>
+        </button>
+      </div>
     </header>
 
     <main>{{ content | safe }}</main>
@@ -30,5 +49,28 @@
         <a href="https://github.com/{{ site.githubUser }}">GitHub</a>
       </p>
     </footer>
+
+    <script>
+      (function () {
+        var btn = document.getElementById("theme-toggle");
+        if (!btn) return;
+        function systemTheme() {
+          return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        function current() {
+          return document.documentElement.getAttribute("data-theme") || systemTheme();
+        }
+        function sync() {
+          btn.setAttribute("aria-pressed", current() === "dark" ? "true" : "false");
+        }
+        btn.addEventListener("click", function () {
+          var next = current() === "dark" ? "light" : "dark";
+          document.documentElement.setAttribute("data-theme", next);
+          try { localStorage.setItem("theme", next); } catch (e) {}
+          sync();
+        });
+        sync();
+      })();
+    </script>
   </body>
 </html>

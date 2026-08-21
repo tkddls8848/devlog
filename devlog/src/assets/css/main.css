@@ -8,7 +8,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --fg: #ececee;
     --soft: #9c9ca4;
     --bg: #16161a;
@@ -16,6 +16,15 @@
     --line: rgba(255, 255, 255, 0.09);
     --link: #8caaff;
   }
+}
+
+:root[data-theme="dark"] {
+  --fg: #ececee;
+  --soft: #9c9ca4;
+  --bg: #16161a;
+  --panel: #1f1f24;
+  --line: rgba(255, 255, 255, 0.09);
+  --link: #8caaff;
 }
 
 * { box-sizing: border-box; }
@@ -50,11 +59,39 @@ a { color: var(--link); text-underline-offset: .2em; }
 
 .site-title { color: var(--fg); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; text-decoration: none; }
 .site-tagline { margin: .35rem 0 0; color: var(--soft); font-size: .86rem; }
+.site-controls { display: flex; align-items: center; gap: 1.25rem; }
+
 .site-nav { display: flex; gap: 1.5rem; font-size: .88rem; }
 .site-nav a { color: var(--soft); text-decoration: none; border-bottom: 2px solid transparent; padding-bottom: .2rem; transition: color .15s ease; }
 .site-nav a:hover,
 .site-nav a[aria-current="page"] { color: var(--fg); }
 .site-nav a[aria-current="page"] { border-bottom-color: var(--fg); font-weight: 600; }
+
+.theme-toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--soft);
+  cursor: pointer;
+  transition: color .15s ease, border-color .15s ease;
+}
+.theme-toggle:hover { color: var(--fg); }
+.theme-toggle .icon { width: 1.05rem; height: 1.05rem; }
+.theme-toggle .icon-moon { display: none; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-toggle .icon-sun { display: none; }
+  :root:not([data-theme="light"]) .theme-toggle .icon-moon { display: block; }
+}
+:root[data-theme="dark"] .theme-toggle .icon-sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-moon { display: block; }
 
 .site-footer {
   margin-top: 5rem;
