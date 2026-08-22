@@ -1,7 +1,7 @@
 {
-  "checkedAt": "2026-08-21T22:12:52.562Z",
+  "checkedAt": "2026-08-22T22:11:14.277Z",
   "windowHours": 24,
-  "since": "2026-08-20T22:12:47.764Z",
+  "since": "2026-08-21T22:11:09.100Z",
   "picked": {
     "Hacker News": 3,
     "지디넷코리아": 3,
@@ -9,11 +9,10 @@
     "디지털데일리": 3,
     "테크M": 3,
     "지티티코리아": 3,
-    "Byline Network": 2,
     "GeekNews": 3,
-    "DEVOCEAN": 1,
     "The Register": 3,
-    "TechPowerUp": 3
+    "The Next Platform": 1,
+    "TechPowerUp": 2
   },
   "failed": [
     "보안뉴스",
