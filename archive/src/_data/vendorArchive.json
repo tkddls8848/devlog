@@ -1,5 +1,8 @@
 [
 {"vendor":"IBM","title":"Revised statement of direction: IBM Instana Observability deprecation of agent version 1.x and statement of direction for agent version 2.x","url":"https://www.ibm.com/docs/en/announcements/revised-statement-direction-instana-observability-deprecation-agent-version-1x-statement-direction-agent-version-2x","date":"2026-12-31","kind":"공고","tag":"소프트웨어","ref":"AD26-0781"},
+{"vendor":"HPE","title":"HPE ProLiant ML30 Gen11 QuickSpecs","url":"https://support.hpe.com/hpesc/public/docDisplay?docId=a50007008enw","date":"2026-08-22","kind":"QuickSpecs","ref":"a50007008enw"},
+{"vendor":"HPE","title":"HPE ProLiant DL20 Gen11 QuickSpecs","url":"https://support.hpe.com/hpesc/public/docDisplay?docId=a50007009enw","date":"2026-08-22","kind":"QuickSpecs","ref":"a50007009enw"},
+{"vendor":"HPE","title":"HPE ProLiant MicroServer Gen11 QuickSpecs","url":"https://support.hpe.com/hpesc/public/docDisplay?docId=a50007028enw","date":"2026-08-22","kind":"QuickSpecs","ref":"a50007028enw"},
 {"vendor":"HPE","title":"E-T-A -48VDC Vertical 0U Mid Power Distribution Infrastructure for HPE Equipment QuickSpecs","url":"https://support.hpe.com/hpesc/public/docDisplay?docId=a50014665enw","date":"2026-08-21","kind":"QuickSpecs","ref":"a50014665enw"},
 {"vendor":"HPE","title":"HPE Aruba Networking 600R Series Remote Access Points QuickSpecs","url":"https://support.hpe.com/hpesc/public/docDisplay?docId=a50006991enw","date":"2026-08-21","kind":"QuickSpecs","ref":"a50006991enw"},
 {"vendor":"HPE","title":"HPE Aruba Networking 580 Series Outdoor Access Points QuickSpecs","url":"https://support.hpe.com/hpesc/public/docDisplay?docId=a50004278enw","date":"2026-08-21","kind":"QuickSpecs","ref":"a50004278enw"},
