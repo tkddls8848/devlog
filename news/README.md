@@ -55,10 +55,12 @@ npx wrangler d1 create devlog-news
 ### 2. 최초 수동 배포
 
 ```bash
-npm run deploy
+npm run deploy:with-migrations
 ```
 
-이 명령은 정적 테마를 빌드하고, D1 migration을 적용한 다음 Worker를 배포합니다.
+최초 배포나 스키마 변경 때만 D1 권한이 있는 관리자 환경에서 이 명령을 실행합니다.
+일반 `npm run deploy`는 정적 테마를 빌드하고 Worker만 배포하며 D1 migration을
+실행하지 않습니다.
 첫 HTTP 요청 또는 첫 Cron 실행 때 `src/issues`의 기존 6개 이슈가 D1에 idempotent하게
 이관됩니다. `metadata.legacy_import_v1`이 이관 완료 여부를 기록합니다.
 
@@ -71,13 +73,20 @@ Cloudflare 대시보드의 `devlog → Settings → Builds`에서 저장소를 �
 | --- | --- |
 | Root directory | `news` |
 | Build command | `npm ci && npm run build` |
-| Deploy command | `npm run db:migrate:remote && npm run deploy:worker` |
+| Deploy command | `npx wrangler deploy` |
 | Production branch | `main` |
 
 모노레포 Build watch path는 `news/**`, `shared/**`를 포함합니다. Build API token은
 Cloudflare의 Builds 설정에서 생성·선택하며 GitHub secret이 아닙니다. “build token has
 been deleted or rolled” 오류가 나오면 같은 화면의 API token에서 새 토큰을 선택하고
 저장한 뒤 재시도합니다.
+
+Workers Builds의 Deploy command에는 D1 migration을 넣지 않습니다. 기본 Build API
+token은 Worker 업로드 권한은 있지만 D1 쿼리 권한은 없으므로 함께 실행하면 Cloudflare
+API 오류 `7403`으로 배포가 중단됩니다. 새 migration은 먼저 D1 권한이 있는 관리자
+환경에서 `npm run db:migrate:remote`로 적용하고, Git push로 Worker 배포를 진행합니다.
+Cloudflare의 Build command와 Deploy command는 `wrangler.jsonc`가 아니라 대시보드의
+Builds 설정에 저장되므로 대시보드 값도 위 표와 정확히 같아야 합니다.
 
 GitHub의 `.github/workflows/news-publish.yml`과 `news-deploy.yml`은 제거되어
 Workers Builds와 중복 배포하지 않습니다.
