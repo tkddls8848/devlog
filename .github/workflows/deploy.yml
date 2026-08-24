@@ -1,16 +1,21 @@
 name: GitHub Pages 배포
 
-# GitHub Pages는 저장소당 사이트 하나만 배포한다. devlog·archive·news는 따로 빌드한 뒤
-# 여기서만 하나의 아티팩트로 합친다. 세 서비스를 저장소째 분리하면 이 파일도 각자 가져간다.
+# GitHub Pages는 저장소당 사이트 하나만 배포한다. devlog·archive는 따로 빌드한 뒤
+# 여기서만 하나의 아티팩트로 합친다. 뉴스레터는 Cloudflare Workers로 빠져나가
+# news-deploy.yml에서 자기 배포를 따로 가진다.
 on:
   push:
     branches: [main]
     # 사이트 산출물을 바꿀 수 없는 파일만 뺀다. 한 푸시에 다른 파일이 하나라도
-    # 섞이면 그대로 배포되므로, 애매하면 빼지 않는 편이 안전하다.
+    # 섞이면 그대로 배포되므로, 애매하면 빼지 않는 편이 안전하다. news/는 여기서
+    # 배포하지 않으므로 통째로 뺀다. shared/는 세 사이트가 함께 쓰는 테마라
+    # 남겨 두고, 뉴스레터 쪽 배포도 같은 푸시에서 따로 깨어난다.
     paths-ignore:
+      - "news/**"
       - "**/test/**"
       - "**/README.md"
       - ".github/workflows/test.yml"
+      - ".github/workflows/news-deploy.yml"
   workflow_call:
   workflow_dispatch:
 
@@ -44,12 +49,14 @@ jobs:
         working-directory: devlog
         run: npm ci
 
+      # 뉴스레터는 이제 다른 오리진이라 상대 경로로 이을 수 없다. NEWS_URL을
+      # 비워 두면 src/_data/site.js의 Worker 절대 주소 기본값이 그대로 쓰인다.
       - name: devlog 빌드
         working-directory: devlog
         env:
           PATH_PREFIX: /devlog/
           ARCHIVE_URL: /devlog/archive/
-          NEWS_URL: /devlog/news/
+          NEWS_URL: ${{ vars.NEWS_URL }}
         run: npm run build
 
       - name: archive Node 준비
@@ -68,35 +75,15 @@ jobs:
         env:
           PATH_PREFIX: /devlog/archive/
           DEVLOG_URL: /devlog/
-          NEWS_URL: /devlog/news/
+          NEWS_URL: ${{ vars.NEWS_URL }}
         run: npm run build
 
-      - name: news Node 준비
-        uses: actions/setup-node@v7
-        with:
-          node-version-file: news/.nvmrc
-          cache: npm
-          cache-dependency-path: news/package-lock.json
-
-      - name: news 의존성 설치
-        working-directory: news
-        run: npm ci
-
-      - name: news 빌드
-        working-directory: news
-        env:
-          PATH_PREFIX: /devlog/news/
-          DEVLOG_URL: /devlog/
-          ARCHIVE_URL: /devlog/archive/
-        run: npm run build
-
-      - name: 세 사이트 합치기
+      - name: 두 사이트 합치기
         run: |
           mkdir -p dist
           cp -r devlog/_site/. dist/
-          mkdir -p dist/archive dist/news
+          mkdir -p dist/archive
           cp -r archive/_site/. dist/archive/
-          cp -r news/_site/. dist/news/
 
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

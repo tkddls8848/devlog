@@ -3,10 +3,11 @@
 IT 업계 뉴스와 엔지니어링 블로그에서 하루치 소식을 모아 한 편의 뉴스레터로 발행하는
 Eleventy 사이트입니다.
 
-사이트: <https://tkddls8848.github.io/devlog/news/>
+사이트: <https://devlog-news.tkddls8848.workers.dev/>
 
 개발 일지와 아카이브는 별도 사이트이며 이 폴더의 코드와 무관합니다. 내비게이션
-링크로만 이어집니다.
+링크로만 이어집니다. 그 둘은 GitHub Pages에 있고 이 사이트만 Cloudflare Workers에
+있어 오리진이 다릅니다. 그래서 이웃 링크를 상대 경로가 아닌 절대 주소로 씁니다.
 
 ## 구성
 
@@ -22,6 +23,8 @@ test/news-digest.test.mjs  수집·중복 제거·발행을 하위 프로세스�
 src/issues/                발행된 뉴스레터
 src/_data/site.js          사이트 제목과 이웃 사이트 링크
 src/index.njk              이슈 목록
+src/404.njk                없는 주소에 돌려주는 쪽
+wrangler.jsonc             Cloudflare Workers 배포 설정
 ```
 
 ## 소스
@@ -120,6 +123,20 @@ headline 밖의 사실은 넣지 말라고 지시하지만 모델이 지어낼 �
 AI 호출이 실패하면 링크 목록만 담은 본문으로 발행하고 `aiGenerated: false`로
 기록합니다. 요약이 없다고 그날 소식을 통째로 버리지는 않습니다.
 
+## 배포
+
+빌드 산출물 `_site`를 통째로 Cloudflare Workers의 정적 자산으로 올립니다. 서버
+코드가 없어 `wrangler.jsonc`에 `main`(스크립트)이 없고, Worker 이름과 자산 폴더만
+적혀 있습니다. 없는 주소는 `src/404.njk`가 만든 `404.html`로 돌려줍니다.
+
+Worker가 도메인 뿌리를 통째로 맡으므로 `PATH_PREFIX=/`로 빌드합니다. GitHub Pages에
+얹혀 있을 때 필요했던 `/devlog/news/` 앞가지가 이제 없습니다.
+
+배포는 `.github/workflows/news-deploy.yml`이 합니다. `main`의 `news/`나 `shared/`가
+바뀐 푸시, 수집 워크플로의 호출, 수동 실행에서 돕니다. `CF_ACCOUNT_ID`와
+`CF_WORKERS_API_TOKEN`(없으면 `CF_API_TOKEN`)을 씁니다. 배포 토큰에는 Workers
+Scripts 편집 권한이 필요하며, 수집이 쓰는 Workers AI 권한과는 다릅니다.
+
 ## 자동 갱신
 
 매일 07:00 KST에 `.github/workflows/news-publish.yml`이 이 폴더만 수집하고,
@@ -147,7 +164,14 @@ npm run digest:dry
 
 # 피드 후보 주소가 살아 있는지 확인
 npm run feeds:check
+
+# 뿌리 경로로 빌드해 Cloudflare Workers에 직접 올린다
+CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... npm run deploy
 ```
+
+`npm run deploy`는 wrangler를 `npx`로 그때그때 받아 씁니다. 이 폴더의 의존성에
+넣지 않은 것은 매일 도는 수집 워크플로가 배포에 쓰지도 않을 큰 패키지를 함께
+내려받게 되기 때문입니다.
 
 환경 변수는 `CF_ACCOUNT_ID`, `CF_API_TOKEN`, `CF_AI_MODEL`, `NEWS_WINDOW_HOURS`,
 `NEWS_PER_SOURCE`, `NEWS_MAX_ITEMS`, `HN_MIN_POINTS`를 받습니다. 이웃 사이트 주소는

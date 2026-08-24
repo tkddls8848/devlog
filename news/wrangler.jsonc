@@ -1,0 +1,17 @@
+{
+  // 뉴스레터는 이 저장소에서 유일하게 GitHub Pages를 쓰지 않는 사이트다.
+  // 코드는 없고 빌드 산출물만 올리는 정적 자산 Worker라 main(스크립트)이 없다.
+  "name": "devlog-news",
+  "compatibility_date": "2026-08-24",
+  "assets": {
+    // eleventy가 만든 _site를 통째로 올린다. PATH_PREFIX=/로 빌드해야 한다.
+    "directory": "./_site",
+    // /2026-08-24-news 처럼 끝 슬래시 없이 들어와도 같은 쪽을 보여 준다.
+    "html_handling": "auto-trailing-slash",
+    // 없는 주소는 빈 404 대신 사이트 껍데기를 그대로 쓴 404 쪽으로 돌려준다.
+    "not_found_handling": "404-page"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

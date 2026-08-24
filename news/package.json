@@ -8,7 +8,8 @@
     "build": "eleventy",
     "digest": "node tools/news-digest.mjs",
     "digest:dry": "node tools/news-digest.mjs --dry-run",
-    "feeds:check": "node tools/feed-check.mjs"
+    "feeds:check": "node tools/feed-check.mjs",
+    "deploy": "PATH_PREFIX=/ eleventy && npx --yes wrangler@4 deploy"
   },
   "devDependencies": {
     "@11ty/eleventy": "^3.1.6"
