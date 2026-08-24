@@ -96,11 +96,12 @@ jobs:
           exit 1
 
   # GITHUB_TOKEN으로 민 커밋은 push 워크플로를 깨우지 않는다. 배포를 직접 부른다.
+  # 뉴스레터는 GitHub Pages가 아니라 Cloudflare Workers로 나가므로 자기 배포
+  # 워크플로를 부른다. 배포에 Cloudflare 비밀값이 필요해 그대로 물려준다.
   deploy:
     needs: collect
     if: always() && needs.collect.outputs.changed == 'true'
     permissions:
       contents: read
-      pages: write
-      id-token: write
-    uses: ./.github/workflows/deploy.yml
+    uses: ./.github/workflows/news-deploy.yml
+    secrets: inherit
