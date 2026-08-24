@@ -171,7 +171,7 @@ export function renderArchive(records, env, origin) {
   const vendorButtons = vendors.filter((vendor) => counts[vendor]).map((vendor) => `<button type="button" class="archive-chip" data-vendor="${escapeHtml(vendor)}" aria-pressed="false"><span class="vendor-icon vendor-icon-${vendor.toLowerCase()}" aria-hidden="true">${escapeHtml(vendor)}</span><span>${escapeHtml(vendor)}</span><strong>${counts[vendor]}</strong></button>`).join("");
   const rows = records.map((record) => `<tr data-vendor="${escapeHtml(record.vendor)}">
     <td><time datetime="${escapeHtml(record.document_date)}">${escapeHtml(record.document_date)}</time></td>
-    <td><span class="vendor-icon vendor-icon-${escapeHtml(record.vendor.toLowerCase())}" aria-hidden="true">${escapeHtml(record.vendor)}</span><span class="archive-vendor">${escapeHtml(record.vendor)}</span></td>
+    <td><span class="vendor-icon vendor-icon-${escapeHtml(record.vendor.toLowerCase())}" role="img" aria-label="${escapeHtml(record.vendor)}">${escapeHtml(record.vendor)}</span></td>
     <td><a href="${escapeHtml(record.url)}" rel="noopener">${escapeHtml(record.title)}</a>
       <span class="meta">${escapeHtml(record.kind)}${record.tag ? ` · ${escapeHtml(record.tag)}` : ""}${record.ref ? ` · <code>${escapeHtml(record.ref)}</code>` : ""}</span>
       ${record.note ? `<p class="archive-note">${escapeHtml(record.note)}</p>` : ""}</td>
