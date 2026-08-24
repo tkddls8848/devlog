@@ -35,3 +35,16 @@
 .sources .links a:hover { text-decoration: underline; }
 .sources .meta { display: block; color: var(--soft); font-size: .78rem; }
 .sources h3 .meta { display: inline; margin-left: .4rem; font-weight: 400; }
+
+.archive-filters { margin: 1.5rem 0 .5rem; }
+.archive-filters input { width: min(100%, 30rem); padding: .65rem .8rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.archive-table-wrap { overflow-x: auto; margin-top: 1rem; border: 1px solid var(--line); border-radius: 10px; }
+.archive-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.archive-table th, .archive-table td { padding: .8rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.archive-table th { color: var(--soft); font-size: .75rem; text-transform: uppercase; }
+.archive-table tr:last-child td { border-bottom: 0; }
+.archive-table a { font-weight: 600; text-decoration: none; }
+.archive-table a:hover { text-decoration: underline; }
+.archive-table .meta { display: block; margin-top: .25rem; }
+.archive-note { margin: .35rem 0 0; color: var(--soft); font-size: .84rem; }
+.archive-vendor { font-weight: 600; }

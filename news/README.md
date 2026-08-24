@@ -104,12 +104,13 @@ Workers Builds와 중복 배포하지 않습니다.
 - `DB`: D1 binding
 - `ASSETS`: CSS·JS 같은 정적 자산 binding
 - Cron `0 22 * * *`: UTC 22:00, KST 07:00
+- Cron `25 0 * * *`: UTC 00:25, KST 09:25, 벤더 문서 아카이브 수집
 - `CF_AI_MODEL`: 사용할 Workers AI 모델
 - `NEWS_WINDOW_HOURS`: 수집 시간 창, 기본 24
 - `NEWS_PER_SOURCE`: 소스별 최대 기사, 기본 3
 - `NEWS_MAX_ITEMS`: 이슈 전체 최대 기사, 기본 30
 - `HN_MIN_POINTS`: Hacker News 최소 점수, 기본 100
-- `DEVLOG_URL`, `ARCHIVE_URL`: 상단 내비게이션 주소
+- `DEVLOG_URL`, `ARCHIVE_URL`: 상단 내비게이션 주소 (`ARCHIVE_URL`은 Worker의 `/archive/`)
 
 공개 피드와 Workers binding만 사용하므로 별도 runtime secret은 없습니다.
 

@@ -1,6 +1,7 @@
 import { runDigest } from "./digest.mjs";
+import { runArchive } from "./archive.mjs";
 import { createStore } from "./repository.mjs";
-import { renderFeed, renderHome, renderIssue, renderNotFound } from "./render.mjs";
+import { renderArchive, renderFeed, renderHome, renderIssue, renderNotFound } from "./render.mjs";
 
 const html = (body, status = 200, cache = "public, max-age=300") =>
   new Response(body, {
@@ -17,11 +18,12 @@ async function handle(request, env) {
   const origin = url.origin;
   const store = createStore(env.DB);
   await store.ensureLegacyIssues();
+  await store.ensureLegacyArchive();
 
   if (url.pathname === "/healthz") {
-    const latestRun = await store.latestRun();
+    const [latestRun, latestArchiveRun] = await Promise.all([store.latestRun(), store.latestArchiveRun()]);
     return Response.json(
-      { ok: true, latestRun },
+      { ok: true, latestRun, latestArchiveRun },
       { headers: { "cache-control": "no-store" } }
     );
   }
@@ -37,6 +39,10 @@ async function handle(request, env) {
         "cache-control": "public, max-age=900",
       },
     });
+  }
+
+  if (url.pathname === "/archive" || url.pathname === "/archive/") {
+    return html(renderArchive(await store.listVendorDocuments(), env, origin), 200, "public, max-age=900");
   }
 
   const match = url.pathname.match(/^\/issues\/([a-z0-9-]+)\/?$/i);
@@ -67,13 +73,14 @@ export default {
   },
 
   async scheduled(controller, env, ctx) {
+    const store = createStore(env.DB);
+    const archiveCron = "25 0 * * *";
+    const run = controller.cron === archiveCron
+      ? runArchive({ env, store, now: new Date(controller.scheduledTime) })
+      : runDigest({ env, store, now: new Date(controller.scheduledTime) });
     ctx.waitUntil(
-      runDigest({
-        env,
-        store: createStore(env.DB),
-        now: new Date(controller.scheduledTime),
-      }).catch((error) => {
-        console.error("예약 뉴스레터 발행 실패", error);
+      run.catch((error) => {
+        console.error(controller.cron === archiveCron ? "예약 아카이브 수집 실패" : "예약 뉴스레터 발행 실패", error);
         throw error;
       })
     );

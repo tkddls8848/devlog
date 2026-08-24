@@ -1,4 +1,5 @@
 import legacyIssues from "./generated/legacy-issues.mjs";
+import legacyArchive from "./generated/legacy-archive.mjs";
 import { normalizeUrl } from "../tools/rss.mjs";
 
 const chunks = (values, size = 50) => {
@@ -76,6 +77,20 @@ export function createStore(db) {
         .prepare("INSERT OR REPLACE INTO metadata (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)")
         .bind("legacy_import_v1", new Date().toISOString())
         .run();
+    },
+
+    async ensureLegacyArchive() {
+      const imported = await db.prepare("SELECT value FROM metadata WHERE key = ?").bind("legacy_archive_import_v1").first();
+      if (imported) return;
+      for (const group of chunks(legacyArchive, 50)) {
+        await db.batch(group.map((item) => db.prepare(
+          `INSERT OR IGNORE INTO vendor_documents
+           (vendor, title, url, document_date, kind, tag, ref, note)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(item.vendor, item.title, item.url, item.date, item.kind, item.tag || null, item.ref || null, item.note || null)));
+      }
+      await db.prepare("INSERT OR REPLACE INTO metadata (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)")
+        .bind("legacy_archive_import_v1", new Date().toISOString()).run();
     },
 
     async publishedLinks(values) {
@@ -236,6 +251,47 @@ export function createStore(db) {
            FROM collection_runs ORDER BY id DESC LIMIT 1`
         )
         .first();
+    },
+
+    async saveVendorDocuments(values) {
+      const unique = new Map();
+      for (const item of values) {
+        if (!item?.vendor || !item?.title || !item?.url || !/^\d{4}-\d{2}-\d{2}$/.test(item.date || "")) continue;
+        unique.set(`${item.vendor}:${item.url}:${item.date}`, item);
+      }
+      let inserted = 0;
+      for (const group of chunks([...unique.values()], 50)) {
+        const result = await db.batch(group.map((item) => db.prepare(
+          `INSERT OR IGNORE INTO vendor_documents
+           (vendor, title, url, document_date, kind, tag, ref, note)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(item.vendor, item.title, item.url, item.date, item.kind || "기술 문서", item.tag || null, item.ref || null, item.note || null)));
+        inserted += (result || []).reduce((sum, row) => sum + Number(row.meta?.changes || 0), 0);
+      }
+      return inserted;
+    },
+
+    async listVendorDocuments(limit = 1000) {
+      const result = await db.prepare(
+        `SELECT vendor, title, url, document_date, kind, tag, ref, note
+         FROM vendor_documents ORDER BY document_date DESC, vendor ASC, id DESC LIMIT ?`
+      ).bind(limit).all();
+      return result.results || [];
+    },
+
+    async latestArchiveRun() {
+      return db.prepare(
+        `SELECT started_at, finished_at, status, collected_count, inserted_count, failed_sources, error
+         FROM archive_runs ORDER BY id DESC LIMIT 1`
+      ).first();
+    },
+
+    async saveArchiveRun(run) {
+      await db.prepare(
+        `INSERT INTO archive_runs
+         (started_at, finished_at, status, collected_count, inserted_count, failed_sources, error)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind(run.startedAt, run.finishedAt, run.status, run.collectedCount, run.insertedCount, JSON.stringify(run.failedSources || []), run.error || null).run();
     },
   };
 }

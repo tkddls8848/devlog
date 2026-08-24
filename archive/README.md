@@ -56,8 +56,9 @@ Info Hub(`infohub.delltechnologies.com`)에도 날짜가 붙은 기술 문서가
 
 ## 자동 갱신
 
-매일 09:25 KST에 `.github/workflows/archive-publish.yml`이 이 폴더만 수집하고,
-새 문서가 있을 때만 `main`에 커밋한 뒤 배포를 부릅니다.
+매일 09:25 KST에 Cloudflare Worker `devlog`의 Cron Trigger가 IBM·Lenovo·HPE·Dell을
+수집해 D1에 저장합니다. 화면은 <https://devlog.tkddls8848.workers.dev/archive/>에서
+제공하며, 수집 결과를 GitHub에 매일 커밋하지 않습니다.
 
 ## 로컬 실행
 
