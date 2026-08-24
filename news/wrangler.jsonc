@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "devlog-news",
+  "name": "devlog",
   "main": "./worker/index.mjs",
   "compatibility_date": "2026-08-24",
   // 매일 07:00 KST. Cron Trigger는 UTC 기준이다.

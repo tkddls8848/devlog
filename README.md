@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | [`devlog/`](devlog/) | <https://tkddls8848.github.io/devlog/> | GitHub 공개 커밋을 날짜별 개발 일지로 발행 |
 | [`archive/`](archive/) | <https://tkddls8848.github.io/devlog/archive/> | IBM·Lenovo·HPE·Dell 제품 문서 갱신을 목록으로 축적 |
-| [`news/`](news/) | <https://devlog-news.tkddls8848.workers.dev/> | IT 업계 뉴스·블로그의 하루치 소식을 뉴스레터로 발행 |
+| [`news/`](news/) | <https://devlog.tkddls8848.workers.dev/> | IT 업계 뉴스·블로그의 하루치 소식을 뉴스레터로 발행 |
 
 세 사이트는 서로를 내비게이션 링크로만 가리킵니다. 링크 주소는 각 폴더의
 `src/_data/site.js`에 있고 환경 변수(`DEVLOG_URL`, `ARCHIVE_URL`, `NEWS_URL`)로
@@ -52,7 +52,7 @@ Actions variables로 `CF_AI_MODEL`(개발 일지), `IBM_REGION`(아카이브)을
 `NEWS_URL` variable에는 Worker의 실제 주소를 넣습니다. `workers.dev` 하위 도메인은
 계정마다 다르고 사용자 지정 도메인을 붙이면 또 바뀌므로, 비워 두면 개발 일지와
 아카이브의 뉴스레터 링크가 `src/_data/site.js`의 기본값
-`https://devlog-news.tkddls8848.workers.dev/`로 나갑니다. `DEVLOG_URL`,
+`https://devlog.tkddls8848.workers.dev/`로 나갑니다. `DEVLOG_URL`,
 `ARCHIVE_URL`은 뉴스 Worker의 Wrangler 변수로 관리합니다.
 
 Settings → Pages의 Source는 `GitHub Actions`, Settings → Actions의 Workflow

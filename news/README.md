@@ -3,7 +3,7 @@
 뉴스 수집, Workers AI 본문 생성, D1 저장, HTML·RSS 서비스가 모두 Cloudflare
 Worker 안에서 실행됩니다. 매일 생성되는 결과를 GitHub에 커밋하지 않습니다.
 
-사이트: <https://devlog-news.tkddls8848.workers.dev/>
+사이트: <https://devlog.tkddls8848.workers.dev/>
 
 ## 실행 구조
 
@@ -64,7 +64,7 @@ npm run deploy
 
 ### 3. Workers Builds 연결
 
-Cloudflare 대시보드의 `devlog-news → Settings → Builds`에서 저장소를 연결하고 다음과
+Cloudflare 대시보드의 `devlog → Settings → Builds`에서 저장소를 연결하고 다음과
 같이 설정합니다.
 
 | 설정 | 값 |
