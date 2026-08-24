@@ -5,7 +5,7 @@
   "compatibility_date": "2026-08-24",
   // 매일 07:00 KST. Cron Trigger는 UTC 기준이다.
   "triggers": {
-    "crons": ["0 22 * * *", "25 0 * * *"]
+    "crons": ["0 22 * * *", "10 0 * * *", "25 0 * * *"]
   },
   "ai": {
     "binding": "AI"
@@ -24,14 +24,14 @@
     "NEWS_PER_SOURCE": "3",
     "NEWS_MAX_ITEMS": "30",
     "HN_MIN_POINTS": "100",
-    "DEVLOG_URL": "https://tkddls8848.github.io/devlog/",
+    "DEVLOG_URL": "https://devlog.tkddls8848.workers.dev/devlog/",
     "ARCHIVE_URL": "https://devlog.tkddls8848.workers.dev/archive/"
   },
   "assets": {
     "directory": "./_site",
     "binding": "ASSETS",
     // HTML과 RSS는 D1에서 동적으로 만들고 CSS·JS는 정적 자산으로 바로 보낸다.
-    "run_worker_first": ["/", "/issues/*", "/archive*", "/feed.xml", "/healthz"],
+    "run_worker_first": ["/", "/issues/*", "/archive*", "/devlog*", "/feed.xml", "/healthz"],
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
   },

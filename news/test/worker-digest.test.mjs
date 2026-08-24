@@ -26,12 +26,8 @@ const story = (title, url, hours = 2) => ({ title, url, at: hoursAgo(hours) });
 
 function memoryStore(published = []) {
   return {
-    legacyEnsured: false,
     issue: null,
     run: null,
-    async ensureLegacyIssues() {
-      this.legacyEnsured = true;
-    },
     async publishedLinks(values) {
       const known = new Set(published);
       return new Set(values.filter((value) => known.has(value)));
@@ -66,7 +62,6 @@ test("여러 소스의 새 소식을 Workers AI로 묶어 D1 저장소에 넘긴
   });
 
   assert.equal(result.status, "success");
-  assert.equal(store.legacyEnsured, true);
   assert.equal(store.issue.slug, "2026-08-25-news");
   assert.equal(store.issue.title, "오늘의 뉴스");
   assert.equal(store.issue.aiGenerated, true);

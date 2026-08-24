@@ -181,7 +181,6 @@ export async function runDigest({ env, store, now = new Date(), sources, logger 
   const since = new Date(new Date(now).getTime() - config.windowHours * 3600 * 1000);
   const day = DAY.format(new Date(now));
 
-  await store.ensureLegacyIssues();
   logger.log(`IT 뉴스 수집 중 (최근 ${config.windowHours}시간, ${since.toISOString()} 이후)`);
   const { items, failed } = await collectAll(sourceList, since, logger);
   const baseRun = {

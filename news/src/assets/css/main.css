@@ -1,6 +1,9 @@
 /* 공통 테마·헤더 스타일은 assets/css/theme.css(빌드 시 ../shared/theme.css에서
    복사됨)에 있다. 여기는 news 사이트에만 필요한 스타일만 둔다. */
 
+/* 문서 아카이브와 동일한 데스크톱 본문 폭을 사용한다. */
+body { max-width: 68rem; }
+
 .post-list { margin: 0; padding: 0; list-style: none; }
 .post-list li { margin-bottom: .25rem; padding: 1.1rem .75rem; border-radius: 10px; transition: background .15s ease; }
 .post-list li:hover { background: var(--panel); }

@@ -103,8 +103,8 @@ function layout({ env, title, summary, current = "", content, canonical = "" }) 
       <div class="site-brand"><a class="site-title" href="/">${site.title}</a><p class="site-tagline">${site.tagline}</p></div>
       <div class="site-controls">
         <nav class="site-nav" aria-label="주요">
-          <a href="${escapeHtml(site.devlogUrl)}">개발 일지</a>
-          <a href="${escapeHtml(site.archiveUrl)}">아카이브</a>
+          <a href="${escapeHtml(site.devlogUrl)}"${current === "devlog" ? ' aria-current="page"' : ""}>개발 일지</a>
+          <a href="${escapeHtml(site.archiveUrl)}"${current === "archive" ? ' aria-current="page"' : ""}>아카이브</a>
           <a href="/"${current === "home" ? ' aria-current="page"' : ""}>뉴스레터</a>
         </nav>
         ${themeToggle}
@@ -179,6 +179,27 @@ export function renderArchive(records, env, origin) {
   <div class="archive-table-wrap"><table class="archive-table"><thead><tr><th>날짜</th><th>벤더</th><th>문서</th></tr></thead><tbody id="archive-rows">${rows || '<tr><td colspan="3">아직 수집된 문서가 없습니다.</td></tr>'}</tbody></table></div>
   <script>(()=>{const q=document.getElementById('archive-query'),rows=[...document.querySelectorAll('#archive-rows tr')],count=document.getElementById('archive-count');q?.addEventListener('input',()=>{const term=q.value.trim().toLowerCase();let n=0;for(const row of rows){const show=!term||row.textContent.toLowerCase().includes(term);row.hidden=!show;if(show)n++}count.textContent=n+'건'})})()</script>`;
   return layout({ env, title: "벤더 문서 아카이브", summary: "IBM, Lenovo, HPE, Dell 제품 문서 아카이브", current: "archive", content, canonical: `${origin}/archive/` });
+}
+
+export function renderDevlogHome(posts, env, origin) {
+  const rows = posts.length ? posts.map((post) => `<li>
+    <time datetime="${escapeHtml(post.post_date)}">${escapeHtml(post.post_date)}</time>
+    <a href="/devlog/posts/${encodeURIComponent(post.slug)}/">${escapeHtml(post.title)}</a>
+    ${post.summary ? `<p>${escapeHtml(post.summary)}</p>` : ""}
+  </li>`).join("") : '<li class="empty">아직 발행된 개발 일지가 없습니다.</li>';
+  const content = `<p class="page-intro">공개 저장소에 올린 커밋을 날짜별로 정리한 개발 일지입니다. 수집·생성·저장·서비스는 Cloudflare에서 실행됩니다.</p><ul class="post-list">${rows}</ul>`;
+  return layout({ env, title: "개발 일지", summary: "공개 저장소 커밋을 날짜별로 정리한 개발 일지", current: "devlog", content, canonical: `${origin}/devlog/` });
+}
+
+export function renderDevlogPost(post, env, origin) {
+  const groups = new Map();
+  for (const commit of post.commits || []) {
+    if (!groups.has(commit.repo)) groups.set(commit.repo, []);
+    groups.get(commit.repo).push(commit);
+  }
+  const sources = [...groups].map(([repo, commits]) => `<h3><a href="https://github.com/${escapeHtml(repo)}">${escapeHtml(repo)}</a></h3><ul>${commits.map((commit) => `<li><a href="https://github.com/${escapeHtml(repo)}/commit/${escapeHtml(commit.sha)}"><code>${escapeHtml(commit.sha.slice(0, 7))}</code></a> ${escapeHtml(commit.message)}</li>`).join("")}</ul>`).join("");
+  const content = `<article class="post"><header class="post-header"><h1>${escapeHtml(post.title)}</h1><p class="post-meta"><time datetime="${escapeHtml(post.post_date)}">${escapeHtml(post.post_date)}</time>${post.ai_generated ? '<span class="badge">AI 생성</span>' : ""}</p>${post.summary ? `<p class="post-summary">${escapeHtml(post.summary)}</p>` : ""}</header>${markdownToHtml(post.body_markdown)}${sources ? `<section class="sources"><h2>참고한 커밋</h2>${sources}</section>` : ""}<p class="back"><a href="/devlog/">← 개발 일지</a></p></article>`;
+  return layout({ env, title: post.title, summary: post.summary, current: "devlog", content, canonical: `${origin}/devlog/posts/${encodeURIComponent(post.slug)}/` });
 }
 
 export function renderNotFound(env) {

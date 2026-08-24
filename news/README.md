@@ -31,8 +31,7 @@ migrations/0001_initial.sql   D1 스키마
 tools/feeds.mjs               피드 소스와 후보 주소
 tools/rss.mjs                 RSS·Atom 파서와 URL 정규화
 tools/sources/hackernews.mjs  Hacker News 수집기
-tools/export-legacy-issues.mjs 기존 Markdown 이슈의 최초 D1 이관 데이터 생성
-src/issues/                   이관할 기존 6개 이슈; 이후에는 늘어나지 않음
+tools/export-legacy-archive.mjs 기존 아카이브 JSON의 최초 D1 이관 데이터 생성
 wrangler.jsonc                AI·D1·Assets·Cron binding 설정
 ```
 
@@ -61,8 +60,8 @@ npm run deploy:with-migrations
 최초 배포나 스키마 변경 때만 D1 권한이 있는 관리자 환경에서 이 명령을 실행합니다.
 일반 `npm run deploy`는 정적 테마를 빌드하고 Worker만 배포하며 D1 migration을
 실행하지 않습니다.
-첫 HTTP 요청 또는 첫 Cron 실행 때 `src/issues`의 기존 6개 이슈가 D1에 idempotent하게
-이관됩니다. `metadata.legacy_import_v1`이 이관 완료 여부를 기록합니다.
+뉴스레터와 개발일지의 기존 Markdown은 D1 이관 후 제거했습니다. 운영 데이터의
+단일 원본은 D1이며 새 발행 결과도 GitHub에 커밋하지 않습니다.
 
 ### 3. Workers Builds 연결
 
@@ -93,7 +92,7 @@ Workers Builds와 중복 배포하지 않습니다.
 
 빌드 로그에서 `npm run build`가 `eleventy`만 실행하거나 Wrangler를 즉석 설치한다면
 전체 전환 전의 커밋을 재시도한 것입니다. 최신 커밋에서는
-`node tools/export-legacy-issues.mjs && eleventy`가 실행되고 Wrangler는 `npm ci`에서
+`node tools/export-legacy-archive.mjs && eleventy`가 실행되고 Wrangler는 `npm ci`에서
 설치됩니다. Build history에서 최신 `main` 커밋인지 확인합니다.
 
 ## Binding과 설정값
@@ -104,6 +103,7 @@ Workers Builds와 중복 배포하지 않습니다.
 - `DB`: D1 binding
 - `ASSETS`: CSS·JS 같은 정적 자산 binding
 - Cron `0 22 * * *`: UTC 22:00, KST 07:00
+- Cron `10 0 * * *`: UTC 00:10, KST 09:10, 개발일지 수집·생성
 - Cron `25 0 * * *`: UTC 00:25, KST 09:25, 벤더 문서 아카이브 수집
 - `CF_AI_MODEL`: 사용할 Workers AI 모델
 - `NEWS_WINDOW_HOURS`: 수집 시간 창, 기본 24

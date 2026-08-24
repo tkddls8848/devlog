@@ -1,0 +1,100 @@
+import { parseDraft } from "./digest.mjs";
+
+const USER = "tkddls8848";
+const BLOG_REPO = `${USER}/devlog`;
+const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" });
+const ignored = [/^merge\s/i, /^revert\s/i, /^(chore|ci)(\(deps\))?:/i, /^bump\s/i, /^(wip|test|tmp|temp|initial commit)$/i, /\[skip ci\]/i];
+
+async function github(path, token) {
+  const headers = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "devlog-worker" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(`https://api.github.com${path}`, { headers, signal: AbortSignal.timeout(30_000) });
+  const data = await response.json();
+  if (!response.ok) throw new Error(`GitHub API ${response.status}: ${data.message || path}`);
+  return data;
+}
+
+function rangesFrom(events) {
+  const found = new Map();
+  for (const event of events) {
+    if (event.type !== "PushEvent" || event.repo?.name === BLOG_REPO || !/^refs\/heads\/(main|master|dev)$/.test(event.payload?.ref || "")) continue;
+    const { before, head } = event.payload || {};
+    if (!before || !head || /^0+$/.test(before)) continue;
+    found.set(`${event.repo.name}:${before}:${head}`, { repo: event.repo.name, before, head, createdAt: event.created_at, commits: event.payload.commits || [], size: Number(event.payload.distinct_size ?? event.payload.size ?? 0) });
+  }
+  return [...found.values()];
+}
+
+function normalize(item, range) {
+  const sha = item.sha || item.id;
+  const message = String(item.commit?.message || item.message || "").split("\n")[0].trim();
+  const author = item.commit?.author?.name || item.author?.login || item.author?.name || "";
+  const at = item.commit?.author?.date || item.commit?.committer?.date || range.createdAt;
+  if (!sha || item.parents?.length > 1 || !message || ignored.some((pattern) => pattern.test(message)) || /\[bot\]$|^dependabot|^github-actions/i.test(author)) return null;
+  return { repo: range.repo, sha, message, day: DAY.format(new Date(at)) };
+}
+
+async function collect(env, published) {
+  const token = env.GITHUB_TOKEN || "";
+  const events = [];
+  for (let page = 1; page <= 3; page++) {
+    const batch = await github(`/users/${USER}/events/public?per_page=100&page=${page}`, token);
+    events.push(...batch); if (batch.length < 100) break;
+  }
+  const commits = new Map();
+  let partial = false;
+  for (const range of rangesFrom(events)) {
+    let items = range.commits;
+    if (!items.length || items.length < range.size) {
+      try { items = (await github(`/repos/${range.repo}/compare/${range.before}...${range.head}`, token)).commits || []; }
+      catch { partial = true; }
+    }
+    for (const item of items) {
+      const commit = normalize(item, range);
+      if (commit && !published.has(commit.sha)) commits.set(commit.sha, commit);
+    }
+  }
+  return { commits: [...commits.values()], partial };
+}
+
+const fallbackDraft = (day, groups) => {
+  const total = [...groups.values()].reduce((sum, values) => sum + values.length, 0);
+  return { title: `${day} 개발 일지`, summary: `${groups.size}개 저장소의 커밋 ${total}건을 기록했습니다.`, body: [...groups].map(([repo, values]) => `## ${repo}\n\n${values.map((item) => `- ${item.message}`).join("\n")}`).join("\n\n") };
+};
+
+async function aiDraft(env, day, groups, fallback) {
+  const source = [...groups].map(([repo, values]) => `## ${repo}\n${values.map((item) => `- ${item.message}`).join("\n")}`).join("\n\n");
+  const prompt = `다음 ${day} 커밋을 저장소별 작업 단위로 묶어 담담한 개발 일지를 쓰세요. 추측, 홍보 표현, 커밋 나열은 제외하고 250~600자로 작성하세요.\n\n${source}\n\n정확히 다음 형식으로 답하세요.\nTITLE: 제목\nSUMMARY: 한 줄 요약\n\nMarkdown 본문`;
+  const result = await env.AI.run(env.CF_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct-fast", { messages: [{ role: "system", content: "자료에 없는 내용을 만들지 않는 한국어 기록자입니다." }, { role: "user", content: prompt }], max_tokens: 900, temperature: 0.3 });
+  const text = String(result?.response ?? result?.choices?.[0]?.message?.content ?? result?.output_text ?? "").trim();
+  if (!text) throw new Error("Workers AI가 빈 응답을 반환했습니다.");
+  return parseDraft(text, fallback);
+}
+
+export async function runDevlog({ env, store, now = new Date() }) {
+  const startedAt = new Date(now).toISOString();
+  try {
+    const { commits, partial } = await collect(env, await store.publishedDevlogShas());
+    if (!commits.length) {
+      await store.saveDevlogRun({ startedAt, finishedAt: new Date().toISOString(), status: partial ? "partial" : "empty", collectedCount: 0, postCount: 0 });
+      return { status: partial ? "partial" : "empty" };
+    }
+    const days = new Map();
+    for (const commit of commits) {
+      if (!days.has(commit.day)) days.set(commit.day, new Map());
+      const repos = days.get(commit.day); if (!repos.has(commit.repo)) repos.set(commit.repo, []); repos.get(commit.repo).push(commit);
+    }
+    let postCount = 0;
+    for (const [day, groups] of [...days].sort(([a], [b]) => a.localeCompare(b))) {
+      const fallback = fallbackDraft(day, groups); let draft = fallback; let aiGenerated = false;
+      try { draft = await aiDraft(env, day, groups, fallback); aiGenerated = true; } catch (error) { console.warn("개발일지 AI 요약 실패", error); }
+      await store.saveDevlogPost({ slug: await store.nextDevlogSlug(day), postDate: day, title: draft.title, summary: draft.summary, bodyMarkdown: draft.body, aiGenerated, publishedAt: new Date(now).toISOString(), commits: [...groups.values()].flat() });
+      postCount++;
+    }
+    await store.saveDevlogRun({ startedAt, finishedAt: new Date().toISOString(), status: partial ? "partial" : "success", collectedCount: commits.length, postCount });
+    return { status: partial ? "partial" : "success", postCount };
+  } catch (error) {
+    await store.saveDevlogRun({ startedAt, finishedAt: new Date().toISOString(), status: "failed", collectedCount: 0, postCount: 0, error: error.message });
+    throw error;
+  }
+}

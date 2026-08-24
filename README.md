@@ -6,31 +6,26 @@
 
 | 폴더 | 사이트 | 하는 일 |
 | --- | --- | --- |
-| [`devlog/`](devlog/) | <https://tkddls8848.github.io/devlog/> | GitHub 공개 커밋을 날짜별 개발 일지로 발행 |
-| [`archive/`](archive/) | <https://tkddls8848.github.io/devlog/archive/> | IBM·Lenovo·HPE·Dell 제품 문서 갱신을 목록으로 축적 |
+| [`devlog/`](devlog/) | <https://devlog.tkddls8848.workers.dev/devlog/> | GitHub 공개 커밋을 날짜별 개발 일지로 발행 |
+| [`archive/`](archive/) | <https://devlog.tkddls8848.workers.dev/archive/> | IBM·Lenovo·HPE·Dell 제품 문서 갱신을 목록으로 축적 |
 | [`news/`](news/) | <https://devlog.tkddls8848.workers.dev/> | IT 업계 뉴스·블로그의 하루치 소식을 뉴스레터로 발행 |
 
 세 사이트는 서로를 내비게이션 링크로만 가리킵니다. 링크 주소는 각 폴더의
 `src/_data/site.js`에 있고 환경 변수(`DEVLOG_URL`, `ARCHIVE_URL`, `NEWS_URL`)로
 덮어쓸 수 있습니다.
 
-개발 일지와 아카이브는 GitHub Pages에, 뉴스레터는 Cloudflare Workers에 올라갑니다.
-뉴스레터는 오리진이 달라 이웃 사이트를 상대 경로가 아닌 절대 주소로 가리킵니다.
+세 서비스 모두 Cloudflare Worker `devlog`에서 제공하며 운영 데이터는 D1에 저장합니다.
 
 ## 워크플로
 
 ```text
-.github/workflows/devlog-publish.yml    09:10 KST, devlog/ 만 수집·커밋
-.github/workflows/archive-publish.yml   09:25 KST, archive/ 만 수집·커밋
 .github/workflows/test.yml              세 폴더의 테스트를 각각 실행
-.github/workflows/deploy.yml            devlog·archive 빌드를 합쳐 GitHub Pages로 배포
-news/worker/index.mjs                   Cloudflare Cron으로 news 수집·발행·서비스
+news/worker/index.mjs                   Cloudflare Cron으로 news·devlog·archive 수집·발행·서비스
 ```
 
-`deploy.yml`은 GitHub Pages에 남은 개발 일지와 아카이브만 배포합니다. 뉴스레터는
-Cloudflare Workers Builds가 소스 변경을 배포하고, Cron Trigger가 매일 수집하며,
-Workers AI가 본문을 만들고 D1이 이슈·원문 링크·실행 이력을 저장합니다. 뉴스레터
-발행 결과는 GitHub에 커밋하지 않습니다.
+Cloudflare Workers Builds가 소스 변경을 배포하고, 세 Cron Trigger가 매일 수집하며,
+Workers AI가 뉴스레터와 개발일지 본문을 만들고 D1이 게시물·원문·실행 이력을
+저장합니다. 발행 결과는 GitHub에 커밋하지 않습니다.
 
 테스트는 `main` 푸시와 풀 리퀘스트에서 폴더별로 돕니다. 네트워크와 비밀값 없이
 돌도록 만들어져 있어 수집 워크플로와 무관하게 언제든 실행할 수 있습니다.
@@ -40,10 +35,7 @@ Workers AI가 본문을 만들고 D1이 이슈·원문 링크·실행 이력을 
 
 ## 설정
 
-Actions secrets에는 개발 일지 생성이 사용하는 다음 값만 등록합니다.
-
-- `CF_ACCOUNT_ID`: Cloudflare 계정 ID
-- `CF_API_TOKEN`: Workers AI 권한이 있는 API 토큰
+Workers AI와 D1은 Worker binding을 사용하므로 GitHub Actions secret이 필요하지 않습니다.
 
 Actions variables로 `CF_AI_MODEL`(개발 일지), `IBM_REGION`(아카이브)을 바꿀 수
 있습니다. 뉴스레터의 AI·D1은 Worker binding이므로 GitHub secret을 사용하지 않고,
