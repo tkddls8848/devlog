@@ -55,6 +55,9 @@ body { max-width: 68rem; }
 .archive-table-wrap { overflow-x: auto; margin-top: 1rem; border: 1px solid var(--line); border-radius: 10px; }
 .archive-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .archive-table th, .archive-table td { padding: .8rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.archive-table th:nth-child(1), .archive-table td:nth-child(1) { width: 12rem; min-width: 12rem; }
+.archive-table th:nth-child(2), .archive-table td:nth-child(2) { width: 10rem; min-width: 10rem; }
+.archive-table th:nth-child(3), .archive-table td:nth-child(3) { width: auto; }
 .archive-table th { color: var(--soft); font-size: .75rem; text-transform: uppercase; }
 .archive-table tr:last-child td { border-bottom: 0; }
 .archive-table a { font-weight: 600; text-decoration: none; }
