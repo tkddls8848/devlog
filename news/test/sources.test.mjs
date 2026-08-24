@@ -24,7 +24,7 @@ const stub = (handler) => {
 const SINCE = new Date("2026-08-17T00:00:00.000Z");
 
 test("Hacker News 수집기는 이름과 분류, collect()를 내보낸다", () => {
-  // news-digest는 sources[index].source로 실패 로그와 묶음 제목을 만든다.
+  // Worker 수집기는 sources[index].source로 실패 로그와 묶음 제목을 만든다.
   // 이름이 빠지면 수집이 조용히 "undefined: 0건"이 된다.
   assert.equal(typeof hackernews.source, "string");
   assert.ok(hackernews.source.length);
@@ -370,7 +370,7 @@ test("피드가 아닌 200 응답은 후보 실패로 본다", async () => {
 });
 
 test("항목이 0건이어도 피드로 읽히면 그 후보를 쓴다", async () => {
-  // 조용한 날과 죽은 주소는 다르다. 0건 경고는 news-digest가 따로 남긴다.
+  // 조용한 날과 죽은 주소는 다르다. 0건 경고는 Worker 수집기가 따로 남긴다.
   const calls = stub(() => new Response(rss([]), { status: 200 }));
 
   const rows = await feedSource(TEST_FEED)();
@@ -380,7 +380,7 @@ test("항목이 0건이어도 피드로 읽히면 그 후보를 쓴다", async (
 });
 
 test("후보가 모두 막히면 두드린 주소를 모아 던진다", async () => {
-  // 던져야 news-digest가 부분 실패로 잡고 종료 코드에 싣는다. 어느 주소가
+  // 던져야 Worker 수집기가 부분 실패로 잡고 실행 이력에 싣는다. 어느 주소가
   // 왜 막혔는지 함께 남겨야 feeds.mjs를 고칠 수 있다.
   stub(() => new Response("", { status: 503 }));
 

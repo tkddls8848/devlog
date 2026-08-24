@@ -1,10 +1,12 @@
 node_modules/
 _site/
+.wrangler/
 .env
 *.log
 
 # 이슈 저장이 중단되면 남는 임시 파일. 커밋에 섞이지 않게 한다.
 *.tmp
+worker/generated/
 
 # ../shared에서 빌드 시 복사되는 사본. 원본이 아니므로 커밋하지 않는다.
 src/assets/css/theme.css

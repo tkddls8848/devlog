@@ -4,15 +4,18 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "dev": "eleventy --serve --incremental",
-    "build": "eleventy",
-    "digest": "node tools/news-digest.mjs",
-    "digest:dry": "node tools/news-digest.mjs --dry-run",
+    "dev": "npm run build && wrangler dev --test-scheduled",
+    "build": "node tools/export-legacy-issues.mjs && eleventy",
     "feeds:check": "node tools/feed-check.mjs",
-    "deploy": "PATH_PREFIX=/ eleventy && npx --yes wrangler@4 deploy"
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "deploy:worker": "wrangler deploy",
+    "deploy": "npm run build && npm run db:migrate:remote && npm run deploy:worker"
   },
   "devDependencies": {
-    "@11ty/eleventy": "^3.1.6"
+    "@11ty/eleventy": "^3.1.6",
+    "gray-matter": "^4.0.3",
+    "wrangler": "4.125.0"
   },
   "engines": {
     "node": ">=20"

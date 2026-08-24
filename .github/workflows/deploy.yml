@@ -2,20 +2,19 @@ name: GitHub Pages 배포
 
 # GitHub Pages는 저장소당 사이트 하나만 배포한다. devlog·archive는 따로 빌드한 뒤
 # 여기서만 하나의 아티팩트로 합친다. 뉴스레터는 Cloudflare Workers로 빠져나가
-# news-deploy.yml에서 자기 배포를 따로 가진다.
+# Cloudflare Workers Builds와 Cron Trigger로 독립 실행한다.
 on:
   push:
     branches: [main]
     # 사이트 산출물을 바꿀 수 없는 파일만 뺀다. 한 푸시에 다른 파일이 하나라도
     # 섞이면 그대로 배포되므로, 애매하면 빼지 않는 편이 안전하다. news/는 여기서
-    # 배포하지 않으므로 통째로 뺀다. shared/는 세 사이트가 함께 쓰는 테마라
-    # 남겨 두고, 뉴스레터 쪽 배포도 같은 푸시에서 따로 깨어난다.
+    # 배포하지 않으므로 통째로 뺀다. shared/는 개발 일지·아카이브도 함께 쓰므로
+    # 남겨 둔다.
     paths-ignore:
       - "news/**"
       - "**/test/**"
       - "**/README.md"
       - ".github/workflows/test.yml"
-      - ".github/workflows/news-deploy.yml"
   workflow_call:
   workflow_dispatch:
 

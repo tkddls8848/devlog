@@ -104,7 +104,7 @@ export async function fetchFeed(url, label) {
 
 // 후보를 순서대로 두드려 먼저 응답하는 주소를 쓴다. 피드로 읽히기만 하면
 // 항목이 0건이어도 그 주소를 쓴다. 조용한 날과 죽은 주소는 다르고, 0건은
-// news-digest가 따로 경고한다.
+// Worker 수집기가 따로 경고한다.
 export function feedSource({ source, kind, urls, limit = 5 }) {
   const candidates = Array.isArray(urls) ? urls : [urls];
   return async function collect() {

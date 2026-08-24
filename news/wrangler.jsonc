@@ -1,14 +1,38 @@
 {
-  // 뉴스레터는 이 저장소에서 유일하게 GitHub Pages를 쓰지 않는 사이트다.
-  // 코드는 없고 빌드 산출물만 올리는 정적 자산 Worker라 main(스크립트)이 없다.
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "devlog-news",
+  "main": "./worker/index.mjs",
   "compatibility_date": "2026-08-24",
+  // 매일 07:00 KST. Cron Trigger는 UTC 기준이다.
+  "triggers": {
+    "crons": ["0 22 * * *"]
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "devlog-news",
+      "database_id": "49dde3a7-307c-463d-91bc-c2d44cf7a8e7",
+      "migrations_dir": "./migrations"
+    }
+  ],
+  "vars": {
+    "CF_AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast",
+    "NEWS_WINDOW_HOURS": "24",
+    "NEWS_PER_SOURCE": "3",
+    "NEWS_MAX_ITEMS": "30",
+    "HN_MIN_POINTS": "100",
+    "DEVLOG_URL": "https://tkddls8848.github.io/devlog/",
+    "ARCHIVE_URL": "https://tkddls8848.github.io/devlog/archive/"
+  },
   "assets": {
-    // eleventy가 만든 _site를 통째로 올린다. PATH_PREFIX=/로 빌드해야 한다.
     "directory": "./_site",
-    // /2026-08-24-news 처럼 끝 슬래시 없이 들어와도 같은 쪽을 보여 준다.
+    "binding": "ASSETS",
+    // HTML과 RSS는 D1에서 동적으로 만들고 CSS·JS는 정적 자산으로 바로 보낸다.
+    "run_worker_first": ["/", "/issues/*", "/feed.xml", "/healthz"],
     "html_handling": "auto-trailing-slash",
-    // 없는 주소는 빈 404 대신 사이트 껍데기를 그대로 쓴 404 쪽으로 돌려준다.
     "not_found_handling": "404-page"
   },
   "observability": {
