@@ -39,8 +39,19 @@ body { max-width: 68rem; }
 .sources .meta { display: block; color: var(--soft); font-size: .78rem; }
 .sources h3 .meta { display: inline; margin-left: .4rem; font-weight: 400; }
 
-.archive-filters { margin: 1.5rem 0 .5rem; }
-.archive-filters input { width: min(100%, 30rem); padding: .65rem .8rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.archive-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin: 1.5rem 0 .5rem; }
+.archive-filters input { flex: 1 1 18rem; min-width: 0; padding: .65rem .8rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.archive-chips { display: flex; flex-wrap: wrap; gap: .45rem; }
+.archive-chip { display: inline-flex; align-items: center; gap: .45rem; padding: .35rem .65rem .35rem .4rem; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--soft); font: inherit; font-size: .8rem; cursor: pointer; }
+.archive-chip:hover { color: var(--fg); }
+.archive-chip.is-on { border-color: var(--fg); color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
+.archive-chip strong { color: inherit; font-size: .7rem; font-weight: 600; }
+.vendor-icon { display: inline-flex; align-items: center; justify-content: center; min-width: 2rem; height: 1.45rem; padding: 0 .35rem; border-radius: .4rem; font-size: .62rem; font-weight: 800; letter-spacing: -.02em; }
+.vendor-icon-all { background: var(--fg); color: var(--bg); }
+.vendor-icon-ibm { background: #e8f0ff; color: #0f62fe; }
+.vendor-icon-lenovo { background: #fdecec; color: #b8202e; }
+.vendor-icon-hpe { background: #e4f5ee; color: #017a5a; }
+.vendor-icon-dell { background: #e6f1fb; color: #0063b0; }
 .archive-table-wrap { overflow-x: auto; margin-top: 1rem; border: 1px solid var(--line); border-radius: 10px; }
 .archive-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .archive-table th, .archive-table td { padding: .8rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
@@ -50,4 +61,15 @@ body { max-width: 68rem; }
 .archive-table a:hover { text-decoration: underline; }
 .archive-table .meta { display: block; margin-top: .25rem; }
 .archive-note { margin: .35rem 0 0; color: var(--soft); font-size: .84rem; }
-.archive-vendor { font-weight: 600; }
+.archive-vendor { display: block; margin-top: .2rem; font-weight: 600; font-size: .75rem; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .vendor-icon-ibm { background: #1a2740; color: #78a9ff; }
+  :root:not([data-theme="light"]) .vendor-icon-lenovo { background: #3a1f22; color: #ff8b93; }
+  :root:not([data-theme="light"]) .vendor-icon-hpe { background: #12332a; color: #4fd1a5; }
+  :root:not([data-theme="light"]) .vendor-icon-dell { background: #142a3f; color: #6cb4f0; }
+}
+:root[data-theme="dark"] .vendor-icon-ibm { background: #1a2740; color: #78a9ff; }
+:root[data-theme="dark"] .vendor-icon-lenovo { background: #3a1f22; color: #ff8b93; }
+:root[data-theme="dark"] .vendor-icon-hpe { background: #12332a; color: #4fd1a5; }
+:root[data-theme="dark"] .vendor-icon-dell { background: #142a3f; color: #6cb4f0; }

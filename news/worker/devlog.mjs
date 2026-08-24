@@ -64,8 +64,27 @@ const fallbackDraft = (day, groups) => {
 
 async function aiDraft(env, day, groups, fallback) {
   const source = [...groups].map(([repo, values]) => `## ${repo}\n${values.map((item) => `- ${item.message}`).join("\n")}`).join("\n\n");
-  const prompt = `다음 ${day} 커밋을 저장소별 작업 단위로 묶어 담담한 개발 일지를 쓰세요. 추측, 홍보 표현, 커밋 나열은 제외하고 250~600자로 작성하세요.\n\n${source}\n\n정확히 다음 형식으로 답하세요.\nTITLE: 제목\nSUMMARY: 한 줄 요약\n\nMarkdown 본문`;
-  const result = await env.AI.run(env.CF_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct-fast", { messages: [{ role: "system", content: "자료에 없는 내용을 만들지 않는 한국어 기록자입니다." }, { role: "user", content: prompt }], max_tokens: 900, temperature: 0.3 });
+  const prompt = `다음은 ${day}에 실제로 반영한 커밋입니다. 이를 재료로 개발자가 직접 회고하는 한국어 기술 블로그 글을 작성하세요.
+
+${source}
+
+작성 원칙:
+- 커밋 목록을 문장으로 다시 나열하지 말고 서로 관련된 변경을 2~4개의 작업 흐름으로 묶습니다.
+- 각 작업 흐름에서 왜 이 작업이 필요했는지, 어떤 문제나 목적이 있었는지 먼저 설명합니다.
+- 이어서 무엇을 어떤 방식으로 바꿨는지 구체적으로 기술합니다.
+- 커밋에서 결과나 검증이 확인되면 무엇이 잘되었고 어떤 상태가 개선됐는지 씁니다.
+- 결과가 커밋에 드러나지 않으면 성공했다고 꾸미지 말고 의도·기대 효과 또는 다음 확인 사항으로 구분합니다.
+- 독자가 설계 판단과 작업 맥락을 따라갈 수 있도록 자연스러운 1인칭 기술 블로그 문체를 사용합니다.
+- 과장, 홍보 표현, 자료에 없는 원인·수치·장애·성능 개선은 만들지 않습니다.
+- 본문은 600~1200자로 쓰고, 의미 있는 소제목은 \"## 소제목\" 형식으로 붙입니다.
+- 커밋 링크나 SHA 목록은 본문에 쓰지 않습니다. 참고 커밋은 페이지 하단에서 별도로 표시됩니다.
+
+정확히 다음 형식으로 답하세요.
+TITLE: 작업의 핵심을 드러내는 제목
+SUMMARY: 목적과 결과를 압축한 한 줄 요약
+
+Markdown 본문`;
+  const result = await env.AI.run(env.CF_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct-fast", { messages: [{ role: "system", content: "당신은 구현 맥락과 설계 판단을 독자가 이해하도록 쓰는 시니어 소프트웨어 엔지니어입니다. 제공된 커밋만 근거로 목적, 구현, 확인된 결과를 구분해 1인칭 기술 블로그를 작성하며 사실을 추측하지 않습니다." }, { role: "user", content: prompt }], max_tokens: 1500, temperature: 0.45 });
   const text = String(result?.response ?? result?.choices?.[0]?.message?.content ?? result?.output_text ?? "").trim();
   if (!text) throw new Error("Workers AI가 빈 응답을 반환했습니다.");
   return parseDraft(text, fallback);

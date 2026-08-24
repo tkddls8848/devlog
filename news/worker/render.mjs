@@ -166,18 +166,21 @@ export function renderIssue(issue, env, origin) {
 }
 
 export function renderArchive(records, env, origin) {
-  const rows = records.map((record) => `<tr>
+  const vendors = ["IBM", "Lenovo", "HPE", "Dell"];
+  const counts = Object.fromEntries(vendors.map((vendor) => [vendor, records.filter((record) => record.vendor === vendor).length]));
+  const vendorButtons = vendors.filter((vendor) => counts[vendor]).map((vendor) => `<button type="button" class="archive-chip" data-vendor="${escapeHtml(vendor)}" aria-pressed="false"><span class="vendor-icon vendor-icon-${vendor.toLowerCase()}" aria-hidden="true">${escapeHtml(vendor)}</span><span>${escapeHtml(vendor)}</span><strong>${counts[vendor]}</strong></button>`).join("");
+  const rows = records.map((record) => `<tr data-vendor="${escapeHtml(record.vendor)}">
     <td><time datetime="${escapeHtml(record.document_date)}">${escapeHtml(record.document_date)}</time></td>
-    <td><span class="archive-vendor">${escapeHtml(record.vendor)}</span></td>
+    <td><span class="vendor-icon vendor-icon-${escapeHtml(record.vendor.toLowerCase())}" aria-hidden="true">${escapeHtml(record.vendor)}</span><span class="archive-vendor">${escapeHtml(record.vendor)}</span></td>
     <td><a href="${escapeHtml(record.url)}" rel="noopener">${escapeHtml(record.title)}</a>
       <span class="meta">${escapeHtml(record.kind)}${record.tag ? ` · ${escapeHtml(record.tag)}` : ""}${record.ref ? ` · <code>${escapeHtml(record.ref)}</code>` : ""}</span>
       ${record.note ? `<p class="archive-note">${escapeHtml(record.note)}</p>` : ""}</td>
   </tr>`).join("");
   const content = `<p class="page-intro">IBM · Lenovo · HPE · Dell 제품 문서에서 관측한 갱신입니다. Cloudflare Cron이 매일 09:25 KST에 수집하고 D1에 저장합니다.</p>
-  <div class="archive-filters"><input type="search" id="archive-query" placeholder="제목 · 문서번호 검색" aria-label="문서 검색" /></div>
+  <div class="archive-filters"><input type="search" id="archive-query" placeholder="제목 · 문서번호 검색" aria-label="문서 검색" /><div class="archive-chips" role="group" aria-label="벤더 선택"><button type="button" class="archive-chip is-on" data-vendor="" aria-pressed="true"><span class="vendor-icon vendor-icon-all" aria-hidden="true">ALL</span><span>전체</span><strong>${records.length}</strong></button>${vendorButtons}</div></div>
   <p class="meta" id="archive-count">${records.length}건</p>
   <div class="archive-table-wrap"><table class="archive-table"><thead><tr><th>날짜</th><th>벤더</th><th>문서</th></tr></thead><tbody id="archive-rows">${rows || '<tr><td colspan="3">아직 수집된 문서가 없습니다.</td></tr>'}</tbody></table></div>
-  <script>(()=>{const q=document.getElementById('archive-query'),rows=[...document.querySelectorAll('#archive-rows tr')],count=document.getElementById('archive-count');q?.addEventListener('input',()=>{const term=q.value.trim().toLowerCase();let n=0;for(const row of rows){const show=!term||row.textContent.toLowerCase().includes(term);row.hidden=!show;if(show)n++}count.textContent=n+'건'})})()</script>`;
+  <script>(()=>{const q=document.getElementById('archive-query'),rows=[...document.querySelectorAll('#archive-rows tr[data-vendor]')],count=document.getElementById('archive-count'),chips=[...document.querySelectorAll('.archive-chip')];let vendor='';const apply=()=>{const term=q.value.trim().toLowerCase();let n=0;for(const row of rows){const show=(!vendor||row.dataset.vendor===vendor)&&(!term||row.textContent.toLowerCase().includes(term));row.hidden=!show;if(show)n++}count.textContent=n+'건'};q?.addEventListener('input',apply);for(const chip of chips)chip.addEventListener('click',()=>{vendor=chip.dataset.vendor;for(const item of chips){const active=item===chip;item.classList.toggle('is-on',active);item.setAttribute('aria-pressed',String(active))}apply()});apply()})()</script>`;
   return layout({ env, title: "벤더 문서 아카이브", summary: "IBM, Lenovo, HPE, Dell 제품 문서 아카이브", current: "archive", content, canonical: `${origin}/archive/` });
 }
 
