@@ -82,6 +82,11 @@ been deleted or rolled” 오류가 나오면 같은 화면의 API token에서 �
 GitHub의 `.github/workflows/news-publish.yml`과 `news-deploy.yml`은 제거되어
 Workers Builds와 중복 배포하지 않습니다.
 
+빌드 로그에서 `npm run build`가 `eleventy`만 실행하거나 Wrangler를 즉석 설치한다면
+전체 전환 전의 커밋을 재시도한 것입니다. 최신 커밋에서는
+`node tools/export-legacy-issues.mjs && eleventy`가 실행되고 Wrangler는 `npm ci`에서
+설치됩니다. Build history에서 최신 `main` 커밋인지 확인합니다.
+
 ## Binding과 설정값
 
 `wrangler.jsonc`가 설정의 원본입니다.
