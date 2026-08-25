@@ -4,8 +4,23 @@ const IBM_LABELS = {
   statementofdirection: "방향성 발표", rpq: "RPQ",
 };
 const HPE_BASE = "https://support.hpe.com";
-const HPE_PAGE = `${HPE_BASE}/connect/s/search?language=en_US`;
 const USER_AGENT = "devlog-archive/1.0";
+const BROWSER_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+const IBM_HOME = "https://www.ibm.com/docs/announcements";
+const IBM_CLOUD_FEED = "https://cloud.ibm.com/status/api/notifications/feed.rss";
+const HPE_PAGES = [
+  `${HPE_BASE}/connect/s/search?archive=false&language=en_US`,
+  `${HPE_BASE}/connect/s/search?language=en_US`,
+];
+
+const browserHeaders = (referer, accept = "*/*") => ({
+  Accept: accept,
+  "Accept-Language": "en-US,en;q=0.9",
+  "Cache-Control": "no-cache",
+  Pragma: "no-cache",
+  Referer: referer,
+  "User-Agent": BROWSER_USER_AGENT,
+});
 
 const xmlDecode = (value) => String(value || "")
   .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
@@ -15,11 +30,42 @@ const xmlTag = (xml, name) => xmlDecode(xml.match(new RegExp(`<${name}[^>]*>([\\
 const htmlText = (html) => xmlDecode(html.replace(/<\/(li|p|h\d|ul|ol)>/gi, " ").replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
 
 async function collectIbm(region = "AP") {
-  const response = await fetch(`https://www.ibm.com/docs/api/v1/announcement/all?region=${encodeURIComponent(region)}`, {
-    headers: { Accept: "application/json", "User-Agent": USER_AGENT }, signal: TIMEOUT(30_000),
-  });
-  if (!response.ok) throw new Error(`IBM API ${response.status}`);
-  return (await response.json()).flatMap((item) => {
+  const officialUrl = `https://www.ibm.com/docs/api/v1/announcement/all?region=${encodeURIComponent(region)}`;
+  let items;
+  try {
+    const response = await fetch(officialUrl, {
+      headers: browserHeaders(IBM_HOME, "application/json, text/plain, */*"),
+      redirect: "follow",
+      signal: TIMEOUT(40_000),
+    });
+    if (!response.ok) throw new Error(`IBM Docs API ${response.status}`);
+    items = await response.json();
+    if (!Array.isArray(items)) throw new Error("IBM Docs API 응답이 배열이 아닙니다.");
+  } catch (docsError) {
+    // IBM Docs의 Akamai가 Cloudflare egress를 차단할 때도 IBM 공식 데이터만 사용한다.
+    // Cloud Status RSS의 announcement 항목은 제품 변경·종료 공지를 지속 제공한다.
+    const response = await fetch(IBM_CLOUD_FEED, {
+      headers: browserHeaders("https://cloud.ibm.com/status/announcement", "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8"),
+      redirect: "follow",
+      signal: TIMEOUT(40_000),
+    });
+    if (!response.ok) throw new Error(`${docsError.message}; IBM Cloud RSS ${response.status}`);
+    const xml = await response.text();
+    const records = (xml.match(/<item>[\s\S]*?<\/item>/g) || []).flatMap((item) => {
+      if (xmlTag(item, "category") !== "announcement") return [];
+      const title = xmlTag(item, "title");
+      const url = xmlTag(item, "link");
+      const published = new Date(xmlTag(item, "pubDate"));
+      if (!title || !url || Number.isNaN(published.getTime())) return [];
+      const ref = xmlTag(item, "guid");
+      const note = htmlText(xmlTag(item, "description")).slice(0, 400);
+      return [{ vendor: "IBM", title, url, date: published.toISOString().slice(0, 10), kind: "IBM Cloud 공지", tag: "Cloud",
+        ...(ref ? { ref } : {}), ...(note ? { note } : {}) }];
+    });
+    if (!records.length) throw new Error(`${docsError.message}; IBM Cloud RSS 공지가 없습니다.`);
+    return records;
+  }
+  return items.flatMap((item) => {
     if (item.internalOnly || !item.urlKey || !item.name || !/^\d{4}-\d{2}-\d{2}/.test(String(item.announcementDate))) return [];
     const tag = IBM_LABELS[String(item.rfaType || "").toLowerCase()];
     return [{ vendor: "IBM", title: item.name.trim(), url: `https://www.ibm.com/docs/en/announcements/${item.urlKey}`,
@@ -49,19 +95,43 @@ async function collectLenovo() {
 }
 
 async function hpeToken() {
-  const page = await fetch(HPE_PAGE, { headers: { "User-Agent": USER_AGENT }, signal: TIMEOUT(40_000) });
-  if (!page.ok) throw new Error(`HPE 페이지 ${page.status}`);
-  const html = await page.text();
-  const fwuid = html.match(/"fwuid"\s*:\s*"([^"]+)"/)?.[1];
-  const appId = html.match(/"APPLICATION@markup:\/\/siteforce:communityApp"\s*:\s*"([^"]+)"/)?.[1];
-  if (!fwuid || !appId) throw new Error("HPE Aura 컨텍스트를 찾지 못했습니다.");
+  const failures = [];
+  let context;
+  for (const pageUrl of HPE_PAGES) {
+    try {
+      const page = await fetch(pageUrl, {
+        headers: browserHeaders(`${HPE_BASE}/connect/s/`, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
+        redirect: "follow",
+        signal: TIMEOUT(40_000),
+      });
+      if (!page.ok) throw new Error(`페이지 ${page.status}`);
+      const html = await page.text();
+      const fwuid = html.match(/"fwuid"\s*:\s*"([^"]+)"/)?.[1];
+      const appId = html.match(/"APPLICATION@markup:\/\/siteforce:communityApp"\s*:\s*"([^"]+)"/)?.[1];
+      if (!fwuid || !appId) throw new Error("Aura 컨텍스트 없음");
+      context = { pageUrl, fwuid, appId };
+      break;
+    } catch (error) {
+      failures.push(`${pageUrl}: ${error.message}`);
+    }
+  }
+  if (!context) throw new Error(`HPE 검색 페이지 실패 (${failures.join(", ")})`);
+  const { pageUrl, fwuid, appId } = context;
+  const pageUri = new URL(pageUrl).pathname + new URL(pageUrl).search;
   const body = new URLSearchParams({
     message: JSON.stringify({ actions: [{ id: "91;a", descriptor: "apex://DCEHPESearchController/ACTION$getToken", callingDescriptor: "markup://c:dceCoveoSearchCustomEndpointHandler", params: {} }] }),
     "aura.context": JSON.stringify({ mode: "PROD", fwuid, app: "siteforce:communityApp", loaded: { "APPLICATION@markup://siteforce:communityApp": appId }, dn: [], globals: {}, uad: false }),
-    "aura.pageURI": "/connect/s/search?language=en_US", "aura.token": "undefined",
+    "aura.pageURI": pageUri, "aura.token": "undefined",
   });
   const response = await fetch(`${HPE_BASE}/connect/s/sfsites/aura?r=2&other.DCEHPESearch.getToken=1`, {
-    method: "POST", headers: { "User-Agent": USER_AGENT, "Content-Type": "application/x-www-form-urlencoded", Referer: HPE_PAGE }, body, signal: TIMEOUT(40_000),
+    method: "POST",
+    headers: {
+      ...browserHeaders(pageUrl, "application/json, text/plain, */*"),
+      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+      Origin: HPE_BASE,
+    },
+    body,
+    signal: TIMEOUT(40_000),
   });
   if (!response.ok) throw new Error(`HPE 토큰 ${response.status}`);
   const action = JSON.parse((await response.text()).replace(/^while\(1\);/, "")).actions[0];
@@ -71,7 +141,7 @@ async function hpeToken() {
 
 async function collectHpe() {
   const response = await fetch("https://platform.cloud.coveo.com/rest/search/v2", {
-    method: "POST", headers: { Authorization: `Bearer ${await hpeToken()}`, "Content-Type": "application/json", "User-Agent": USER_AGENT },
+    method: "POST", headers: { ...browserHeaders(HPE_PAGES[0], "application/json, text/plain, */*"), Authorization: `Bearer ${await hpeToken()}`, "Content-Type": "application/json", Origin: HPE_BASE },
     body: JSON.stringify({ q: "", aq: "@kmdoctypedetails==cv66000043 @kmdoclanguagecode==cv1871440", numberOfResults: 150, sortCriteria: "@sysdate descending", searchHub: "HPE-Search-Page", locale: "en-US" }), signal: TIMEOUT(45_000),
   });
   if (!response.ok) throw new Error(`HPE Coveo ${response.status}`);

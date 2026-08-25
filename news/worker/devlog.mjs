@@ -6,8 +6,13 @@ const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" });
 const ignored = [/^merge\s/i, /^revert\s/i, /^(chore|ci)(\(deps\))?:/i, /^bump\s/i, /^(wip|test|tmp|temp|initial commit)$/i, /\[skip ci\]/i];
 
 async function github(path, token) {
-  const headers = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "devlog-worker" };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (!token) throw new Error("Worker secret GITHUB_TOKEN이 등록되지 않았습니다.");
+  const headers = {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${token}`,
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent": "devlog-worker",
+  };
   const response = await fetch(`https://api.github.com${path}`, { headers, signal: AbortSignal.timeout(30_000) });
   const data = await response.json();
   if (!response.ok) throw new Error(`GitHub API ${response.status}: ${data.message || path}`);
@@ -35,7 +40,7 @@ function normalize(item, range) {
 }
 
 async function collect(env, published) {
-  const token = env.GITHUB_TOKEN || "";
+  const token = env.GITHUB_TOKEN;
   const events = [];
   for (let page = 1; page <= 3; page++) {
     const batch = await github(`/users/${USER}/events/public?per_page=100&page=${page}`, token);

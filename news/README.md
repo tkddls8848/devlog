@@ -112,7 +112,17 @@ Workers Builds와 중복 배포하지 않습니다.
 - `HN_MIN_POINTS`: Hacker News 최소 점수, 기본 100
 - `DEVLOG_URL`, `ARCHIVE_URL`: 상단 내비게이션 주소 (`ARCHIVE_URL`은 Worker의 `/archive/`)
 
-공개 피드와 Workers binding만 사용하므로 별도 runtime secret은 없습니다.
+개발일지의 GitHub API 요청은 익명 호출 제한에 걸리지 않도록 Worker secret
+`GITHUB_TOKEN`을 필수로 사용합니다. 저장소나 `wrangler.jsonc`에 값을 쓰지 말고
+`news` 디렉터리에서 다음 명령으로 등록합니다.
+
+```bash
+npx wrangler secret put GITHUB_TOKEN
+```
+
+공개 저장소의 이벤트와 커밋만 읽으므로 별도의 배포용 토큰이 아니라 GitHub 읽기 전용
+fine-grained personal access token을 사용합니다. `CF_ACCOUNT_ID`, `CF_API_TOKEN`,
+`CF_WORKERS_API_TOKEN`은 Worker 런타임 secret이 아닙니다.
 
 ## D1 데이터
 

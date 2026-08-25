@@ -36,6 +36,8 @@ Workers AI가 뉴스레터와 개발일지 본문을 만들고 D1이 게시물·
 ## 설정
 
 Workers AI와 D1은 Worker binding을 사용하므로 GitHub Actions secret이 필요하지 않습니다.
+개발일지 수집용 `GITHUB_TOKEN`은 GitHub Actions가 아니라 Cloudflare Worker secret으로
+등록합니다. 값은 공개 저장소 읽기 전용 GitHub fine-grained token입니다.
 
 Actions variables로 `CF_AI_MODEL`(개발 일지), `IBM_REGION`(아카이브)을 바꿀 수
 있습니다. 뉴스레터의 AI·D1은 Worker binding이므로 GitHub secret을 사용하지 않고,
