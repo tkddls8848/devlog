@@ -1,25 +1,3 @@
-/* 공통 테마·헤더 스타일은 assets/css/theme.css(빌드 시 ../shared/theme.css에서
-   복사됨)에 있다. 여기는 devlog 사이트에만 필요한 스타일만 둔다. */
-
-.post-list { margin: 0; padding: 0; list-style: none; }
-.post-list li { margin-bottom: .25rem; padding: 1.1rem .75rem; border-radius: 10px; transition: background .15s ease; }
-.post-list li:hover { background: var(--panel); }
-.post-list time { display: block; color: var(--soft); font-size: .8rem; }
-.post-list a { font-size: 1.12rem; font-weight: 600; text-decoration: none; }
-.post-list a:hover { text-decoration: underline; }
-.post-list p { margin: .4rem 0 0; color: var(--soft); font-size: .92rem; }
-
-.post-header { margin-bottom: 2.75rem; }
-.post-header h1 { margin: 0 0 .6rem; font-size: 1.7rem; line-height: 1.35; }
-.post-meta { display: flex; align-items: center; gap: .5rem; margin: 0; color: var(--soft); font-size: .85rem; }
-.badge { padding: .1rem .55rem; border-radius: 1rem; background: var(--panel); color: var(--soft); font-size: .72rem; font-weight: 500; }
-.post-summary { margin: 1rem 0 0; color: var(--soft); font-size: 1.02rem; }
-.post h2 { margin-top: 2.5rem; font-size: 1.18rem; }
-.post h3 { margin-top: 1.75rem; font-size: 1rem; }
-
-.sources { margin-top: 3.5rem; padding-top: 1.75rem; border-top: 1px solid var(--line); font-size: .88rem; }
-.sources h2 { margin-top: 0; font-size: .98rem; text-transform: uppercase; letter-spacing: .04em; color: var(--soft); }
-.sources h3 { margin-bottom: .4rem; font-size: .92rem; }
-.sources h3 a { color: var(--fg); text-decoration: none; }
-.sources ul { margin: 0 0 1.25rem; padding-left: 1.2rem; color: var(--soft); }
-.back { margin-top: 3.5rem; font-size: .9rem; }
+/* 공통 테마·헤더·목록·글 본문 스타일은 assets/css/theme.css(빌드 시
+   ../shared/theme.css에서 복사됨)에 있다. 개발 일지 화면은 그 공통 스타일만으로
+   충분해서 여기에는 사이트 고유 규칙이 없다. 필요해지면 여기에 추가한다. */

@@ -36,10 +36,10 @@ layout: layouts/base.njk
       autocomplete="off"
     />
     <div class="chips" role="group" aria-label="벤더 선택">
-      <button type="button" class="chip is-on" data-vendor="">전체</button>
+      <button type="button" class="chip is-on" data-vendor="" aria-pressed="true">전체</button>
       {% for v in ["IBM", "Lenovo", "HPE", "Dell"] %}
         {% if records | vendorCount(v) %}
-          <button type="button" class="chip" data-vendor="{{ v }}">{{ v }}</button>
+          <button type="button" class="chip" data-vendor="{{ v }}" aria-pressed="false">{{ v }}</button>
         {% endif %}
       {% endfor %}
     </div>
@@ -110,9 +110,10 @@ layout: layouts/base.njk
       chips.forEach(function (chip) {
         chip.addEventListener("click", function () {
           chips.forEach(function (c) {
-            c.classList.remove("is-on");
+            var active = c === chip;
+            c.classList.toggle("is-on", active);
+            c.setAttribute("aria-pressed", String(active));
           });
-          chip.classList.add("is-on");
           vendor = chip.dataset.vendor;
           apply();
         });

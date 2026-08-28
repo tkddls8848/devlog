@@ -1,7 +1,11 @@
-/* 공통 테마·헤더 스타일은 assets/css/theme.css(빌드 시 ../shared/theme.css에서
-   복사됨)에 있다. 여기는 archive 사이트에만 필요한 스타일과 벤더 태그 색상만 둔다. */
+/* 공통 테마·헤더·목록·글 본문 스타일은 assets/css/theme.css(빌드 시
+   ../shared/theme.css에서 복사됨)에 있다. 여기는 아카이브 화면과 벤더 태그
+   색상만 둔다. */
 
+/* 문서 표가 넓어 본문 폭을 개발 일지보다 크게 잡는다. */
 :root {
+  --measure: 72rem;
+
   --ibm: #0f62fe;
   --ibm-bg: #e8f0ff;
   --lenovo: #b8202e;
@@ -36,50 +40,137 @@
   --dell-bg: #142a3f;
 }
 
-/* 문서 표가 넓어 본문 폭을 개발 일지보다 크게 잡는다. */
-body { max-width: 68rem; }
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
 
-.stats { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 2rem; }
-.stat { flex: 1 1 7rem; padding: .85rem 1rem; border-radius: 10px; background: var(--panel); }
-.stat strong { display: block; font-size: 1.35rem; letter-spacing: -0.02em; }
-.stat span { color: var(--soft); font-size: .78rem; }
+.stat {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
 
-.filters { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+.stat strong { display: block; font-size: 1.4rem; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 0.76rem; font-weight: 600; letter-spacing: 0.01em; }
+
+.filters {
+  position: sticky;
+  top: calc(var(--header-h) + 0.5rem);
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
 .filters input {
   flex: 1 1 16rem;
   min-width: 0;
-  padding: .6rem .9rem;
+  padding: 0.6rem 0.85rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
+  border-radius: var(--r-sm);
+  background: var(--bg);
   color: var(--fg);
   font: inherit;
+  font-size: 0.9rem;
 }
 
-.chips { display: flex; gap: .4rem; }
-.chip { padding: .4rem .85rem; border: 0; border-radius: 1rem; background: var(--panel); color: var(--soft); font: inherit; cursor: pointer; transition: background .15s ease, color .15s ease; }
-.chip:hover { color: var(--fg); }
-.chip.is-on { background: var(--fg); color: var(--bg); }
-.result-count { margin: 0 0 .75rem; color: var(--soft); font-size: .8rem; }
-.empty-hit { padding: 2.5rem 0; color: var(--soft); text-align: center; }
+.filters input::placeholder { color: var(--muted); }
 
-.table-wrap { overflow-x: auto; border-radius: 10px; }
-table.archive { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.filters input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+.chip {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--bg);
+  color: var(--soft);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.chip:hover { color: var(--fg); border-color: var(--line-strong); }
+.chip.is-on { border-color: var(--line-strong); background: var(--surface-2); color: var(--fg); }
+
+.result-count { margin: 0 0 0.75rem; color: var(--muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.empty-hit { padding: 3rem 0; color: var(--muted); text-align: center; }
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+table.archive { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+
 table.archive th,
-table.archive td { padding: .75rem .9rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-table.archive th { color: var(--soft); font-size: .74rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-table.archive tr:last-child td { border-bottom: 0; }
-table.archive tbody tr:hover { background: var(--panel); }
+table.archive td { padding: 0.8rem 1rem; text-align: left; vertical-align: top; }
+
+table.archive thead th {
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+table.archive td { border-top: 1px solid var(--line); }
+table.archive tbody tr { transition: background 0.15s ease; }
+table.archive tbody tr:hover { background: var(--surface-2); }
+
 .c-date,
 .c-vendor { white-space: nowrap; }
-.c-date,
-.c-doc .meta,
-.c-doc .note { color: var(--soft); font-size: .78rem; }
-.c-doc a { font-weight: 500; text-decoration: none; }
-.c-doc .meta { display: block; }
-.c-doc .note { margin: .35rem 0 0; }
-.tag { display: inline-block; padding: .12rem .55rem; border-radius: 1rem; font-size: .74rem; font-weight: 600; }
+.c-date { width: 9rem; min-width: 9rem; color: var(--soft); font-variant-numeric: tabular-nums; font-size: 0.82rem; }
+.c-vendor { width: 6rem; min-width: 6rem; }
+.c-doc a { color: var(--fg); font-weight: 600; text-decoration: none; }
+.c-doc a:hover { color: var(--accent); text-decoration: underline; }
+.c-doc .meta { display: block; margin-top: 0.3rem; color: var(--muted); font-size: 0.78rem; }
+.c-doc .note { margin: 0.4rem 0 0; color: var(--soft); font-size: 0.84rem; line-height: 1.6; }
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.1rem;
+  height: 1.4rem;
+  padding: 0 0.4rem;
+  border-radius: var(--r-sm);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
 .tag-ibm { background: var(--ibm-bg); color: var(--ibm); }
 .tag-lenovo { background: var(--lenovo-bg); color: var(--lenovo); }
 .tag-hpe { background: var(--hpe-bg); color: var(--hpe); }
 .tag-dell { background: var(--dell-bg); color: var(--dell); }
+
+/* 헤더가 두 줄로 접히면 sticky 필터 바의 기준 높이가 어긋난다. 좁은 화면에서는
+   sticky를 풀고 일반 흐름으로 둔다. */
+@media (max-width: 40rem) {
+  .filters { position: static; }
+  table.archive th,
+  table.archive td { padding: 0.7rem 0.75rem; }
+}
