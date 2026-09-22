@@ -11,6 +11,8 @@ export const sharedDir = dirname(fileURLToPath(import.meta.url));
 
 const FILES = [
   ["theme.css", "src/assets/css/theme.css"],
+  ["devlog.css", "src/assets/css/devlog.css"],
+  ["devlog.js", "src/assets/js/devlog.js"],
   ["theme-init.js", "src/assets/js/theme-init.js"],
   ["theme-toggle.js", "src/assets/js/theme-toggle.js"],
   ["theme-toggle.njk", "src/_includes/partials/theme-toggle.njk"],

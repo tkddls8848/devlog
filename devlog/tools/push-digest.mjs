@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { generate, model, parseDraft, yaml } from "./lib.mjs";
+import { writingPrompt, commitDetails } from "../../shared/devlog-writing.mjs";
 
 const USER = "tkddls8848";
 const BLOG_REPO = process.env.GITHUB_REPOSITORY || `${USER}/devlog`;
@@ -113,7 +114,7 @@ function normalizeCommit(item, range) {
   ) {
     return null;
   }
-  return { repo: range.repo, sha, message, day: DAY.format(new Date(at)) };
+  return { repo: range.repo, sha, message, description: String(item.commit?.message || item.message || "").slice(0, 1800), day: DAY.format(new Date(at)) };
 }
 
 async function collectCommits(ranges, published) {
@@ -162,13 +163,6 @@ function groupByDay(commits) {
     repos.get(commit.repo).push(commit);
   }
   return [...days].sort(([a], [b]) => a.localeCompare(b));
-}
-
-function prompt(day, repos) {
-  const source = [...repos]
-    .map(([repo, commits]) => `## ${repo}\n${commits.map((commit) => `- ${commit.message}`).join("\n")}`)
-    .join("\n\n");
-  return `다음 ${day} 커밋을 저장소별 작업 단위로 묶어 담담한 개발 일지를 쓰세요. 추측, 홍보 표현, 커밋 나열은 제외하고 250~600자로 작성하세요.\n\n${source}\n\n정확히 다음 형식으로 답하세요.\nTITLE: 제목\nSUMMARY: 한 줄 요약\n\nMarkdown 본문`;
 }
 
 function fallbackDraft(day, repos) {
@@ -266,13 +260,17 @@ if (!days.length) {
   process.exit(0);
 }
 
+for (const commit of [...commits].sort((a, b) => b.day.localeCompare(a.day)).slice(0, 12)) {
+  try { commit.details = commitDetails(await github(`/repos/${commit.repo}/commits/${commit.sha}`)); }
+  catch (error) { console.warn(`커밋 상세 조회 생략: ${commit.repo}/${commit.sha}: ${error.message}`); }
+}
 console.log(`개발 일지 ${days.length}편 생성 중 (${model})`);
 for (const [day, repos] of days) {
   const fallback = fallbackDraft(day, repos);
   let draft = fallback;
   let aiGenerated = false;
   try {
-    draft = parseDraft(await generate(prompt(day, repos)), fallback);
+    draft = parseDraft(await generate(writingPrompt(day, repos)));
     aiGenerated = true;
   } catch (error) {
     console.warn(`  ⚠️ ${day} AI 요약 실패, 기본 본문을 저장합니다: ${error.message}`);

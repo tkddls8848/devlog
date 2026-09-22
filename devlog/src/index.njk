@@ -2,20 +2,36 @@
 layout: layouts/base.njk
 ---
 
-<p class="page-intro">
-  공개 저장소에 올린 커밋을 날짜별로 정리한 개발 일지입니다.
-  벤더 제품 문서의 갱신은 <a href="{{ site.archiveUrl }}">아카이브</a>에,
-  업계 뉴스 다이제스트는 <a href="{{ site.newsUrl }}">뉴스레터</a>에 따로 쌓입니다.
-</p>
-
-<ul class="post-list">
-  {% for post in collections.posts %}
-    <li>
-      <time datetime="{{ post.date | isoDate }}">{{ post.date | postDate }}</time>
-      <a href="{{ post.url | url }}">{{ post.data.title }}</a>
-      {% if post.data.summary %}<p>{{ post.data.summary }}</p>{% endif %}
-    </li>
-  {% else %}
-    <li class="empty">아직 발행된 글이 없습니다.</li>
-  {% endfor %}
-</ul>
+<section class="journal-hero" aria-labelledby="journal-title">
+  <p class="journal-eyebrow">ENGINEERING JOURNAL <span> / </span> @{{ site.githubUser }}</p>
+  <h1 id="journal-title">코드를 바꾸고,<br /><span>생각을 남깁니다.</span></h1>
+  <p class="journal-description">무엇을 만들었는지에서 한 걸음 더.<br />커밋에 담긴 구현과 설계의 선택, 다음에 확인할 것들을 기록합니다.</p>
+  <a class="journal-github" href="https://github.com/{{ site.githubUser }}">GitHub에서 코드 보기 <span aria-hidden="true">↗</span></a>
+</section>
+<div class="journal-layout">
+  <section aria-labelledby="entries-title">
+    <div class="journal-toolbar">
+      <h2 id="entries-title">개발 기록 <span>{{ collections.posts | length }}</span></h2>
+      <label class="journal-search"><span class="visually-hidden">글 제목과 요약 검색</span><input id="journal-query" type="search" placeholder="제목과 요약 검색" /></label>
+    </div>
+    <p class="visually-hidden" id="journal-count" role="status" aria-live="polite">{{ collections.posts | length }}편의 기록</p>
+    <ul class="journal-list">
+    {% for post in collections.posts %}
+      <li class="journal-card{% if loop.first %} journal-featured{% endif %}" data-journal-entry>
+        <div class="journal-card-meta"><span>{% if loop.first %}LATEST ENTRY{% else %}DEVELOPMENT LOG{% endif %}</span><time datetime="{{ post.date | isoDate }}">{{ post.date | postDate }}</time></div>
+        <h3><a href="{{ post.url | url }}">{{ post.data.title }}</a></h3>
+        {% if post.data.summary %}<p>{{ post.data.summary }}</p>{% endif %}
+        <div class="journal-card-bottom"><span>{% if post.data.aiGenerated %}커밋 기반 기술 회고{% else %}커밋 기록{% endif %}</span><span class="journal-read">글 읽기 <span aria-hidden="true">↗</span></span></div>
+      </li>
+    {% endfor %}
+    </ul>
+    <div class="journal-empty" id="journal-empty"{% if collections.posts | length %} hidden{% endif %}>
+      {% if collections.posts | length %}<h3>검색 결과가 없습니다.</h3><p>다른 키워드로 제목과 요약을 검색해 보세요.</p>
+      {% else %}<h3>첫 번째 기록을 기다리고 있습니다.</h3><p>공개 저장소의 새로운 커밋이 모이면 이곳에 개발 기록이 쌓입니다.</p>{% endif %}
+    </div>
+  </section>
+  <aside class="journal-sidebar">
+    <div class="journal-about"><span class="journal-avatar" aria-hidden="true">&lt;/&gt;</span><p class="journal-eyebrow">BEHIND THE CODE</p><h2>변경 너머의 맥락</h2><p>작동하는 코드를 만드는 일과 그 이유를 설명하는 일. 이곳에는 두 가지를 함께 남깁니다.</p><dl><dt>01 / 구현</dt><dd>실제 코드에서 확인한 변화</dd><dt>02 / 판단</dt><dd>설계의 의미와 유지보수 비용</dd><dt>03 / 회고</dt><dd>남은 질문과 다음 검증</dd></dl></div>
+    <p class="journal-note">공개 커밋을 바탕으로 AI가 정리한 기록입니다. 각 글에서 근거가 된 커밋을 함께 확인할 수 있습니다.</p>
+  </aside>
+</div>

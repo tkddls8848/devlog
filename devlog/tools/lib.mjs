@@ -1,3 +1,4 @@
+import { writingSystem } from "../../shared/devlog-writing.mjs";
 const MODEL = process.env.CF_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct-fast";
 
 const required = (name) => {
@@ -29,11 +30,11 @@ export async function generate(prompt) {
           messages: [
             {
               role: "system",
-              content: "자료에 없는 내용을 만들지 않는 한국어 기록자입니다.",
+              content: writingSystem,
             },
             { role: "user", content: prompt },
           ],
-          max_tokens: 900,
+          max_tokens: 3200,
           temperature: 0.3,
         }),
         signal: AbortSignal.timeout(180000),

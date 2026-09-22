@@ -21,21 +21,25 @@ export const escapeHtml = (value) =>
 
 const inlineMarkdown = (value) => {
   const raw = String(value || "");
-  const pattern = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+  const pattern = /`([^`\n]+)`|\*\*([^*\n]+)\*\*|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
   let output = "";
   let offset = 0;
   for (const match of raw.matchAll(pattern)) {
     output += escapeHtml(raw.slice(offset, match.index));
-    output += `<a href="${escapeHtml(match[2])}" rel="noopener">${escapeHtml(match[1])}</a>`;
+    if (match[1] !== undefined) output += `<code>${escapeHtml(match[1])}</code>`;
+    else if (match[2] !== undefined) output += `<strong>${escapeHtml(match[2])}</strong>`;
+    else output += `<a href="${escapeHtml(match[4])}" rel="noopener">${escapeHtml(match[3])}</a>`;
     offset = match.index + match[0].length;
   }
   return output + escapeHtml(raw.slice(offset));
 };
 
-export function markdownToHtml(markdown) {
+export function markdownToHtml(markdown, { headingIds = false } = {}) {
   const output = [];
   let paragraph = [];
   let list = [];
+  let code = null;
+  let headingIndex = 0;
   const flushParagraph = () => {
     if (paragraph.length) output.push(`<p>${inlineMarkdown(paragraph.join(" "))}</p>`);
     paragraph = [];
@@ -46,13 +50,21 @@ export function markdownToHtml(markdown) {
   };
 
   for (const line of String(markdown || "").split(/\r?\n/)) {
+    if (/^```/.test(line)) {
+      flushParagraph();
+      flushList();
+      if (code !== null) { output.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`); code = null; }
+      else code = [];
+      continue;
+    }
+    if (code !== null) { code.push(line); continue; }
     const heading = line.match(/^(#{2,3})\s+(.+)$/);
     const item = line.match(/^\s*-\s+(.+)$/);
     if (heading) {
       flushParagraph();
       flushList();
       const level = heading[1].length;
-      output.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
+      output.push(`<h${level}${headingIds ? ` id="section-${++headingIndex}"` : ""}>${inlineMarkdown(heading[2])}</h${level}>`);
     } else if (item) {
       flushParagraph();
       list.push(item[1]);
@@ -66,6 +78,7 @@ export function markdownToHtml(markdown) {
   }
   flushParagraph();
   flushList();
+  if (code !== null) output.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
   return output.join("\n");
 }
 
@@ -84,6 +97,8 @@ const siteFromEnv = (env) => ({
 
 function layout({ env, title, summary, current = "", content, canonical = "", wide = false }) {
   const site = siteFromEnv(env);
+  const isDevlog = current === "devlog";
+  if (isDevlog) { site.title = "devlog"; site.tagline = "코드의 변화에서 설계의 이유를 찾는 개발 기록"; }
   return `<!doctype html>
 <html lang="ko">
   <head>
@@ -96,12 +111,14 @@ function layout({ env, title, summary, current = "", content, canonical = "", wi
     <link rel="alternate" type="application/rss+xml" title="${site.title}" href="/feed.xml" />
     <link rel="stylesheet" href="/assets/css/theme.css" />
     <link rel="stylesheet" href="/assets/css/main.css" />
+    ${isDevlog ? '<link rel="stylesheet" href="/assets/css/devlog.css" />' : ""}
     <script src="/assets/js/theme-init.js"></script>
   </head>
-  <body${wide ? ' class="wide"' : ""}>
+  <body${isDevlog ? ' class="devlog-page"' : wide ? ' class="wide"' : ""}>
+    ${isDevlog ? '<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>' : ""}
     <header class="site-header">
       <div class="site-header-inner">
-        <a class="site-title" href="/"><span class="site-mark" aria-hidden="true"></span>${site.title}</a>
+        <a class="site-title" href="${isDevlog ? '/devlog/' : '/'}"><span class="site-mark" aria-hidden="true"></span>${site.title}</a>
         <nav class="site-nav" aria-label="주요">
           <a href="${escapeHtml(site.devlogUrl)}"${current === "devlog" ? ' aria-current="page"' : ""}>개발 일지</a>
           <a href="${escapeHtml(site.archiveUrl)}"${current === "archive" ? ' aria-current="page"' : ""}>아카이브</a>
@@ -110,7 +127,7 @@ function layout({ env, title, summary, current = "", content, canonical = "", wi
         ${themeToggle}
       </div>
     </header>
-    <main>${content}</main>
+    <main id="main-content">${content}</main>
     <footer class="site-footer">
       <div class="site-footer-inner">
         <p class="site-tagline">${site.tagline}</p>
@@ -118,6 +135,7 @@ function layout({ env, title, summary, current = "", content, canonical = "", wi
       </div>
     </footer>
     <script src="/assets/js/theme-toggle.js"></script>
+    ${isDevlog ? '<script src="/assets/js/devlog.js" defer></script>' : ""}
   </body>
 </html>`;
 }
@@ -190,13 +208,26 @@ export function renderArchive(records, env, origin) {
 }
 
 export function renderDevlogHome(posts, env, origin) {
-  const rows = posts.length ? posts.map((post) => `<li>
-    <time datetime="${escapeHtml(post.post_date)}">${DAY.format(new Date(post.post_date))}</time>
-    <a href="/devlog/posts/${encodeURIComponent(post.slug)}/">${escapeHtml(post.title)}</a>
+  const rows = posts.map((post, index) => `<li class="journal-card${index === 0 ? ' journal-featured' : ''}" data-journal-entry>
+    <div class="journal-card-meta"><span>${index === 0 ? 'LATEST ENTRY' : 'DEVELOPMENT LOG'}</span><time datetime="${escapeHtml(post.post_date)}">${DAY.format(new Date(post.post_date))}</time></div>
+    <h3><a href="/devlog/posts/${encodeURIComponent(post.slug)}/">${escapeHtml(post.title)}</a></h3>
     ${post.summary ? `<p>${escapeHtml(post.summary)}</p>` : ""}
-  </li>`).join("") : '<li class="empty">아직 발행된 개발 일지가 없습니다.</li>';
-  const content = `<p class="page-intro">공개 저장소에 올린 커밋을 날짜별로 정리한 개발 일지입니다. 수집·생성·저장·서비스는 Cloudflare에서 실행됩니다.</p><ul class="post-list">${rows}</ul>`;
-  return layout({ env, title: "개발 일지", summary: "공개 저장소 커밋을 날짜별로 정리한 개발 일지", current: "devlog", content, canonical: `${origin}/devlog/` });
+    <div class="journal-card-bottom"><span>${post.ai_generated ? '커밋 기반 기술 회고' : '커밋 기록'}</span><span class="journal-read">글 읽기 <span aria-hidden="true">↗</span></span></div>
+  </li>`).join("");
+  const content = `<section class="journal-hero" aria-labelledby="journal-title">
+    <p class="journal-eyebrow">ENGINEERING JOURNAL <span> / </span> @tkddls8848</p>
+    <h1 id="journal-title">코드를 바꾸고,<br /><span>생각을 남깁니다.</span></h1>
+    <p class="journal-description">무엇을 만들었는지에서 한 걸음 더.<br />커밋에 담긴 구현과 설계의 선택, 다음에 확인할 것들을 기록합니다.</p>
+    <a class="journal-github" href="https://github.com/tkddls8848">GitHub에서 코드 보기 <span aria-hidden="true">↗</span></a>
+  </section>
+  <div class="journal-layout"><section aria-labelledby="entries-title">
+    <div class="journal-toolbar"><h2 id="entries-title">개발 기록 <span>${posts.length}</span></h2><label class="journal-search"><span class="visually-hidden">글 제목과 요약 검색</span><input id="journal-query" type="search" placeholder="제목과 요약 검색" /></label></div>
+    <p class="visually-hidden" id="journal-count" role="status" aria-live="polite">${posts.length}편의 기록</p>
+    <ul class="journal-list">${rows}</ul>
+    <div class="journal-empty" id="journal-empty"${posts.length ? ' hidden' : ''}><h3>${posts.length ? '검색 결과가 없습니다.' : '첫 번째 기록을 기다리고 있습니다.'}</h3><p>${posts.length ? '다른 키워드로 제목과 요약을 검색해 보세요.' : '공개 저장소의 새로운 커밋이 모이면 이곳에 개발 기록이 쌓입니다.'}</p></div>
+  </section>
+  <aside class="journal-sidebar"><div class="journal-about"><span class="journal-avatar" aria-hidden="true">&lt;/&gt;</span><p class="journal-eyebrow">BEHIND THE CODE</p><h2>변경 너머의 맥락</h2><p>작동하는 코드를 만드는 일과 그 이유를 설명하는 일. 이곳에는 두 가지를 함께 남깁니다.</p><dl><dt>01 / 구현</dt><dd>실제 코드에서 확인한 변화</dd><dt>02 / 판단</dt><dd>설계의 의미와 유지보수 비용</dd><dt>03 / 회고</dt><dd>남은 질문과 다음 검증</dd></dl></div><p class="journal-note">공개 커밋을 바탕으로 AI가 정리한 기록입니다. 각 글에서 근거가 된 커밋을 함께 확인할 수 있습니다.</p></aside></div>`;
+  return layout({ env, title: "개발 기록", summary: "커밋에 담긴 구현, 설계 판단과 다음 검증을 기록하는 기술 블로그", current: "devlog", content, canonical: `${origin}/devlog/` });
 }
 
 export function renderDevlogPost(post, env, origin) {
@@ -206,7 +237,11 @@ export function renderDevlogPost(post, env, origin) {
     groups.get(commit.repo).push(commit);
   }
   const sources = [...groups].map(([repo, commits]) => `<h3><a href="https://github.com/${escapeHtml(repo)}">${escapeHtml(repo)}</a></h3><ul>${commits.map((commit) => `<li><a href="https://github.com/${escapeHtml(repo)}/commit/${escapeHtml(commit.sha)}"><code>${escapeHtml(commit.sha.slice(0, 7))}</code></a> ${escapeHtml(commit.message)}</li>`).join("")}</ul>`).join("");
-  const content = `<article class="post"><header class="post-header"><h1>${escapeHtml(post.title)}</h1><p class="post-meta"><time datetime="${escapeHtml(post.post_date)}">${DAY.format(new Date(post.post_date))}</time>${post.ai_generated ? '<span class="badge">AI 생성</span>' : ""}</p>${post.summary ? `<p class="post-summary">${escapeHtml(post.summary)}</p>` : ""}</header>${markdownToHtml(post.body_markdown)}${sources ? `<section class="sources"><h2>참고한 커밋</h2>${sources}</section>` : ""}<p class="back"><a href="/devlog/">← 개발 일지</a></p></article>`;
+  const body = markdownToHtml(post.body_markdown, { headingIds: true });
+  const headings = [...body.matchAll(/<h([23]) id="(section-\d+)">([\s\S]*?)<\/h\1>/g)];
+  const toc = headings.map((heading) => `<li class="toc-level-${heading[1]}"><a href="#${heading[2]}">${heading[3].replace(/<[^>]*>/g, "")}</a></li>`).join("");
+  const readingMinutes = Math.max(1, Math.ceil(String(post.body_markdown || "").length / 500));
+  const content = `<a class="journal-back" href="/devlog/">← 모든 개발 기록</a><div class="journal-article-layout"><article class="post journal-post"><header class="post-header"><p class="journal-eyebrow">ENGINEERING JOURNAL</p><h1>${escapeHtml(post.title)}</h1><p class="post-meta"><time datetime="${escapeHtml(post.post_date)}">${DAY.format(new Date(post.post_date))}</time><span>약 ${readingMinutes}분 읽기</span><span>커밋 ${(post.commits || []).length}개 · 저장소 ${groups.size}개</span>${post.ai_generated ? '<span class="badge">AI 기반 회고</span>' : '<span class="badge">커밋 기록</span>'}</p>${post.summary ? `<p class="post-summary">${escapeHtml(post.summary)}</p>` : ""}</header><div class="journal-prose">${body}</div>${post.ai_generated ? '<p class="journal-disclosure">공개 커밋과 수집된 변경 내용을 바탕으로 AI가 작성한 회고입니다. 설계 해석과 다음 확인 사항은 실제 구현·검증 결과와 구분해 읽어 주세요.</p>' : ''}${sources ? `<section class="sources journal-sources" id="references"><h2>이 글의 근거</h2><details><summary>참고한 커밋 ${(post.commits || []).length}개 펼쳐 보기</summary>${sources}</details></section>` : ""}<p class="back"><a href="/devlog/">← 개발 기록 목록</a></p></article>${toc ? `<aside class="journal-toc"><nav aria-label="글 목차"><p class="journal-eyebrow">ON THIS PAGE</p><ol>${toc}${sources ? '<li><a href="#references">이 글의 근거</a></li>' : ''}</ol></nav></aside>` : ''}</div>`;
   return layout({ env, title: post.title, summary: post.summary, current: "devlog", content, canonical: `${origin}/devlog/posts/${encodeURIComponent(post.slug)}/` });
 }
 

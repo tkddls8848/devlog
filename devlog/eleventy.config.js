@@ -24,6 +24,7 @@ export default function (config) {
   config.addFilter("postDate", (value) => date.format(new Date(value)));
   config.addFilter("isoDate", (value) => new Date(value).toISOString());
   config.addFilter("shortSha", (value) => String(value).slice(0, 7));
+  config.addFilter("readingMinutes", (value) => Math.max(1, Math.ceil(String(value || "").replace(/<[^>]*>/g, "").length / 500)));
   config.addCollection("posts", (api) =>
     api.getFilteredByTag("posts").sort((a, b) => b.date - a.date)
   );

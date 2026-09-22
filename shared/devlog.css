@@ -1,0 +1,101 @@
+/* Editorial layout shared by the Worker and static development journal. */
+.devlog-page { --accent: #147568; --accent-soft: #14756812; --measure: 74rem; }
+.devlog-page main { padding-top: 0; }
+.devlog-page .site-title { font: 800 1.25rem/1.2 ui-monospace, monospace; letter-spacing: -.06em; }
+.devlog-page .site-mark { width: .65rem; height: .65rem; border-radius: 50%; }
+.devlog-page .site-header-inner { min-height: 4.5rem; }
+.journal-eyebrow { color: var(--accent); font: 600 .7rem/1.6 ui-monospace, monospace; letter-spacing: .12em; }
+.journal-hero { position: relative; padding: 5.5rem 0 4.5rem; border-bottom: 1px solid var(--line-strong); }
+.journal-hero .journal-eyebrow { margin: 0 0 1.8rem; }
+.journal-hero .journal-eyebrow span { color: var(--soft); margin-inline: .65rem; }
+.journal-hero h1 { margin: 0; font-size: clamp(2.4rem, 5vw, 4.1rem); font-weight: 750; letter-spacing: -.065em; line-height: 1.24; }
+.journal-hero h1 span { color: var(--accent); }
+.journal-description { margin: 1.6rem 0; color: var(--soft); line-height: 1.85; }
+.journal-github { display: inline-flex; gap: 1.5rem; margin-top: .5rem; color: var(--fg); font-size: .8rem; font-weight: 650; text-decoration: none; border-bottom: 1px solid var(--line-strong); padding-bottom: .35rem; }
+.journal-github:hover { color: var(--accent); }
+.journal-layout { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 4rem; padding-top: 2.6rem; }
+.journal-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+.journal-toolbar h2 { margin: 0; font-size: 1.05rem; }
+.journal-toolbar h2 span { margin-left: .4rem; color: var(--soft); font: 400 .8rem ui-monospace, monospace; }
+.journal-search input { width: 13rem; max-width: 100%; border: 1px solid var(--line-strong); border-radius: .4rem; padding: .7rem .8rem; background: var(--surface); color: var(--fg); font: inherit; font-size: .8rem; }
+.journal-search input::placeholder { color: var(--soft); }
+.journal-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 1rem; }
+.journal-card { position: relative; padding: 1.8rem 2rem; border: 1px solid var(--line); border-radius: .6rem; background: var(--surface); transition: border-color .2s, box-shadow .2s; }
+.journal-card:hover { border-color: var(--accent); box-shadow: var(--shadow-sm); }
+.journal-card-meta, .journal-card-bottom { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .6rem; font-size: .72rem; color: var(--soft); }
+.journal-card-meta > span { font: 500 .65rem ui-monospace, monospace; letter-spacing: .1em; }
+.journal-card h3 { margin: 1.15rem 0 .75rem; font-size: 1.4rem; line-height: 1.5; letter-spacing: -.04em; }
+.journal-card h3 a { color: var(--fg); text-decoration: none; }
+.journal-card h3 a::after { content: ""; position: absolute; inset: 0; border-radius: .6rem; }
+.journal-card h3 a:focus-visible::after { outline: 2px solid var(--accent); outline-offset: 4px; }
+.journal-card p { color: var(--soft); font-size: .9rem; line-height: 1.8; margin: 0 0 1.8rem; }
+.journal-card-bottom { border-top: 1px solid var(--line); padding-top: 1rem; }
+.journal-read { color: var(--accent); font-weight: 600; }
+.journal-read > span { margin-left: .5rem; }
+.journal-featured { padding: 2.4rem; background: #16332f; border-color: #16332f; --fg: #f1f8f5; --soft: #b5cec6; --accent: #9de1c9; --line: #ffffff24; }
+.journal-featured h3 { font-size: clamp(1.5rem, 2.7vw, 2rem); margin-top: 1.5rem; }
+.journal-featured .journal-card-meta > span { color: var(--accent); }
+.journal-sidebar { padding-top: 4.5rem; }
+.journal-about { border-top: 2px solid var(--accent); padding-top: 1.5rem; }
+.journal-avatar { display: inline-grid; place-items: center; width: 2.8rem; height: 2.8rem; border: 1px solid var(--line-strong); border-radius: .7rem; font: 600 1rem ui-monospace, monospace; color: var(--accent); }
+.journal-about .journal-eyebrow { margin-top: 1.5rem; }
+.journal-about h2 { font-size: 1.1rem; margin: .65rem 0; }
+.journal-about > p:not(.journal-eyebrow), .journal-about dd, .journal-note { font-size: .8rem; line-height: 1.85; color: var(--soft); }
+.journal-about dl { margin-top: 1.8rem; }
+.journal-about dt { color: var(--accent); font-size: .74rem; font-weight: 650; margin-top: 1.2rem; }
+.journal-about dd { margin: .25rem 0 0; }
+.journal-note { border-top: 1px solid var(--line); margin-top: 2rem; padding-top: 1.2rem; }
+.journal-empty { border: 1px dashed var(--line-strong); padding: 3rem 1.5rem; border-radius: .6rem; text-align: center; }
+.journal-empty h3 { font-size: 1rem; }
+.journal-empty p { color: var(--soft); font-size: .85rem; }
+.journal-back { display: inline-block; margin: 2.5rem 0; color: var(--soft); font-size: .8rem; text-decoration: none; }
+.journal-article-layout { display: grid; grid-template-columns: minmax(0, 48rem) minmax(10rem, 1fr); gap: 4rem; }
+.journal-post { min-width: 0; }
+.journal-post .post-header { padding-bottom: 2rem; }
+.journal-post .post-header h1 { margin: 1rem 0 1.5rem; font-size: clamp(1.9rem, 3.8vw, 3rem); line-height: 1.4; letter-spacing: -.045em; }
+.journal-post .post-summary { padding-left: 1.25rem; border-left: 3px solid var(--accent); font-size: 1.05rem; margin-top: 2rem; }
+.journal-prose { font-size: 1.025rem; line-height: 1.95; }
+.journal-prose h2 { margin-top: 3.2rem; margin-bottom: 1.25rem; font-size: 1.5rem; }
+.journal-prose h3 { font-size: 1.15rem; }
+.journal-prose p { margin-block: 1.3rem; }
+.journal-prose pre { background: var(--surface-2); font-size: .85rem; line-height: 1.7; }
+.journal-prose :is(h2, h3), .journal-sources { scroll-margin-top: 7rem; }
+.journal-toc nav { position: sticky; top: 7rem; border-left: 1px solid var(--line-strong); padding-left: 1.5rem; margin-top: .8rem; }
+.journal-toc ol { list-style: none; padding: 0; font-size: .8rem; line-height: 1.7; }
+.journal-toc li { margin-block: .85rem; }
+.journal-toc a { color: var(--soft); text-decoration: none; }
+.journal-toc a:hover { color: var(--accent); }
+.journal-toc .toc-level-3 { padding-left: .8rem; font-size: .75rem; }
+.journal-disclosure { margin-top: 3rem !important; padding: 1rem 1.2rem; background: var(--accent-soft); border-radius: .5rem; font-size: .8rem; color: var(--soft); }
+.journal-sources { margin-top: 2rem; padding-bottom: 1.5rem; }
+.journal-sources h2 { color: var(--accent); }
+.journal-sources summary { cursor: pointer; color: var(--soft); }
+.journal-sources details[open] summary { margin-bottom: 1.5rem; }
+.visually-hidden, .skip-link:not(:focus) { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.skip-link:focus { position: fixed; top: .5rem; left: .5rem; z-index: 100; padding: .7rem; background: var(--surface); }
+.devlog-page [hidden] { display: none !important; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .devlog-page { --accent: #83cdb7; --accent-soft: #83cdb712; }
+}
+:root[data-theme="dark"] .devlog-page { --accent: #83cdb7; --accent-soft: #83cdb712; }
+@media (max-width: 60rem) {
+  .journal-layout { grid-template-columns: minmax(0, 1fr) 12rem; gap: 2rem; }
+  .journal-article-layout { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+  .journal-toc { grid-row: 1; }
+  .journal-toc nav { position: static; margin: 0 0 1rem; }
+  .journal-toc ol { display: flex; flex-wrap: wrap; column-gap: 1.2rem; }
+  .journal-toc li { margin-block: .2rem; }
+}
+@media (max-width: 40rem) {
+  .journal-hero { padding: 3rem 0 2.5rem; }
+  .journal-hero .journal-eyebrow { font-size: .6rem; letter-spacing: .07em; }
+  .journal-layout { grid-template-columns: minmax(0, 1fr); gap: 1rem; padding-top: 1.8rem; }
+  .journal-sidebar { padding-top: 2rem; }
+  .journal-toolbar { align-items: flex-start; flex-direction: column; }
+  .journal-search, .journal-search input { width: 100%; }
+  .journal-card, .journal-featured { padding: 1.5rem; }
+  .journal-card h3 { font-size: 1.3rem; }
+  .journal-description { font-size: .9rem; }
+  .journal-back { margin-block: 1.5rem; }
+  .journal-prose { font-size: .96rem; }
+}

@@ -1,6 +1,31 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { markdownToHtml, renderArchive, renderFeed, renderHome, renderIssue } from "../worker/render.mjs";
+import { markdownToHtml, renderArchive, renderFeed, renderHome, renderIssue, renderDevlogHome, renderDevlogPost } from "../worker/render.mjs";
+
+test("기술 글의 코드와 강조는 렌더링하고 HTML은 실행하지 않는다", () => {
+  const html = markdownToHtml("## 경계\n\n**검증**과 `userId`\n\n```js\n<script>alert(1)</script>\n## 코드 안의 제목\n```", { headingIds: true });
+  assert.match(html, /<h2 id="section-1">경계<\/h2>/);
+  assert.match(html, /<strong>검증<\/strong>/);
+  assert.match(html, /<code>userId<\/code>/);
+  assert.match(html, /<pre><code>&lt;script&gt;/);
+  assert.doesNotMatch(html, /id="section-2"|<script>/);
+});
+
+test("개발 기록은 실제 데이터로 목록, 목차, 근거를 표시한다", () => {
+  const post = { slug: "2026-09-22-devlog", post_date: "2026-09-22", title: "<img src=x> 제목", summary: "입력 경계 정리", ai_generated: 1, body_markdown: "## [조건](https://example.com)\n\n내용\n\n### 조건\n\n내용", commits: [{ repo: "owner/app", sha: "a".repeat(40), message: "fix: guard user" }] };
+  const home = renderDevlogHome([post], {}, "https://example.com");
+  assert.match(home, /journal-featured/);
+  assert.match(home, /id="journal-query"/);
+  assert.match(home, /&lt;img src=x&gt; 제목/);
+  assert.match(home, /<title>개발 기록 · devlog<\/title>/);
+  const html = renderDevlogPost(post, {}, "https://example.com");
+  assert.match(html, /href="#section-1">조건<\/a>/);
+  assert.match(html, /id="section-2"/);
+  assert.match(html, /커밋 1개 · 저장소 1개/);
+  assert.match(html, /<details><summary>참고한 커밋 1개/);
+  assert.doesNotMatch(html, /<img src=x>/);
+  assert.match(renderDevlogHome([], {}, "https://example.com"), /첫 번째 기록을 기다리고/);
+});
 
 test("동적 페이지는 외부 제목과 요약을 HTML escape한다", () => {
   const html = renderHome(

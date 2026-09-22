@@ -2,3 +2,5 @@ node_modules/
 _site/
 .env
 *.log
+**/src/assets/css/devlog.css
+**/src/assets/js/devlog.js

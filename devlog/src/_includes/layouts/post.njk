@@ -2,21 +2,27 @@
 layout: layouts/base.njk
 ---
 
-<article class="post">
+<a class="journal-back" href="{{ '/' | url }}">← 모든 개발 기록</a>
+<div class="journal-article-layout">
+<article class="post journal-post">
   <header class="post-header">
+    <p class="journal-eyebrow">ENGINEERING JOURNAL</p>
     <h1>{{ title }}</h1>
     <p class="post-meta">
       <time datetime="{{ date | isoDate }}">{{ date | postDate }}</time>
-      {% if aiGenerated %}<span class="badge">AI 생성</span>{% endif %}
+      <span>약 {{ content | readingMinutes }}분 읽기</span>
+      {% if aiGenerated %}<span class="badge">AI 기반 회고</span>{% else %}<span class="badge">커밋 기록</span>{% endif %}
     </p>
     {% if summary %}<p class="post-summary">{{ summary }}</p>{% endif %}
   </header>
 
-  {{ content | safe }}
+  <div class="journal-prose">{{ content | safe }}</div>
+  {% if aiGenerated %}<p class="journal-disclosure">공개 커밋과 수집된 변경 내용을 바탕으로 AI가 작성한 회고입니다. 설계 해석과 다음 확인 사항은 실제 구현·검증 결과와 구분해 읽어 주세요.</p>{% endif %}
 
   {% if commits %}
-    <section class="sources">
-      <h2>참고한 커밋</h2>
+    <section class="sources journal-sources" id="references">
+      <h2>이 글의 근거</h2>
+      <details><summary>참고한 커밋 펼쳐 보기</summary>
       {% for repo in commits %}
         <h3><a href="https://github.com/{{ repo.repo }}">{{ repo.repo }}</a></h3>
         <ul>
@@ -28,6 +34,7 @@ layout: layouts/base.njk
           {% endfor %}
         </ul>
       {% endfor %}
+      </details>
     </section>
   {% endif %}
 
@@ -35,3 +42,5 @@ layout: layouts/base.njk
     <a href="{{ '/' | url }}">← 개발 일지</a>
   </p>
 </article>
+<aside class="journal-toc" data-article-toc hidden><nav aria-label="글 목차"><p class="journal-eyebrow">ON THIS PAGE</p><ol></ol></nav></aside>
+</div>
