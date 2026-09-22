@@ -136,6 +136,43 @@ fine-grained personal access token을 사용합니다. `CF_ACCOUNT_ID`, `CF_API_
 이슈를 만들지 않고 `failed` 이력을 남깁니다. Workers AI가 실패하면 원문 링크 목록을
 본문으로 저장합니다.
 
+### 벤더 문서 수집 진단
+
+HPE는 현재 공식 QuickSpecs 사이트가 연결하는 Resource Library의 공개
+`medialibrary.model.json`에서 활성 영문 QuickSpecs를 날짜순으로 읽습니다.
+100개씩 페이지를 순회하고 최대 20페이지까지 조회합니다. 날짜·문서 ID가 잘못된
+항목, 페이지 실패·반복·상한 도달은 부분 누락으로 보고합니다. 수집 경로가 바뀌어도
+기존 문서 ID 기반 링크를 유지해 같은 개정본이 URL 변경만으로 중복 저장되지 않게 합니다.
+
+Dell은 D1에 이미 있는 문서와 고정 목록을 우선 확인한 뒤 카탈로그의 서버 후보를
+추가합니다. 실행당 최대 160개, 동시 8개로 제한하며 상한 때문에 생략한 후보도
+기록합니다. 카탈로그가 실패해도 이미 알려진 문서 조회는 계속합니다.
+
+두 수집기의 진단은 구조화된 Worker 로그에 출력됩니다. 문제가 있으면 기존
+`archive_runs.failed_sources` JSON에도 `source`, `status`, `message`, `counts`,
+`issueCount`, `issues`, `omittedIssueCount`를 저장합니다. 별도 DB 마이그레이션은
+필요하지 않습니다. `/healthz`의 `latestArchiveRun.failed_sources`를 JSON으로
+해석하면 최근 실행의 진단을 확인할 수 있습니다.
+
+| Dell 진단 종류 | 의미 |
+| --- | --- |
+| `blocked` / `authentication_required` | HTTP 403 / 401 |
+| `login_redirect` / `login_page` | 로그인 주소로 이동 / HTTP 200 로그인 HTML |
+| `missing_document` | 이전에 수집했거나 고정 목록에 있는 문서의 404 |
+| `not_found` | 카탈로그로 추정한 후보 주소의 404; 정상적인 미존재로 집계 |
+| `rate_limited` / `http_error` | HTTP 429 / 기타 실패 상태 |
+| `timeout` / `network_error` | 시간 초과 / 통신 실패 |
+| `not_pdf` / `missing_metadata` | PDF가 아닌 응답 / 읽을 수 있는 날짜 없음 |
+| `catalog_error` / `candidate_limit` | 카탈로그 조회·파싱 실패 / 후보 상한으로 생략 |
+| `invalid_redirect` / `unexpected_redirect` / `redirect_limit` | Location 누락 / 예상하지 않은 호스트 / 리다이렉트 상한 |
+| `unsupported_known_url` | 저장된 문서 주소가 지원하는 공개 PDF 경로와 다름 |
+
+`counts`의 전체 건수는 유지하고 `issues`의 상세 샘플은 최대 40개 저장합니다.
+인증 리다이렉트는 따라가지 않으며, 목적지의 쿼리 문자열은 기록하지 않습니다.
+성공 문서와 위 문제가 함께 있으면 벤더 및 전체 실행을 `partial`로 남깁니다.
+모든 벤더가 실패하면 `failed`가 됩니다. 추정 후보의 404만으로는 부분 실패로
+처리하지 않습니다. `empty`는 새로운 저장 문서가 없고 수집 실패도 없는 경우입니다.
+
 ## 로컬 개발
 
 ```bash

@@ -17,8 +17,7 @@ afterEach(() => {
   console.warn = realWarn;
 });
 
-// handler는 요청 URL과 init을 그대로 받는다. init까지 넘기는 이유는 HPE가
-// 받아 온 토큰을 실제로 Coveo 요청에 싣는지 확인해야 하기 때문이다.
+// handler는 요청 URL과 init을 그대로 받아 실제 요청 구성을 확인한다.
 const stub = (handler) => {
   const calls = [];
   globalThis.fetch = async (url, init) => {
@@ -274,109 +273,6 @@ test("IBM은 API 응답이 실패하면 상태 코드를 알린다", async () =>
 });
 
 // ------------------------------------------------------------------- HPE
-
-// HPE는 공식 API가 아니라 검색 화면의 내부 호출이다. 페이지에서 Aura 컨텍스트를
-// 긁어 토큰을 받고, 그 토큰으로 Coveo를 부르는 3단계를 그대로 태운다.
-const AURA_PAGE = `<html><script>{"fwuid":"FWUID1","APPLICATION@markup://siteforce:communityApp":"APPID1"}</script></html>`;
-
-const hpeStub = ({ page = AURA_PAGE, tokenState = "SUCCESS", token = "coveo-token", results = [] }) =>
-  stub((url) => {
-    if (url.includes("/connect/s/sfsites/aura")) {
-      // 실제 응답은 JSON 하이재킹 방지 접두사가 붙어 온다.
-      return new Response(
-        `while(1);${JSON.stringify({
-          actions: [{ state: tokenState, returnValue: JSON.stringify({ token }) }],
-        })}`,
-        { status: 200 }
-      );
-    }
-    if (url.includes("support.hpe.com/connect/s/search")) return new Response(page, { status: 200 });
-    if (url.includes("platform.cloud.coveo.com")) {
-      return new Response(JSON.stringify({ results }), { status: 200 });
-    }
-    throw new Error(`예상치 못한 요청 ${url}`);
-  });
-
-test("HPE는 받아 온 토큰으로 Coveo를 부르고 QuickSpecs를 만든다", async () => {
-  const calls = hpeStub({
-    results: [
-      {
-        title: "  HPE ProLiant DL380 Gen12 QuickSpecs  ",
-        raw: { kmdocid: "a00012345en_us||1", kmdoclastmod: "05/22/2026 10:11:12" },
-      },
-    ],
-  });
-
-  const rows = await hpe.collect();
-  assert.equal(rows.length, 1);
-  assert.deepEqual(rows[0], {
-    vendor: "HPE",
-    title: "HPE ProLiant DL380 Gen12 QuickSpecs",
-    url: "https://support.hpe.com/hpesc/public/docDisplay?docId=a00012345en_us",
-    date: "2026-05-22",
-    kind: "QuickSpecs",
-    ref: "a00012345en_us",
-  });
-
-  const coveo = calls.find((call) => call.url.includes("platform.cloud.coveo.com"));
-  assert.equal(coveo.init.headers.Authorization, "Bearer coveo-token");
-});
-
-test("HPE는 공개 URL이 있으면 그대로 쓰고 없으면 docId 주소를 만든다", async () => {
-  hpeStub({
-    results: [
-      {
-        title: "공개 주소 있음",
-        raw: {
-          kmdocid: "a00099999en_us",
-          kmdoclastmod: "01/09/2026",
-          nimble_public_uri: "https://www.hpe.com/psnow/doc/a00099999enw",
-        },
-      },
-      {
-        title: "urihash만 있음",
-        raw: { urihash: "Xy7Z", kmdoclastmod: "01/09/2026" },
-      },
-    ],
-  });
-
-  const rows = await hpe.collect();
-  assert.equal(rows[0].url, "https://www.hpe.com/psnow/doc/a00099999enw");
-  assert.equal(rows[1].ref, "Xy7Z", "kmdocid가 없으면 urihash로 내려간다");
-});
-
-test("HPE는 날짜, 제목, 식별자가 빠진 결과를 버린다", async () => {
-  hpeStub({
-    results: [
-      { title: "정상", raw: { kmdocid: "a1", kmdoclastmod: "05/22/2026" } },
-      { title: "날짜 없음", raw: { kmdocid: "a2" } },
-      { title: "날짜 형식 다름", raw: { kmdocid: "a3", kmdoclastmod: "2026-05-22" } },
-      { title: "식별자 없음", raw: { kmdoclastmod: "05/22/2026" } },
-      { raw: { kmdocid: "a5", kmdoclastmod: "05/22/2026" } },
-    ],
-  });
-
-  assert.deepEqual(
-    (await hpe.collect()).map((row) => row.ref),
-    ["a1"]
-  );
-});
-
-test("HPE는 Aura 컨텍스트를 못 찾으면 실패한다", async () => {
-  // 검색 화면 구조가 바뀌면 여기서 멈춘다. 조용히 0건이 되면 안 된다.
-  hpeStub({ page: "<html>구조가 바뀐 페이지</html>" });
-  await assert.rejects(() => hpe.collect(), /Aura 컨텍스트를 찾지 못했습니다/);
-});
-
-test("HPE는 토큰 발급이 실패하면 상태를 알린다", async () => {
-  hpeStub({ tokenState: "ERROR" });
-  await assert.rejects(() => hpe.collect(), /HPE 토큰 ERROR/);
-});
-
-test("HPE는 검색 페이지가 실패하면 상태 코드를 알린다", async () => {
-  stub(() => new Response("", { status: 502 }));
-  await assert.rejects(() => hpe.collect(), /HPE 페이지 502/);
-});
 
 // ------------------------------------------------------------------ Dell
 

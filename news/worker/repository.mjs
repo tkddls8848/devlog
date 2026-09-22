@@ -214,6 +214,11 @@ export function createStore(db) {
       return inserted;
     },
 
+    async listDellDocumentUrls() {
+      const result = await db.prepare("SELECT DISTINCT url FROM vendor_documents WHERE vendor = 'Dell' ORDER BY url").all();
+      return (result.results || []).map((row) => row.url);
+    },
+
     async listVendorDocuments(limit = 1000) {
       const result = await db.prepare(
         `SELECT vendor, title, url, document_date, kind, tag, ref, note

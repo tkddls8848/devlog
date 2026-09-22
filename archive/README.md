@@ -22,14 +22,18 @@ src/index.njk                 목록 표와 거르기 화면
 
 ## 수집 방식
 
-IBM 공고 API, Lenovo Press RSS, HPE QuickSpecs(Coveo 검색), Dell 펌웨어 카탈로그에서
+IBM 공고 API, Lenovo Press RSS, HPE QuickSpecs(Resource Library), Dell 펌웨어 카탈로그에서
 문서 목록을 받아 아카이브에 없는 것만 추가합니다. 중복은 벤더·URL·날짜로 판별합니다.
 한 소스가 실패해도 나머지 소스의 결과는 저장하고, 모든 소스가 실패하면 아무것도 쓰지
 않습니다. AI는 쓰지 않고 수집한 목록을 그대로 쌓습니다.
 
 네 소스 모두 최근 문서만 남기므로 롤링 목록에서 이미 사라진 문서는 복구할 수
-없습니다. HPE는 공식 API가 아니라 검색 화면이 쓰는 내부 호출이라 HPE가 구조를
-바꾸면 멈출 수 있습니다.
+없습니다. HPE는 `shared/vendor-hpe.mjs`에서 운영 Worker와 같은 Resource Library
+수집기를 사용합니다. 공개 웹사이트의 JSON 형식이 바뀌면 진단 로그에 남습니다.
+
+운영 사이트는 `news/worker/archive.mjs`에서 수집하고 D1에 저장합니다. 운영 Dell의
+차단·로그인 이동·문서 누락 진단과 실행 이력은 `news/README.md`를 참고하세요.
+이 폴더의 이전 로컬 Dell 수집기는 PDF 파서와 파일 저장을 사용하는 별도 구현입니다.
 
 Dell은 `delltechnologies.com/asset/.../technical-support/*.pdf`의 스펙 시트를 받아
 PDF 메타데이터에서 제목과 수정일을 읽습니다. HPE QuickSpecs, Lenovo Product Guide와

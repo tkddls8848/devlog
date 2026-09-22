@@ -47,31 +47,16 @@ globalThis.fetch = async (url) => {
     return text("<rss><channel>" + body + "</channel></rss>");
   }
 
-  if (target.includes("/connect/s/sfsites/aura")) {
-    return text(
-      "while(1);" +
-        JSON.stringify({
-          actions: [{ state: "SUCCESS", returnValue: JSON.stringify({ token: "t" }) }],
-        })
-    );
-  }
-
-  if (target.includes("support.hpe.com/connect/s/search")) {
+  if (target.includes("medialibrary.model.json")) {
     if (fixture.hpe.fail) return text("", 502);
-    return text(
-      '<html>{"fwuid":"F","APPLICATION@markup://siteforce:communityApp":"A"}</html>'
-    );
-  }
-
-  if (target.includes("platform.cloud.coveo.com")) {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return json({
-      results: items("hpe").map((doc) => ({
+      stat: { total: items("hpe").length },
+      items: items("hpe").map((doc) => ({
+        label: "quickspecs",
         title: doc.title,
-        raw: {
-          kmdocid: doc.id,
-          kmdoclastmod: doc.date.slice(5, 7) + "/" + doc.date.slice(8) + "/" + doc.date.slice(0, 4),
-          nimble_public_uri: doc.url,
-        },
+        lastUpdated: months[Number(doc.date.slice(5, 7)) - 1] + " " + doc.date.slice(8) + ", " + doc.date.slice(0, 4),
+        cta: { link: "/us/en/resources.quickspecs.test." + doc.id + ".html" },
       })),
     });
   }
