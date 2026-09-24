@@ -3,9 +3,11 @@ import * as dell from "./sources/dell.mjs";
 import * as hpe from "./sources/hpe.mjs";
 import * as ibm from "./sources/ibm.mjs";
 import * as lenovo from "./sources/lenovo.mjs";
+import * as netapp from "./sources/netapp.mjs";
+import * as oracle from "./sources/oracle.mjs";
 
 const ARCHIVE_FILE = "src/_data/vendorArchive.json";
-const sources = [ibm, lenovo, hpe, dell];
+const sources = [ibm, lenovo, hpe, dell, netapp, oracle];
 const DRY_RUN = process.argv.includes("--dry-run");
 const keyOf = (item) => `${item.vendor}:${item.url}:${item.date}`;
 
@@ -25,8 +27,8 @@ async function collectAll() {
     const vendor = sources[index].vendor;
     if (result.status === "fulfilled") {
       console.log(`  ${vendor}: ${result.value.length}건 수집`);
-      // 네 소스 모두 항상 최근 문서를 돌려준다. 0건은 실패는 아니지만
-      // 응답 구조가 바뀌었다는 신호에 가깝다.
+      // 소스는 대개 최근 문서를 돌려준다. 0건은 실패는 아니지만 응답 구조가
+      // 바뀌었다는 신호에 가깝다. NetApp만은 제품 피드가 모두 비어 있을 수 있다.
       if (!result.value.length) {
         console.warn(`  ⚠️ ${vendor}가 문서를 하나도 돌려주지 않았습니다. 소스 구조 변경을 의심하세요.`);
       }

@@ -14,6 +14,10 @@
   --hpe-bg: #e4f5ee;
   --dell: #0063b0;
   --dell-bg: #e6f1fb;
+  --netapp: #5b3fd1;
+  --netapp-bg: #eeebfc;
+  --oracle: #b4540a;
+  --oracle-bg: #fdf0e3;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -26,6 +30,10 @@
     --hpe-bg: #12332a;
     --dell: #6cb4f0;
     --dell-bg: #142a3f;
+    --netapp: #a99bff;
+    --netapp-bg: #251f45;
+    --oracle: #f5a35c;
+    --oracle-bg: #3a2614;
   }
 }
 
@@ -38,6 +46,10 @@
   --hpe-bg: #12332a;
   --dell: #6cb4f0;
   --dell-bg: #142a3f;
+  --netapp: #a99bff;
+  --netapp-bg: #251f45;
+  --oracle: #f5a35c;
+  --oracle-bg: #3a2614;
 }
 
 .stats {
@@ -166,6 +178,8 @@ table.archive tbody tr:hover { background: var(--surface-2); }
 .tag-lenovo { background: var(--lenovo-bg); color: var(--lenovo); }
 .tag-hpe { background: var(--hpe-bg); color: var(--hpe); }
 .tag-dell { background: var(--dell-bg); color: var(--dell); }
+.tag-netapp { background: var(--netapp-bg); color: var(--netapp); }
+.tag-oracle { background: var(--oracle-bg); color: var(--oracle); }
 
 /* 헤더가 두 줄로 접히면 sticky 필터 바의 기준 높이가 어긋난다. 좁은 화면에서는
    sticky를 풀고 일반 흐름으로 둔다. */

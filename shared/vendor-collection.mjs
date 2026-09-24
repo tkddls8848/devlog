@@ -32,3 +32,13 @@ export function validDate(value) {
   const parsed = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
+
+// Minimal RSS helpers shared by the feed-based collectors.
+export const xmlDecode = (value) => String(value || "")
+  .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+  .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+  .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#39;/g, "'").replace(/&amp;/g, "&").trim();
+export const xmlTag = (xml, name) => xmlDecode(xml.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`))?.[1]);
+export const htmlText = (html) => xmlDecode(String(html || "").replace(/<\/(li|p|h\d|ul|ol)>/gi, " ").replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+export const rssItems = (xml) => String(xml || "").match(/<item>[\s\S]*?<\/item>/g) || [];
+export const isRss = (xml) => /<rss[\s>]/.test(String(xml || "")) && /<channel[\s>]/.test(String(xml || ""));

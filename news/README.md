@@ -148,7 +148,11 @@ Dell은 D1에 이미 있는 문서와 고정 목록을 우선 확인한 뒤 카�
 추가합니다. 실행당 최대 160개, 동시 8개로 제한하며 상한 때문에 생략한 후보도
 기록합니다. 카탈로그가 실패해도 이미 알려진 문서 조회는 계속합니다.
 
-두 수집기의 진단은 구조화된 Worker 로그에 출력됩니다. 문제가 있으면 기존
+NetApp은 제품별 What's new RSS를, Oracle은 OCI 릴리스 노트 RSS를 읽습니다.
+NetApp의 빈 제품 피드는 정상이고 피드 실패(`feed_error`)·잘못된 항목(`invalid_entry`)만
+부분 누락으로 남깁니다. Oracle은 피드가 비면(`empty_feed`) 실패로 봅니다.
+
+이 수집기들의 진단은 구조화된 Worker 로그에 출력됩니다. 문제가 있으면 기존
 `archive_runs.failed_sources` JSON에도 `source`, `status`, `message`, `counts`,
 `issueCount`, `issues`, `omittedIssueCount`를 저장합니다. 별도 DB 마이그레이션은
 필요하지 않습니다. `/healthz`의 `latestArchiveRun.failed_sources`를 JSON으로

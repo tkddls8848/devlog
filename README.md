@@ -7,7 +7,7 @@
 | 폴더 | 사이트 | 하는 일 |
 | --- | --- | --- |
 | [`devlog/`](devlog/) | <https://devlog.tkddls8848.workers.dev/devlog/> | GitHub 공개 커밋을 날짜별 개발 일지로 발행 |
-| [`archive/`](archive/) | <https://devlog.tkddls8848.workers.dev/archive/> | IBM·Lenovo·HPE·Dell 제품 문서 갱신을 목록으로 축적 |
+| [`archive/`](archive/) | <https://devlog.tkddls8848.workers.dev/archive/> | IBM·Lenovo·HPE·Dell·NetApp·Oracle 제품 문서 갱신을 목록으로 축적 |
 | [`news/`](news/) | <https://devlog.tkddls8848.workers.dev/> | IT 업계 뉴스·블로그의 하루치 소식을 뉴스레터로 발행 |
 
 세 사이트는 서로를 내비게이션 링크로만 가리킵니다. 링크 주소는 각 폴더의

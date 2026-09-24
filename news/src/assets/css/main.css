@@ -78,6 +78,8 @@
 .vendor-icon-lenovo { background: #fdecec; color: #b8202e; }
 .vendor-icon-hpe { background: #e4f5ee; color: #017a5a; }
 .vendor-icon-dell { background: #e6f1fb; color: #0063b0; }
+.vendor-icon-netapp { background: #eeebfc; color: #5b3fd1; }
+.vendor-icon-oracle { background: #fdf0e3; color: #b4540a; }
 
 .archive-count {
   margin: 0 0 0.75rem;
@@ -125,11 +127,15 @@
   :root:not([data-theme="light"]) .vendor-icon-lenovo { background: #3a1f22; color: #ff8b93; }
   :root:not([data-theme="light"]) .vendor-icon-hpe { background: #12332a; color: #4fd1a5; }
   :root:not([data-theme="light"]) .vendor-icon-dell { background: #142a3f; color: #6cb4f0; }
+  :root:not([data-theme="light"]) .vendor-icon-netapp { background: #251f45; color: #a99bff; }
+  :root:not([data-theme="light"]) .vendor-icon-oracle { background: #3a2614; color: #f5a35c; }
 }
 :root[data-theme="dark"] .vendor-icon-ibm { background: #1a2740; color: #78a9ff; }
 :root[data-theme="dark"] .vendor-icon-lenovo { background: #3a1f22; color: #ff8b93; }
 :root[data-theme="dark"] .vendor-icon-hpe { background: #12332a; color: #4fd1a5; }
 :root[data-theme="dark"] .vendor-icon-dell { background: #142a3f; color: #6cb4f0; }
+:root[data-theme="dark"] .vendor-icon-netapp { background: #251f45; color: #a99bff; }
+:root[data-theme="dark"] .vendor-icon-oracle { background: #3a2614; color: #f5a35c; }
 
 /* 헤더가 두 줄로 접히면 sticky 필터 바의 기준 높이가 어긋난다. 좁은 화면에서는
    sticky를 풀고 일반 흐름으로 둔다. */

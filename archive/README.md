@@ -1,6 +1,6 @@
 # archive — 벤더 문서 아카이브
 
-IBM·Lenovo·HPE·Dell 제품 문서에서 관측한 갱신을 쌓아 두고, 벤더와 검색어로 거를
+IBM·Lenovo·HPE·Dell·NetApp·Oracle 제품 문서에서 관측한 갱신을 쌓아 두고, 벤더와 검색어로 거를
 수 있게 보여 주는 Eleventy 사이트입니다.
 
 사이트: <https://tkddls8848.github.io/devlog/archive/>
@@ -12,7 +12,7 @@ IBM·Lenovo·HPE·Dell 제품 문서에서 관측한 갱신을 쌓아 두고, �
 
 ```text
 tools/vendor-watch.mjs        벤더 문서 → 아카이브
-tools/sources/                IBM·Lenovo·HPE·Dell 수집기
+tools/sources/                IBM·Lenovo·HPE·Dell·NetApp·Oracle 수집기
 test/sources.test.mjs         fetch를 스텁해 수집기 파싱을 검증
 test/vendor-watch.test.mjs    수집·중복 제거·저장을 하위 프로세스로 검증
 src/_data/vendorArchive.json  누적된 문서 목록
@@ -22,18 +22,29 @@ src/index.njk                 목록 표와 거르기 화면
 
 ## 수집 방식
 
-IBM 공고 API, Lenovo Press RSS, HPE QuickSpecs(Resource Library), Dell 펌웨어 카탈로그에서
-문서 목록을 받아 아카이브에 없는 것만 추가합니다. 중복은 벤더·URL·날짜로 판별합니다.
+IBM 공고 API, Lenovo Press RSS, HPE QuickSpecs(Resource Library), Dell 펌웨어 카탈로그,
+NetApp 제품별 What's new RSS, OCI 릴리스 노트 RSS에서 문서 목록을 받아 아카이브에 없는 것만 추가합니다. 중복은 벤더·URL·날짜로 판별합니다.
 한 소스가 실패해도 나머지 소스의 결과는 저장하고, 모든 소스가 실패하면 아무것도 쓰지
 않습니다. AI는 쓰지 않고 수집한 목록을 그대로 쌓습니다.
 
-네 소스 모두 최근 문서만 남기므로 롤링 목록에서 이미 사라진 문서는 복구할 수
+모든 소스가 최근 문서만 남기므로 롤링 목록에서 이미 사라진 문서는 복구할 수
 없습니다. HPE는 `shared/vendor-hpe.mjs`에서 운영 Worker와 같은 Resource Library
 수집기를 사용합니다. 공개 웹사이트의 JSON 형식이 바뀌면 진단 로그에 남습니다.
 
 운영 사이트는 `news/worker/archive.mjs`에서 수집하고 D1에 저장합니다. 운영 Dell의
 차단·로그인 이동·문서 누락 진단과 실행 이력은 `news/README.md`를 참고하세요.
 이 폴더의 이전 로컬 Dell 수집기는 PDF 파서와 파일 저장을 사용하는 별도 구현입니다.
+
+NetApp(`shared/vendor-netapp.mjs`)은 `docs.netapp.com/us-en/<제품>/feed.xml`을
+제품마다 읽습니다. 피드는 각 제품의 What's new 페이지에서 만들어지며 대개 최신 항목
+1건만 들고 있어, 아카이브에 쌓이면서 이력이 됩니다. 비어 있는 피드는 정상이고, HTTP
+실패나 RSS가 아닌 응답만 문제로 남깁니다. 링크에 개정마다 붙는 `?time=` 쿼리는 떼고
+날짜로 개정을 구분합니다. 대상 제품은 `NETAPP_PRODUCTS`에 있습니다.
+
+Oracle(`shared/vendor-oracle.mjs`)은 OCI 전체 서비스의 릴리스 노트가 담긴 단일 피드
+(`docs.oracle.com/en-us/iaas/releasenotes/feed/`, 최근 50건)를 읽습니다. 링크 경로의
+서비스 이름(`generative-ai` 등)을 태그로, 문서 이름을 식별자로 씁니다. 이 피드는
+항상 채워져 있으므로 비어 있으면 운영에서는 실패로 봅니다.
 
 Dell은 `delltechnologies.com/asset/.../technical-support/*.pdf`의 스펙 시트를 받아
 PDF 메타데이터에서 제목과 수정일을 읽습니다. HPE QuickSpecs, Lenovo Product Guide와
@@ -60,7 +71,7 @@ Info Hub(`infohub.delltechnologies.com`)에도 날짜가 붙은 기술 문서가
 
 ## 자동 갱신
 
-매일 09:25 KST에 Cloudflare Worker `devlog`의 Cron Trigger가 IBM·Lenovo·HPE·Dell을
+매일 09:25 KST에 Cloudflare Worker `devlog`의 Cron Trigger가 IBM·Lenovo·HPE·Dell·NetApp·Oracle을
 수집해 D1에 저장합니다. 화면은 <https://devlog.tkddls8848.workers.dev/archive/>에서
 제공하며, 수집 결과를 GitHub에 매일 커밋하지 않습니다.
 

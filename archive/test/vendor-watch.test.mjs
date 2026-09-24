@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 // vendor-watch.mjs는 export가 없는 실행 스크립트다. 임시 작업 폴더에서 하위
-// 프로세스로 돌리고 네 수집기의 네트워크만 스텁해, 저장 결과와 종료 코드까지
+// 프로세스로 돌리고 수집기의 네트워크만 스텁해, 저장 결과와 종료 코드까지
 // 실제 경로로 확인한다.
 const SCRIPT = fileURLToPath(new URL("../tools/vendor-watch.mjs", import.meta.url));
 const ARCHIVE = "src/_data/vendorArchive.json";
@@ -90,6 +90,32 @@ globalThis.fetch = async (url) => {
     );
   }
 
+  if (target.includes("docs.netapp.com")) {
+    if (fixture.netapp.fail) return text("", 503);
+    const product = target.split("/us-en/")[1].split("/")[0];
+    const body = items("netapp")
+      .filter((doc) => doc.product === product)
+      .map(
+        (doc) =>
+          "<item><title>" + doc.title + "</title><pubDate>" + doc.date + "T12:00:00Z</pubDate>" +
+          "<link>https://docs.netapp.com/us-en/" + product + "/whats-new.html?time=1</link></item>"
+      )
+      .join("");
+    return text("<rss><channel>" + body + "</channel></rss>");
+  }
+
+  if (target.includes("docs.oracle.com")) {
+    if (fixture.oracle.fail) return text("", 503);
+    const body = items("oracle")
+      .map(
+        (doc) =>
+          "<item><title>" + doc.title + "</title><pubDate>" + doc.date + "T12:00:00Z</pubDate>" +
+          "<link>https://docs.oracle.com/iaas/releasenotes/" + doc.service + "/" + doc.slug + ".htm</link></item>"
+      )
+      .join("");
+    return text("<rss><channel>" + body + "</channel></rss>");
+  }
+
   throw new Error("예상치 못한 요청: " + target);
 };
 `;
@@ -115,6 +141,8 @@ function run({
   lenovo = NOTHING,
   hpe = NOTHING,
   dell = { items: [dellDoc] },
+  netapp = NOTHING,
+  oracle = NOTHING,
   args = [],
 }) {
   const dir = mkdtempSync(path.join(tmpdir(), "vendor-watch-"));
@@ -122,7 +150,7 @@ function run({
   const stub = path.join(dir, "stub.mjs");
   const archiveFile = path.join(dir, ARCHIVE);
 
-  writeFileSync(fixture, JSON.stringify({ ibm, lenovo, hpe, dell }), "utf8");
+  writeFileSync(fixture, JSON.stringify({ ibm, lenovo, hpe, dell, netapp, oracle }), "utf8");
   writeFileSync(stub, STUB, "utf8");
   mkdirSync(path.dirname(archiveFile), { recursive: true });
   const before = `[\n${archive.map((record) => JSON.stringify(record)).join(",\n")}\n]\n`;
@@ -175,6 +203,36 @@ test("네 소스의 결과를 모아 아카이브에 더한다", () => {
   );
   assert.match(result.output, /새 문서 4건/);
   assert.deepEqual(result.leftovers, [], "임시 파일을 남기지 않는다");
+});
+
+test("NetApp 제품 피드와 OCI 릴리스 노트를 함께 모은다", () => {
+  const result = run({
+    netapp: { items: [{ product: "ontap-systems", title: "What's new for ONTAP hardware systems", date: "2026-08-14" }] },
+    oracle: { items: [{ service: "generative-ai", slug: "regional-router", title: "Smart model router", date: "2026-08-15" }] },
+  });
+
+  assert.equal(result.status, 0);
+  const [oracle, netapp] = result.records;
+  assert.deepEqual(oracle, {
+    vendor: "Oracle",
+    title: "Smart model router",
+    url: "https://docs.oracle.com/iaas/releasenotes/generative-ai/regional-router.htm",
+    date: "2026-08-15",
+    kind: "OCI 릴리스 노트",
+    tag: "generative-ai",
+    ref: "regional-router",
+  });
+  assert.equal(netapp.url, "https://docs.netapp.com/us-en/ontap-systems/whats-new.html", "개정마다 붙는 time 쿼리는 뗀다");
+  assert.equal(netapp.tag, "ONTAP 하드웨어");
+});
+
+test("NetApp·Oracle이 실패해도 다른 벤더는 저장하고 종료 코드로 알린다", () => {
+  const result = run({ ibm: { items: [ibmDoc] }, netapp: { fail: true }, oracle: { fail: true } });
+
+  assert.equal(result.status, 1);
+  assert.match(result.output, /NetApp 수집 실패/);
+  assert.match(result.output, /Oracle 수집 실패/);
+  assert.deepEqual(result.records.map((record) => record.vendor), ["Dell", "IBM"]);
 });
 
 test("같은 날짜의 문서는 벤더 이름 순으로 줄 세운다", () => {
@@ -244,6 +302,8 @@ test("모든 소스가 실패하면 아카이브를 건드리지 않는다", () 
     lenovo: { fail: true },
     hpe: { fail: true },
     dell: { fail: true },
+    netapp: { fail: true },
+    oracle: { fail: true },
   });
 
   assert.notEqual(result.status, 0);

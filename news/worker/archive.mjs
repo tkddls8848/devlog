@@ -1,4 +1,6 @@
 import { collectHpe } from "../../shared/vendor-hpe.mjs";
+import { collectNetApp } from "../../shared/vendor-netapp.mjs";
+import { collectOracle } from "../../shared/vendor-oracle.mjs";
 import { collectDell } from "./archive-dell.mjs";
 
 const TIMEOUT = (ms) => AbortSignal.timeout(ms);
@@ -97,6 +99,7 @@ export async function runArchive({ env, store, now = new Date() }) {
   const sources = [
     ["IBM", () => collectIbm(env.IBM_REGION || "AP")], ["Lenovo", collectLenovo], ["HPE", collectHpe],
     ["Dell", async () => collectDell({ knownUrls: await store.listDellDocumentUrls() })],
+    ["NetApp", () => collectNetApp()], ["Oracle", collectOracle],
   ];
   const settled = await Promise.allSettled(sources.map(([, collect]) => collect()));
   const failedSources = [];
