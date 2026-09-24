@@ -6,7 +6,7 @@
 
 | 폴더 | 사이트 | 하는 일 |
 | --- | --- | --- |
-| [`devlog/`](devlog/) | <https://devlog.tkddls8848.workers.dev/devlog/> | GitHub 공개 커밋을 날짜별 개발 일지로 발행 |
+| [`devlog/`](devlog/) | <https://devlog.tkddls8848.workers.dev/devlog/> | 그날의 커밋을 참고해 직접 쓰는 작업 회고 |
 | [`archive/`](archive/) | <https://devlog.tkddls8848.workers.dev/archive/> | IBM·Lenovo·HPE·Dell·NetApp·Oracle 제품 문서 갱신을 목록으로 축적 |
 | [`news/`](news/) | <https://devlog.tkddls8848.workers.dev/> | IT 업계 뉴스·블로그의 하루치 소식을 뉴스레터로 발행 |
 
@@ -24,7 +24,7 @@ news/worker/index.mjs                   Cloudflare Cron으로 news·devlog·arch
 ```
 
 Cloudflare Workers Builds가 소스 변경을 배포하고, 세 Cron Trigger가 매일 수집하며,
-Workers AI가 뉴스레터와 개발일지 본문을 만들고 D1이 게시물·원문·실행 이력을
+Workers AI가 뉴스레터 본문과 개발 기록의 참고 자료를 만들고 D1이 게시물·원문·실행 이력을
 저장합니다. 발행 결과는 GitHub에 커밋하지 않습니다.
 
 테스트는 `main` 푸시와 풀 리퀘스트에서 폴더별로 돕니다. 네트워크와 비밀값 없이

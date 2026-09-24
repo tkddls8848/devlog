@@ -7,6 +7,7 @@
     "dev": "npm run build && wrangler dev --test-scheduled",
     "build": "node tools/export-legacy-archive.mjs && eleventy",
     "feeds:check": "node tools/feed-check.mjs",
+    "journal": "node tools/devlog-journal.mjs",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "deploy:worker": "wrangler deploy",

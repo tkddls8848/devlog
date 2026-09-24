@@ -103,7 +103,7 @@ Workers Builds와 중복 배포하지 않습니다.
 - `DB`: D1 binding
 - `ASSETS`: CSS·JS 같은 정적 자산 binding
 - Cron `0 22 * * *`: UTC 22:00, KST 07:00
-- Cron `10 0 * * *`: UTC 00:10, KST 09:10, 개발일지 수집·생성
+- Cron `10 0 * * *`: UTC 00:10, KST 09:10, 개발 기록 초안·참고 자료 생성 (발행은 `npm run journal`, `devlog/README.md` 참고)
 - Cron `25 0 * * *`: UTC 00:25, KST 09:25, 벤더 문서 아카이브 수집
 - `CF_AI_MODEL`: 사용할 Workers AI 모델
 - `NEWS_WINDOW_HOURS`: 수집 시간 창, 기본 24

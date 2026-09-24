@@ -245,7 +245,7 @@ export function createStore(db) {
     async listDevlogPosts(limit = 100) {
       const result = await db.prepare(
         `SELECT slug, post_date, title, summary, ai_generated, published_at
-         FROM devlog_posts ORDER BY post_date DESC, published_at DESC LIMIT ?`
+         FROM devlog_posts WHERE status = 'published' ORDER BY post_date DESC, published_at DESC LIMIT ?`
       ).bind(limit).all();
       return result.results || [];
     },
@@ -253,7 +253,7 @@ export function createStore(db) {
     async getDevlogPost(slug) {
       const post = await db.prepare(
         `SELECT slug, post_date, title, summary, body_markdown, ai_generated, published_at
-         FROM devlog_posts WHERE slug = ?`
+         FROM devlog_posts WHERE slug = ? AND status = 'published'`
       ).bind(slug).first();
       if (!post) return null;
       const commits = await db.prepare(
@@ -275,15 +275,30 @@ export function createStore(db) {
       for (let suffix = 2; ; suffix++) if (!used.has(`${day}-devlog-${suffix}`)) return `${day}-devlog-${suffix}`;
     },
 
-    async saveDevlogPost(post) {
-      const statements = [db.prepare(
-        `INSERT INTO devlog_posts
-         (slug, post_date, title, summary, body_markdown, ai_generated, published_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      ).bind(post.slug, post.postDate, post.title, post.summary, post.bodyMarkdown, post.aiGenerated ? 1 : 0, post.publishedAt)];
-      statements.push(...post.commits.map((item, position) => db.prepare(
+    async findDevlogDraft(day) {
+      return db.prepare(
+        `SELECT slug, (SELECT COUNT(*) FROM devlog_commits WHERE post_slug = devlog_posts.slug) AS commit_count
+         FROM devlog_posts WHERE post_date = ? AND status = 'draft' ORDER BY slug LIMIT 1`
+      ).bind(day).first();
+    },
+
+    // A day's draft is created once and later runs append to it, so the author
+    // keeps one file per day even when commits arrive across several runs.
+    async saveDevlogDraft(draft) {
+      const statements = [draft.existing
+        ? db.prepare(
+          `UPDATE devlog_posts SET reference_markdown = reference_markdown || ?, updated_at = ?
+           WHERE slug = ? AND status = 'draft'`
+        ).bind(`\n\n${draft.referenceMarkdown}`, draft.createdAt, draft.slug)
+        : db.prepare(
+          `INSERT INTO devlog_posts
+           (slug, post_date, title, summary, body_markdown, ai_generated, published_at, status, reference_markdown)
+           VALUES (?, ?, ?, '', '', 0, ?, 'draft', ?)`
+        ).bind(draft.slug, draft.postDate, `${draft.postDate} 작업 회고`, draft.createdAt, draft.referenceMarkdown)];
+      const offset = draft.existing?.commit_count || 0;
+      statements.push(...draft.commits.map((item, index) => db.prepare(
         `INSERT INTO devlog_commits (sha, post_slug, repo, message, position) VALUES (?, ?, ?, ?, ?)`
-      ).bind(item.sha, post.slug, item.repo, item.message, position)));
+      ).bind(item.sha, draft.slug, item.repo, item.message, offset + index)));
       await db.batch(statements);
     },
 

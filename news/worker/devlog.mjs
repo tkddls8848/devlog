@@ -1,5 +1,4 @@
-import { parseDraft } from "./digest.mjs";
-import { writingSystem, writingPrompt, commitDetails } from "../../shared/devlog-writing.mjs";
+import { journalSystem, journalPrompt, journalReference, commitDetails } from "../../shared/devlog-writing.mjs";
 
 const USER = "tkddls8848";
 const BLOG_REPO = `${USER}/devlog`;
@@ -63,20 +62,16 @@ async function collect(env, published) {
   return { commits: [...commits.values()], partial };
 }
 
-const fallbackDraft = (day, groups) => {
-  const total = [...groups.values()].reduce((sum, values) => sum + values.length, 0);
-  return { title: `${day} 개발 일지`, summary: `${groups.size}개 저장소의 커밋 ${total}건을 기록했습니다.`, body: [...groups].map(([repo, values]) => `## ${repo}\n\n${values.map((item) => `- ${item.message}`).join("\n")}`).join("\n\n") };
-};
-
-async function aiDraft(env, day, groups) {
+// Reference notes only. The retrospective itself is written by hand.
+async function aiNotes(env, day, groups) {
   const result = await env.AI.run(env.CF_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct-fast", {
-    messages: [{ role: "system", content: writingSystem }, { role: "user", content: writingPrompt(day, groups) }],
+    messages: [{ role: "system", content: journalSystem }, { role: "user", content: journalPrompt(day, groups) }],
     max_tokens: 3200, temperature: 0.35,
   });
-  const text = String(result?.response ?? result?.choices?.[0]?.message?.content ?? result?.output_text ?? "").trim();
+  const text = String(result?.response ?? result?.choices?.[0]?.message?.content ?? result?.output_text ?? "")
+    .replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/^```(?:markdown)?\s*/i, "").replace(/\s*```$/, "").trim();
   if (!text) throw new Error("Workers AI가 빈 응답을 반환했습니다.");
-  if (!/^TITLE\s*:/m.test(text) || !/^SUMMARY\s*:/m.test(text)) throw new Error("기술 회고 응답 형식이 올바르지 않습니다.");
-  return parseDraft(text);
+  return text;
 }
 
 export async function runDevlog({ env, store, now = new Date() }) {
@@ -87,7 +82,7 @@ export async function runDevlog({ env, store, now = new Date() }) {
       await store.saveDevlogRun({ startedAt, finishedAt: new Date().toISOString(), status: partial ? "partial" : "empty", collectedCount: 0, postCount: 0 });
       return { status: partial ? "partial" : "empty" };
     }
-    // Bound extra GitHub requests per run; missing details never block publishing.
+    // Bound extra GitHub requests per run; missing details never block the draft.
     for (const commit of [...commits].sort((a, b) => b.day.localeCompare(a.day)).slice(0, 12)) {
       try { commit.details = commitDetails(await github(`/repos/${commit.repo}/commits/${commit.sha}`, env.GITHUB_TOKEN)); }
       catch (error) { console.warn(`커밋 상세 조회 생략: ${commit.repo}/${commit.sha}`, error.message); }
@@ -98,10 +93,15 @@ export async function runDevlog({ env, store, now = new Date() }) {
       const repos = days.get(commit.day); if (!repos.has(commit.repo)) repos.set(commit.repo, []); repos.get(commit.repo).push(commit);
     }
     let postCount = 0;
+    const collectedAt = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul", dateStyle: "short", timeStyle: "short" }).format(new Date(now));
     for (const [day, groups] of [...days].sort(([a], [b]) => a.localeCompare(b))) {
-      const fallback = fallbackDraft(day, groups); let draft = fallback; let aiGenerated = false;
-      try { draft = await aiDraft(env, day, groups); aiGenerated = true; } catch (error) { console.warn("개발일지 AI 요약 실패", error); }
-      await store.saveDevlogPost({ slug: await store.nextDevlogSlug(day), postDate: day, title: draft.title, summary: draft.summary, bodyMarkdown: draft.body, aiGenerated, publishedAt: new Date(now).toISOString(), commits: [...groups.values()].flat() });
+      let notes = "";
+      try { notes = await aiNotes(env, day, groups); } catch (error) { console.warn("개발 기록 참고 문구 생성 실패", error); }
+      const existing = await store.findDevlogDraft(day);
+      await store.saveDevlogDraft({
+        slug: existing?.slug || await store.nextDevlogSlug(day), existing, postDate: day, createdAt: new Date(now).toISOString(),
+        referenceMarkdown: journalReference({ day, groups, notes, collectedAt }), commits: [...groups.values()].flat(),
+      });
       postCount++;
     }
     await store.saveDevlogRun({ startedAt, finishedAt: new Date().toISOString(), status: partial ? "partial" : "success", collectedCount: commits.length, postCount });
