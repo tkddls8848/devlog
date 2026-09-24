@@ -38,9 +38,7 @@ layout: layouts/base.njk
     <div class="chips" role="group" aria-label="벤더 선택">
       <button type="button" class="chip is-on" data-vendor="" aria-pressed="true">전체</button>
       {% for v in ["IBM", "Lenovo", "HPE", "Dell", "NetApp", "Oracle"] %}
-        {% if records | vendorCount(v) %}
-          <button type="button" class="chip" data-vendor="{{ v }}" aria-pressed="false">{{ v }}</button>
-        {% endif %}
+        <button type="button" class="chip" data-vendor="{{ v }}" aria-pressed="false">{{ v }}</button>
       {% endfor %}
     </div>
   </div>

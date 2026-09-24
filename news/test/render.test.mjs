@@ -81,4 +81,8 @@ test("아카이브는 벤더 아이콘과 선택 필터를 렌더링한다", () 
   assert.match(html, /class="archive-chip" data-vendor="Dell"/);
   assert.match(html, /data-vendor="IBM"/);
   assert.match(html, /row\.dataset\.vendor===vendor/);
+  // 아직 문서가 없는 벤더도 버튼을 보여 주고 0건으로 표시한다.
+  assert.match(html, /data-vendor="NetApp" aria-pressed="false">.*?<strong>0<\/strong>/);
+  assert.match(html, /data-vendor="Oracle" aria-pressed="false">.*?<strong>0<\/strong>/);
+  assert.match(html, /id="archive-empty" hidden/);
 });

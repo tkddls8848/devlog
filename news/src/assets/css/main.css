@@ -88,6 +88,8 @@
   font-variant-numeric: tabular-nums;
 }
 
+.archive-empty { margin: 1rem 0 0; color: var(--muted); font-size: 0.86rem; text-align: center; }
+
 .archive-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);
