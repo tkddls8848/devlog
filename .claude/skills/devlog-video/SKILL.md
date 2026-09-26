@@ -65,10 +65,13 @@ cd video && npm run plan -- ../devlog/journal/<slug>.md
 
 | 용도 | Artlist MCP 도구 | 비고 |
 | --- | --- | --- |
-| 영상 생성 | _(확인 후 기록)_ | model에 Seedance 2.5를 지정 |
-| 보이스오버 | _(확인 후 기록)_ | 언어 ko, 목소리 이름을 `series.json` `style.voice`에 기록 |
-| 음악 | _(확인 후 기록)_ | 스레드별로 같은 자산 ID 재사용 |
-| 자산 다운로드 | _(확인 후 기록)_ | 라이브러리에 저장된 생성물의 URL |
+| 영상 생성 | `generate_video` | Seedance 2.5 T2V 1080p `modelId 3106`(그룹 515, 720p는 2625). 설정은 `get_model_config`로 확인. 오디오 없는 설정 |
+| 보이스오버 | `list_voices` → `generate_voiceover` | ElevenLabs Multilingual v2 `modelId 2061`. 한국어 목소리를 골라 이름을 `series.json` `style.voice`에 기록 |
+| 음악 | `generate_music` | Lyria 3 Pro Instrumental `modelId 2285`. `search_music`은 카탈로그 곡을 내려받을 수 없으므로 쓰지 않는다. 스레드별로 같은 생성 결과를 재사용 |
+| 자산 다운로드 | `get_generation_status` | 완료 결과의 파일 URL을 `curl -L -o`로 받는다 |
+| 비용 확인 | `get_generation_cost`, `get_balance` | 멈춤 지점 A에서 실제 크레딧 비용을 보여 준다. `confirmation_required`가 오면 사용자 승인 뒤에만 `confirmCost: true` |
+
+2026-09-26 확인: 계정이 AI 크레딧 없는 무료 체험이면 Seedance 2.5는 생성할 수 없다. 이 경우 1단계까지만 하고 멈춘다.
 
 생성이 하나라도 실패하면 그 장면만 다시 시도하고, 세 번 실패하면 멈춰서 사용자에게 알린다.
 클립은 오디오를 끄고 만든다. 음성은 보이스오버 트랙이 담당한다.
