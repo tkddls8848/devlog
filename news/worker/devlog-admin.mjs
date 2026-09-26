@@ -1,6 +1,6 @@
 // 개발 기록 작성 화면. /devlog/admin/ 아래에서 로그인한 작성자만 초안을 쓰고,
 // 발행하고, 발행한 글을 고치거나 비공개로 돌린다.
-import { adminConfigured, clearedCookie, createSession, isAdmin, MIN_PASSWORD_LENGTH, passwordMatches, sameOrigin, sessionCookie } from "./devlog-auth.mjs";
+import { adminConfigured, clearedCookie, createSession, isAdmin, passwordMatches, sameOrigin, sessionCookie } from "./devlog-auth.mjs";
 import { escapeHtml, layout, markdownToHtml } from "./render.mjs";
 
 const DAY = new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Seoul" });
@@ -35,7 +35,7 @@ export function renderLogin(env, { error = "", next = "/devlog/admin/" } = {}) {
       <label class="editor-field"><span>비밀번호</span><input type="password" name="password" autocomplete="current-password" required autofocus /></label>
       <button type="submit" class="admin-button admin-button-primary">로그인</button>
     </form>` : `<p class="admin-flash admin-flash-error" role="alert">작성자 비밀번호가 설정되지 않았습니다.</p>
-    <p class="admin-muted">Worker secret <code>DEVLOG_ADMIN_PASSWORD</code>를 ${MIN_PASSWORD_LENGTH}자 이상으로 등록하면 로그인할 수 있습니다.</p>`}
+    <p class="admin-muted">Worker secret <code>DEVLOG_ADMIN_PASSWORD</code>를 등록하면 로그인할 수 있습니다.</p>`}
     <p><a href="/devlog/">← 개발 기록으로</a></p>
   </section>`;
   return adminLayout(env, "작성자 로그인", content);

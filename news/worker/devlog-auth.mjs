@@ -3,7 +3,6 @@
 // 쿠키를 준다. 비밀번호를 바꾸면 서명 키가 바뀌어 기존 세션이 모두 끊긴다.
 export const COOKIE = "devlog_admin";
 export const SESSION_SECONDS = 30 * 24 * 60 * 60;
-export const MIN_PASSWORD_LENGTH = 12;
 
 const encoder = new TextEncoder();
 const toBase64Url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -12,7 +11,8 @@ const fromBase64Url = (value) => {
   return Uint8Array.from(text, (char) => char.charCodeAt(0));
 };
 
-export const adminConfigured = (env) => String(env?.DEVLOG_ADMIN_PASSWORD || "").length >= MIN_PASSWORD_LENGTH;
+// An empty secret must never let anyone in; any non-empty value is the author's choice.
+export const adminConfigured = (env) => String(env?.DEVLOG_ADMIN_PASSWORD || "").length > 0;
 
 const sessionKey = (env) => crypto.subtle.importKey(
   "raw", encoder.encode(`devlog-admin-session:${env.DEVLOG_ADMIN_PASSWORD}`),

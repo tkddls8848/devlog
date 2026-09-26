@@ -27,7 +27,7 @@ Cron Trigger `10 0 * * *`가 매일 09:10 KST에 공개 커밋을 모아 날짜�
 - 로그인한 상태로 공개 화면을 보면 목록에 `글 관리 · 새 글 쓰기`, 글마다 `이 글 수정`
   링크가 보입니다. 이 화면은 캐시하지 않습니다(`private, no-store`).
 
-로그인 비밀번호는 Worker secret `DEVLOG_ADMIN_PASSWORD`(12자 이상)입니다. 등록하지
+로그인 비밀번호는 Worker secret `DEVLOG_ADMIN_PASSWORD`입니다. 길이 제한은 없지만 비어 있거나 등록하지
 않으면 아무도 로그인할 수 없습니다.
 
 ```bash

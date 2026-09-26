@@ -43,9 +43,11 @@ test("세션은 서명과 만료를 확인하고, 비밀번호가 바뀌면 끊�
   assert.equal(await sessionValid(env, "garbage", now.getTime()), false);
 });
 
-test("비밀번호가 없거나 12자 미만이면 누구도 로그인할 수 없다", async () => {
+test("비밀번호가 비어 있으면 누구도 로그인할 수 없고, 길이 제한은 없다", async () => {
   assert.equal(await passwordMatches({}, ""), false);
-  assert.equal(await passwordMatches({ DEVLOG_ADMIN_PASSWORD: "short" }, "short"), false);
+  assert.equal(await passwordMatches({ DEVLOG_ADMIN_PASSWORD: "" }, ""), false);
+  assert.equal(await passwordMatches({ DEVLOG_ADMIN_PASSWORD: "short" }, "short"), true);
+  assert.equal(await passwordMatches({ DEVLOG_ADMIN_PASSWORD: "short" }, "shor"), false);
   assert.equal(await passwordMatches(env, "correct horse battery"), true);
   assert.equal(await passwordMatches(env, "correct horse batter"), false);
   const response = await handleDevlogAdmin(request("/devlog/admin/login"), {}, fakeStore(), now);
