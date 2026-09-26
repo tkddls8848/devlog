@@ -4,3 +4,4 @@ _site/
 *.log
 **/src/assets/css/devlog.css
 **/src/assets/js/devlog.js
+**/src/assets/js/devlog-editor.js

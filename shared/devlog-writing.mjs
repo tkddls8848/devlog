@@ -160,7 +160,7 @@ export function journalEvidence(groups) {
       if (body) lines.push("", quote(body));
       const details = commit.details;
       if (!details) {
-        lines.push("", "_상세 조회 한도 밖이라 메시지만 있습니다._");
+        lines.push("", "※ 상세 조회 한도 밖이라 메시지만 있습니다.");
       } else {
         const more = details.changedCount > details.changed.length ? ` 외 ${details.changedCount - details.changed.length}개` : "";
         lines.push("", `변경 파일 ${details.changedCount}개${more ? ` (${details.changed.length}개만 표시)` : ""}, +${details.stats.additions} -${details.stats.deletions}`);
@@ -185,7 +185,7 @@ ${JOURNAL_QUESTIONS.map((question) => `- ${question}`).join("\n")}
 
 ### 2. AI 참고 문구 (그대로 옮기지 말고 사실과 다르면 고쳐 쓰세요)
 
-${notes ? notes.trim().replace(/^(#{2,5}) /gm, (_, marks) => `${"#".repeat(Math.max(4, marks.length + 1))} `) :"_AI 참고 문구를 만들지 못했습니다. 아래 커밋 근거를 보고 작성하세요._"}
+${notes ? notes.trim().replace(/^(#{2,5}) /gm, (_, marks) => `${"#".repeat(Math.max(4, marks.length + 1))} `) :"※ AI 참고 문구를 만들지 못했습니다. 아래 커밋 근거를 보고 작성하세요."}
 
 ### 3. 커밋 근거
 

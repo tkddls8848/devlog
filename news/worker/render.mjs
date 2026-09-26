@@ -38,7 +38,9 @@ export function markdownToHtml(markdown, { headingIds = false } = {}) {
   const output = [];
   let paragraph = [];
   let list = [];
+  let quote = [];
   let code = null;
+  let fence = "";
   let headingIndex = 0;
   const flushParagraph = () => {
     if (paragraph.length) output.push(`<p>${inlineMarkdown(paragraph.join(" "))}</p>`);
@@ -48,36 +50,47 @@ export function markdownToHtml(markdown, { headingIds = false } = {}) {
     if (list.length) output.push(`<ul>${list.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ul>`);
     list = [];
   };
+  const flushQuote = () => {
+    if (quote.length) output.push(`<blockquote>${quote.join("\n").split(/\n{2,}/).map((part) => `<p>${inlineMarkdown(part.replace(/\n/g, " "))}</p>`).join("")}</blockquote>`);
+    quote = [];
+  };
+  const flushAll = () => { flushParagraph(); flushList(); flushQuote(); };
 
   for (const line of String(markdown || "").split(/\r?\n/)) {
-    if (/^```/.test(line)) {
-      flushParagraph();
-      flushList();
-      if (code !== null) { output.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`); code = null; }
-      else code = [];
+    // A fence closes only on a run at least as long as the one that opened it,
+    // so a ```` block can quote ``` inside (diff excerpts in journal references).
+    const marks = line.match(/^(`{3,})/)?.[1];
+    if (code !== null) {
+      if (marks && marks.length >= fence.length && !line.slice(marks.length).trim()) { output.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`); code = null; }
+      else code.push(line);
       continue;
     }
-    if (code !== null) { code.push(line); continue; }
-    const heading = line.match(/^(#{2,3})\s+(.+)$/);
+    if (marks) { flushAll(); code = []; fence = marks; continue; }
+    const heading = line.match(/^(#{2,6})\s+(.+)$/);
     const item = line.match(/^\s*-\s+(.+)$/);
+    const quoted = line.match(/^>\s?(.*)$/);
     if (heading) {
+      flushAll();
+      const level = heading[1].length;
+      // Only h2/h3 feed the table of contents.
+      output.push(`<h${level}${headingIds && level <= 3 ? ` id="section-${++headingIndex}"` : ""}>${inlineMarkdown(heading[2])}</h${level}>`);
+    } else if (quoted) {
       flushParagraph();
       flushList();
-      const level = heading[1].length;
-      output.push(`<h${level}${headingIds ? ` id="section-${++headingIndex}"` : ""}>${inlineMarkdown(heading[2])}</h${level}>`);
+      quote.push(quoted[1]);
     } else if (item) {
       flushParagraph();
+      flushQuote();
       list.push(item[1]);
     } else if (!line.trim()) {
-      flushParagraph();
-      flushList();
+      flushAll();
     } else {
       flushList();
+      flushQuote();
       paragraph.push(line.trim());
     }
   }
-  flushParagraph();
-  flushList();
+  flushAll();
   if (code !== null) output.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
   return output.join("\n");
 }
@@ -95,7 +108,7 @@ const siteFromEnv = (env) => ({
   archiveUrl: env.ARCHIVE_URL || "https://tkddls8848.github.io/devlog/archive/",
 });
 
-function layout({ env, title, summary, current = "", content, canonical = "", wide = false }) {
+export function layout({ env, title, summary, current = "", content, canonical = "", wide = false, scripts = [], robots = "" }) {
   const site = siteFromEnv(env);
   const isDevlog = current === "devlog";
   if (isDevlog) { site.title = "devlog"; site.tagline = "코드의 변화에서 설계의 이유를 찾는 개발 기록"; }
@@ -107,6 +120,7 @@ function layout({ env, title, summary, current = "", content, canonical = "", wi
     <title>${title ? `${escapeHtml(title)} · ` : ""}${site.title}</title>
     <meta name="description" content="${escapeHtml(summary || site.tagline)}" />
     <meta name="color-scheme" content="light dark" />
+    ${robots ? `<meta name="robots" content="${escapeHtml(robots)}" />` : ""}
     ${canonical ? `<link rel="canonical" href="${escapeHtml(canonical)}" />` : ""}
     <link rel="alternate" type="application/rss+xml" title="${site.title}" href="/feed.xml" />
     <link rel="stylesheet" href="/assets/css/theme.css" />
@@ -136,6 +150,7 @@ function layout({ env, title, summary, current = "", content, canonical = "", wi
     </footer>
     <script src="/assets/js/theme-toggle.js"></script>
     ${isDevlog ? '<script src="/assets/js/devlog.js" defer></script>' : ""}
+    ${scripts.map((src) => `<script src="${escapeHtml(src)}" defer></script>`).join("")}
   </body>
 </html>`;
 }
@@ -209,7 +224,7 @@ export function renderArchive(records, env, origin) {
   return layout({ env, title: "벤더 문서 아카이브", summary: "IBM, Lenovo, HPE, Dell, NetApp, Oracle 제품 문서 아카이브", current: "archive", content, canonical: `${origin}/archive/`, wide: true });
 }
 
-export function renderDevlogHome(posts, env, origin) {
+export function renderDevlogHome(posts, env, origin, { admin = false } = {}) {
   const rows = posts.map((post, index) => `<li class="journal-card${index === 0 ? ' journal-featured' : ''}" data-journal-entry>
     <div class="journal-card-meta"><span>${index === 0 ? 'LATEST ENTRY' : 'DEVELOPMENT LOG'}</span><time datetime="${escapeHtml(post.post_date)}">${DAY.format(new Date(post.post_date))}</time></div>
     <h3><a href="/devlog/posts/${encodeURIComponent(post.slug)}/">${escapeHtml(post.title)}</a></h3>
@@ -221,6 +236,7 @@ export function renderDevlogHome(posts, env, origin) {
     <h1 id="journal-title">코드를 바꾸고,<br /><span>생각을 남깁니다.</span></h1>
     <p class="journal-description">무엇을 만들었는지에서 한 걸음 더.<br />커밋에 담긴 구현과 설계의 선택, 다음에 확인할 것들을 기록합니다.</p>
     <a class="journal-github" href="https://github.com/tkddls8848">GitHub에서 코드 보기 <span aria-hidden="true">↗</span></a>
+    ${admin ? '<p class="journal-owner"><a class="journal-owner-link" href="/devlog/admin/">글 관리 · 새 글 쓰기</a></p>' : ""}
   </section>
   <div class="journal-layout"><section aria-labelledby="entries-title">
     <div class="journal-toolbar"><h2 id="entries-title">개발 기록 <span>${posts.length}</span></h2><label class="journal-search"><span class="visually-hidden">글 제목과 요약 검색</span><input id="journal-query" type="search" placeholder="제목과 요약 검색" /></label></div>
@@ -232,7 +248,7 @@ export function renderDevlogHome(posts, env, origin) {
   return layout({ env, title: "개발 기록", summary: "커밋에 담긴 구현, 설계 판단과 다음 검증을 기록하는 기술 블로그", current: "devlog", content, canonical: `${origin}/devlog/` });
 }
 
-export function renderDevlogPost(post, env, origin) {
+export function renderDevlogPost(post, env, origin, { admin = false } = {}) {
   const groups = new Map();
   for (const commit of post.commits || []) {
     if (!groups.has(commit.repo)) groups.set(commit.repo, []);
@@ -243,7 +259,7 @@ export function renderDevlogPost(post, env, origin) {
   const headings = [...body.matchAll(/<h([23]) id="(section-\d+)">([\s\S]*?)<\/h\1>/g)];
   const toc = headings.map((heading) => `<li class="toc-level-${heading[1]}"><a href="#${heading[2]}">${heading[3].replace(/<[^>]*>/g, "")}</a></li>`).join("");
   const readingMinutes = Math.max(1, Math.ceil(String(post.body_markdown || "").length / 500));
-  const content = `<a class="journal-back" href="/devlog/">← 모든 개발 기록</a><div class="journal-article-layout"><article class="post journal-post"><header class="post-header"><p class="journal-eyebrow">ENGINEERING JOURNAL</p><h1>${escapeHtml(post.title)}</h1><p class="post-meta"><time datetime="${escapeHtml(post.post_date)}">${DAY.format(new Date(post.post_date))}</time><span>약 ${readingMinutes}분 읽기</span><span>커밋 ${(post.commits || []).length}개 · 저장소 ${groups.size}개</span>${post.ai_generated ? '<span class="badge">이전 AI 자동 기록</span>' : '<span class="badge">작업 회고</span>'}</p>${post.summary ? `<p class="post-summary">${escapeHtml(post.summary)}</p>` : ""}</header><div class="journal-prose">${body}</div>${post.ai_generated ? '<p class="journal-disclosure">직접 쓰는 작업 회고로 바꾸기 전에 AI가 공개 커밋을 바탕으로 자동 작성한 글입니다. 설계 해석과 다음 확인 사항은 실제 구현·검증 결과와 구분해 읽어 주세요.</p>' : ''}${sources ? `<section class="sources journal-sources" id="references"><h2>이 글의 근거</h2><details><summary>참고한 커밋 ${(post.commits || []).length}개 펼쳐 보기</summary>${sources}</details></section>` : ""}<p class="back"><a href="/devlog/">← 개발 기록 목록</a></p></article>${toc ? `<aside class="journal-toc"><nav aria-label="글 목차"><p class="journal-eyebrow">ON THIS PAGE</p><ol>${toc}${sources ? '<li><a href="#references">이 글의 근거</a></li>' : ''}</ol></nav></aside>` : ''}</div>`;
+  const content = `<a class="journal-back" href="/devlog/">← 모든 개발 기록</a><div class="journal-article-layout"><article class="post journal-post"><header class="post-header"><p class="journal-eyebrow">ENGINEERING JOURNAL${admin ? ` · <a class="journal-owner-link" href="/devlog/admin/posts/${encodeURIComponent(post.slug)}/">이 글 수정</a>` : ""}</p><h1>${escapeHtml(post.title)}</h1><p class="post-meta"><time datetime="${escapeHtml(post.post_date)}">${DAY.format(new Date(post.post_date))}</time><span>약 ${readingMinutes}분 읽기</span><span>커밋 ${(post.commits || []).length}개 · 저장소 ${groups.size}개</span>${post.ai_generated ? '<span class="badge">이전 AI 자동 기록</span>' : '<span class="badge">작업 회고</span>'}</p>${post.summary ? `<p class="post-summary">${escapeHtml(post.summary)}</p>` : ""}</header><div class="journal-prose">${body}</div>${post.ai_generated ? '<p class="journal-disclosure">직접 쓰는 작업 회고로 바꾸기 전에 AI가 공개 커밋을 바탕으로 자동 작성한 글입니다. 설계 해석과 다음 확인 사항은 실제 구현·검증 결과와 구분해 읽어 주세요.</p>' : ''}${sources ? `<section class="sources journal-sources" id="references"><h2>이 글의 근거</h2><details><summary>참고한 커밋 ${(post.commits || []).length}개 펼쳐 보기</summary>${sources}</details></section>` : ""}<p class="back"><a href="/devlog/">← 개발 기록 목록</a></p></article>${toc ? `<aside class="journal-toc"><nav aria-label="글 목차"><p class="journal-eyebrow">ON THIS PAGE</p><ol>${toc}${sources ? '<li><a href="#references">이 글의 근거</a></li>' : ''}</ol></nav></aside>` : ''}</div>`;
   return layout({ env, title: post.title, summary: post.summary, current: "devlog", content, canonical: `${origin}/devlog/posts/${encodeURIComponent(post.slug)}/` });
 }
 

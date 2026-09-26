@@ -2,6 +2,8 @@ import { runDigest } from "./digest.mjs";
 import { runArchive } from "./archive.mjs";
 import { runDevlog } from "./devlog.mjs";
 import { createStore } from "./repository.mjs";
+import { handleDevlogAdmin } from "./devlog-admin.mjs";
+import { isAdmin } from "./devlog-auth.mjs";
 import { renderArchive, renderDevlogHome, renderDevlogPost, renderFeed, renderHome, renderIssue, renderNotFound } from "./render.mjs";
 
 const html = (body, status = 200, cache = "public, max-age=300") =>
@@ -45,14 +47,20 @@ async function handle(request, env) {
     return html(renderArchive(await store.listVendorDocuments(), env, origin), 200, "public, max-age=900");
   }
 
+  const adminResponse = await handleDevlogAdmin(request, env, store);
+  if (adminResponse) return adminResponse;
+
+  // The author sees edit links, so their copy of a page must never be cached or shared.
   if (url.pathname === "/devlog" || url.pathname === "/devlog/") {
-    return html(renderDevlogHome(await store.listDevlogPosts(), env, origin));
+    const admin = await isAdmin(request, env);
+    return html(renderDevlogHome(await store.listDevlogPosts(), env, origin, { admin }), 200, admin ? "private, no-store" : undefined);
   }
 
   const devlogMatch = url.pathname.match(/^\/devlog\/posts\/([a-z0-9-]+)\/?$/i);
   if (devlogMatch) {
+    const admin = await isAdmin(request, env);
     const post = await store.getDevlogPost(devlogMatch[1]);
-    return post ? html(renderDevlogPost(post, env, origin), 200, "public, max-age=3600") : html(renderNotFound(env), 404, "no-store");
+    return post ? html(renderDevlogPost(post, env, origin, { admin }), 200, admin ? "private, no-store" : "public, max-age=3600") : html(renderNotFound(env), 404, "no-store");
   }
 
   const match = url.pathname.match(/^\/issues\/([a-z0-9-]+)\/?$/i);
@@ -70,7 +78,9 @@ async function handle(request, env) {
 
 export default {
   async fetch(request, env) {
-    if (!['GET', 'HEAD'].includes(request.method)) {
+    // Only the devlog writing desk accepts form posts.
+    const writable = request.method === "POST" && new URL(request.url).pathname.startsWith("/devlog/admin");
+    if (!['GET', 'HEAD'].includes(request.method) && !writable) {
       return new Response("Method Not Allowed", { status: 405, headers: { allow: "GET, HEAD" } });
     }
     try {

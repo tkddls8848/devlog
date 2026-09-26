@@ -275,6 +275,49 @@ export function createStore(db) {
       for (let suffix = 2; ; suffix++) if (!used.has(`${day}-devlog-${suffix}`)) return `${day}-devlog-${suffix}`;
     },
 
+    async listDevlogAdmin(limit = 500) {
+      const result = await db.prepare(
+        `SELECT p.slug, p.post_date, p.title, p.summary, p.status, p.ai_generated, p.published_at, p.updated_at,
+                length(p.body_markdown) AS body_length, length(p.reference_markdown) > 0 AS has_reference,
+                (SELECT COUNT(*) FROM devlog_commits c WHERE c.post_slug = p.slug) AS commit_count
+         FROM devlog_posts p ORDER BY p.post_date DESC, p.slug DESC LIMIT ?`
+      ).bind(limit).all();
+      return result.results || [];
+    },
+
+    async getDevlogPostForEdit(slug) {
+      const post = await db.prepare(
+        `SELECT slug, post_date, title, summary, body_markdown, reference_markdown, status, ai_generated, published_at, updated_at
+         FROM devlog_posts WHERE slug = ?`
+      ).bind(slug).first();
+      if (!post) return null;
+      const commits = await db.prepare(
+        `SELECT repo, sha, message FROM devlog_commits WHERE post_slug = ? ORDER BY position`
+      ).bind(slug).all();
+      return { ...post, commits: commits.results || [] };
+    },
+
+    // Anything saved through the editor is the author's own writing.
+    async updateDevlogPost({ slug, title, summary, body, status, now }) {
+      const result = await db.prepare(
+        `UPDATE devlog_posts SET title = ?, summary = ?, body_markdown = ?, ai_generated = 0,
+           published_at = CASE WHEN status = 'draft' AND ? = 'published' THEN ? ELSE published_at END,
+           status = ?, updated_at = ?
+         WHERE slug = ?`
+      ).bind(title, summary, body, status, now, status, now, slug).run();
+      return (result.meta?.changes ?? 1) > 0;
+    },
+
+    async createDevlogEntry(day, now) {
+      const slug = await this.nextDevlogSlug(day);
+      await db.prepare(
+        `INSERT INTO devlog_posts
+         (slug, post_date, title, summary, body_markdown, ai_generated, published_at, status, reference_markdown, updated_at)
+         VALUES (?, ?, ?, '', '', 0, ?, 'draft', '', ?)`
+      ).bind(slug, day, `${day} 작업 회고`, now, now).run();
+      return slug;
+    },
+
     async findDevlogDraft(day) {
       return db.prepare(
         `SELECT slug, (SELECT COUNT(*) FROM devlog_commits WHERE post_slug = devlog_posts.slug) AS commit_count

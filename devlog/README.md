@@ -13,10 +13,38 @@ Cron Trigger `10 0 * * *`가 매일 09:10 KST에 공개 커밋을 모아 날짜�
 `news/worker/index.mjs`, D1 스키마는 `news/migrations/0003_devlog.sql`,
 `0004_devlog_journal.sql`에 있습니다.
 
-## 하루 회고 쓰기
+## 하루 회고 쓰기 (웹 편집기)
 
-`news` 폴더에서 로컬 wrangler 로그인으로 운영 D1에 접근합니다. Worker에는 쓰기
-경로가 없습니다.
+<https://devlog.tkddls8848.workers.dev/devlog/admin/>에서 로그인해 씁니다.
+
+- **글 관리**: 쓸 차례인 초안과 발행한 글을 나눠 보여 줍니다. 날짜를 골라 커밋이 없는
+  날의 글도 새로 만들 수 있습니다.
+- **편집기**: 제목·요약·본문을 쓰고, 오른쪽 참고 자료(질문, AI 참고 문구, 커밋 근거)를
+  보며 작성합니다. 미리보기 탭, 글자 수, Ctrl+S 저장, 저장하지 않고 떠날 때 경고,
+  브라우저에 남는 임시 백업을 제공합니다.
+- **상태**: 초안은 `임시 저장`/`발행하기`, 발행한 글은 `저장하고 반영`/`비공개로 돌리기`.
+  발행은 제목과 본문이 있어야 하며, 거절돼도 쓴 내용은 그대로 남습니다.
+- 로그인한 상태로 공개 화면을 보면 목록에 `글 관리 · 새 글 쓰기`, 글마다 `이 글 수정`
+  링크가 보입니다. 이 화면은 캐시하지 않습니다(`private, no-store`).
+
+로그인 비밀번호는 Worker secret `DEVLOG_ADMIN_PASSWORD`(12자 이상)입니다. 등록하지
+않으면 아무도 로그인할 수 없습니다.
+
+```bash
+cd news
+npx wrangler secret put DEVLOG_ADMIN_PASSWORD
+```
+
+로그인하면 30일짜리 서명 쿠키(`HttpOnly; Secure; SameSite=Strict; Path=/devlog`)를
+받습니다. 비밀번호를 바꾸면 모든 기기의 로그인이 끊깁니다. 쓰기 요청은 같은 사이트에서
+온 것만 받고(`Origin` 확인), 틀린 비밀번호에는 응답을 늦춥니다. 코드는
+`news/worker/devlog-auth.mjs`, `devlog-admin.mjs`, 편집기 스크립트는
+`shared/devlog-editor.js`에 있습니다.
+
+## 로컬 파일로 쓰기 (CLI)
+
+편집기 대신 로컬 에디터를 쓰고 싶다면 `news` 폴더에서 wrangler 로그인으로 운영 D1에
+접근하는 CLI도 있습니다.
 
 ```bash
 cd news
