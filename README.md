@@ -9,18 +9,22 @@
 | [`devlog/`](devlog/) | <https://devlog.tkddls8848.workers.dev/devlog/> | 그날의 커밋을 참고해 직접 쓰는 작업 회고 |
 | [`archive/`](archive/) | <https://devlog.tkddls8848.workers.dev/archive/> | IBM·Lenovo·HPE·Dell·NetApp·Oracle 제품 문서 갱신을 목록으로 축적 |
 | [`news/`](news/) | <https://devlog.tkddls8848.workers.dev/> | IT 업계 뉴스·블로그의 하루치 소식을 뉴스레터로 발행 |
+| [`video/`](video/) | YouTube | 발행한 개발 일지를 저장소별 세션과 시리즈 회차를 가진 영상으로 만들어 올림 |
 
 세 사이트는 서로를 내비게이션 링크로만 가리킵니다. 링크 주소는 각 폴더의
 `src/_data/site.js`에 있고 환경 변수(`DEVLOG_URL`, `ARCHIVE_URL`, `NEWS_URL`)로
 덮어쓸 수 있습니다.
 
 세 서비스 모두 Cloudflare Worker `devlog`에서 제공하며 운영 데이터는 D1에 저장합니다.
+`video/`는 사이트가 아니라 로컬에서 Claude Code 스킬 `/devlog-video`로 실행하는 영상 제작
+워크플로입니다. Artlist MCP(Seedance 2.5, 보이스오버, 음악)와 ffmpeg, YouTube Data API를 씁니다.
 
 ## 워크플로
 
 ```text
-.github/workflows/test.yml              세 폴더의 테스트를 각각 실행
+.github/workflows/test.yml              네 폴더의 테스트를 각각 실행
 news/worker/index.mjs                   Cloudflare Cron으로 news·devlog·archive 수집·발행·서비스
+.claude/skills/devlog-video/SKILL.md    개발 일지 한 편을 유튜브 회차로 만드는 Claude Code 스킬
 ```
 
 Cloudflare Workers Builds가 소스 변경을 배포하고, 세 Cron Trigger가 매일 수집하며,
@@ -61,6 +65,7 @@ Workers Builds 설정은 [`news/README.md`](news/README.md)의 최초 배포 절
 cd devlog && npm install && npm run dev
 cd archive && npm install && npm run dev
 cd news && npm install && npm run dev
+cd video && npm install && npm test
 ```
 
 자세한 내용은 각 폴더의 README를 보세요.

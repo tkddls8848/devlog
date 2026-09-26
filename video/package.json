@@ -1,0 +1,15 @@
+{
+  "name": "devlog-video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "plan": "node tools/plan.mjs",
+    "assemble": "node tools/assemble.mjs",
+    "upload": "node tools/upload.mjs upload",
+    "auth": "node tools/upload.mjs auth"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

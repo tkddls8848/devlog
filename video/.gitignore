@@ -1,0 +1,7 @@
+node_modules/
+.env
+*.log
+
+# 회차별 작업 폴더. 생성한 클립, 음성, 음악, 결과 영상은 크고 재생성할 수 있어 커밋하지 않는다.
+# 계획 파일(episode.json)과 대본만 남기고 싶으면 out/<slug>/episode.json을 따로 복사한다.
+out/

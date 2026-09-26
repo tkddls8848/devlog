@@ -1,6 +1,6 @@
 name: 테스트
 
-# 세 폴더는 서로 독립된 프로젝트라 각자 의존성과 테스트를 가진다. 하나가
+# 네 폴더는 서로 독립된 프로젝트라 각자 의존성과 테스트를 가진다. 하나가
 # 깨져도 다른 폴더 결과는 그대로 보여야 하므로 매트릭스로 나눠 돌린다.
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        folder: [devlog, archive, news]
+        folder: [devlog, archive, news, video]
     defaults:
       run:
         working-directory: ${{ matrix.folder }}
