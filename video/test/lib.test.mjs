@@ -105,6 +105,16 @@ test("커밋 근거를 저장소별 커밋, 파일, diff로 되돌린다", () =>
   assert.equal(game.commits[1].patch, null);
 });
 
+test("같은 날 수집이 이어 붙은 참고 자료는 저장소별로 합치고 AI 문구 제목을 저장소로 오인하지 않는다", () => {
+  const block = (at, notes, evidence) => `## 2026-09-26 참고 자료 (${at} 수집)\n\n### 2. AI 참고 문구\n\n${notes}\n\n### 3. 커밋 근거\n\n${evidence}`;
+  const reference = [
+    block("09-26", "#### 첫 흐름", "#### o/tool\n\n##### `aaaaaaa` 포트 변경\n\n> 이유"),
+    block("09-27", "#### CLAUDE.md 현행화: 엔진\n\n##### CLAUDE.md 소제목", "#### o/game\n\n##### `bbbbbbb` 소리\n\n#### o/tool\n\n##### `ccccccc` 배포\n\n##### `aaaaaaa` 포트 변경"),
+  ].join("\n\n");
+  const groups = parseEvidence(reference);
+  assert.deepEqual(groups.map((group) => [group.repo, group.commits.map((commit) => commit.sha)]), [["o/tool", ["aaaaaaa", "ccccccc"]], ["o/game", ["bbbbbbb"]]]);
+});
+
 test("커밋 근거가 없으면 세션이 비고 조립을 거부한다", () => {
   assert.deepEqual(parseEvidence("### 1. 질문\n- 없음"), []);
   const journal = parseJournal(journalText.replace(/### 3\. 커밋 근거[\s\S]*$/, ""));

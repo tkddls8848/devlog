@@ -35,12 +35,17 @@ export function parseJournal(text) {
 }
 
 // 참고 자료의 '커밋 근거'를 저장소별로 되돌린다. 형식은 shared/devlog-writing.mjs journalEvidence.
+// 같은 날 수집이 여러 번 이어 붙으면 '커밋 근거'도 여러 번 나오므로 모두 읽고 저장소별로 합친다.
 export function parseEvidence(reference) {
-  const start = String(reference || "").search(/^### 3\. 커밋 근거\s*$/m);
-  if (start < 0) return [];
-  const section = reference.slice(start).replace(/^### 3\. 커밋 근거\s*$/m, "");
+  const text = String(reference || "");
+  const sections = [...text.matchAll(/^### 3\. 커밋 근거\s*$/gm)].map((match) => {
+    const rest = text.slice(match.index + match[0].length);
+    const end = rest.search(/^## /m);
+    return end < 0 ? rest : rest.slice(0, end);
+  });
   const groups = [];
-  for (const block of section.split(/\n(?=#### )/)) {
+  const byRepo = new Map();
+  for (const block of sections.flatMap((section) => section.split(/\n(?=#### )/))) {
     const header = block.match(/^#### (\S+)/);
     if (!header) continue;
     const commits = [];
@@ -57,7 +62,16 @@ export function parseEvidence(reference) {
         files, patch: fence ? { path: fence[1], text: fence[3] } : null,
       });
     }
-    if (commits.length) groups.push({ repo: header[1], commits });
+    if (!commits.length) continue;
+    const existing = byRepo.get(header[1]);
+    if (!existing) {
+      const group = { repo: header[1], commits };
+      byRepo.set(header[1], group);
+      groups.push(group);
+    } else {
+      const known = new Set(existing.commits.map((commit) => commit.sha));
+      existing.commits.push(...commits.filter((commit) => !known.has(commit.sha)));
+    }
   }
   return groups;
 }
