@@ -90,10 +90,16 @@ const FLASH = {
   unpublished: "비공개로 돌렸습니다. 공개 목록에서 빠졌습니다.",
 };
 
-// The writer only needs commit messages and changed files. Diff excerpts stay in D1
-// because the video workflow turns them into code scenes.
+// The writer reads commit messages, not code: diff excerpts, changed-file lists and
+// line counts are hidden here. They stay in D1 because the video workflow uses them.
 export const withoutDiffExcerpts = (reference) => String(reference || "")
   .replace(/^`[^`\n]+` diff 발췌:\n\n(`{3,})diff\n[\s\S]*?\n\1\n?/gm, "")
+  .replace(/^변경 파일 \d+개.*$/gm, "")
+  .replace(/^- `[^`\n]+` \S* ?\+\d+ -\d+$/gm, "")
+  .replace(/^(※ |_)상세 조회 한도 밖이라 메시지만 있습니다\.?_?$/gm, "")
+  // Commit trailers are metadata, not part of the message.
+  .replace(/^>\s*(Co-Authored-By|Signed-off-by|Claude-Session):.*\n?/gim, "")
+  .replace(/^>\s*\n(?=\n|$)/gm, "")
   // Older references marked notes as _italic_, which the renderer shows literally.
   .replace(/^_(.+)_$/gm, "※ $1")
   .replace(/\n{3,}/g, "\n\n");

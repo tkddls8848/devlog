@@ -208,13 +208,13 @@ test("맞춤법 검사 경로는 제목·요약·본문의 제안을 모아 돌�
   assert.equal(anonymous.status, 401);
 });
 
-test("편집기 참고 자료에는 diff 발췌를 빼고 커밋 메시지와 변경 파일만 보여 준다", async () => {
-  const reference = "##### `abc1234` fix: guard\n\n> 본문 설명\n\n변경 파일 1개, +3 -1\n- `src/user.ts` modified +3 -1\n\n`src/user.ts` diff 발췌:\n\n````diff\n+```js\n+ if (!userId) return null;\n````\n\n##### `def5678` docs";
+test("편집기 참고 자료에는 코드 내용 없이 커밋 메시지만 보여 준다", async () => {
+  const reference = "- 오늘 이 작업을 시작한 계기는?\n\n##### `abc1234` fix: guard\n\n> 본문 설명\n>\n> Co-Authored-By: Claude <noreply@anthropic.com>\n\n변경 파일 48개 (30개만 표시), +3 -1\n- `src/user.ts` modified +3 -1\n- `docs/a b.md` added +10 -0\n\n`src/user.ts` diff 발췌:\n\n````diff\n+```js\n+ if (!userId) return null;\n````\n\n##### `def5678` docs\n\n※ 상세 조회 한도 밖이라 메시지만 있습니다.\n\n##### `0000000` old\n\n_상세 조회 한도 밖이라 메시지만 있습니다._";
   const stripped = withoutDiffExcerpts(reference);
-  assert.doesNotMatch(stripped, /diff 발췌|userId/);
-  assert.match(stripped, /- `src\/user\.ts` modified \+3 -1/);
-  assert.match(stripped, /> 본문 설명/);
+  assert.doesNotMatch(stripped, /diff 발췌|userId|변경 파일|src\/user\.ts|a b\.md|상세 조회|Co-Authored-By/);
+  assert.match(stripped, /> 본문 설명\n\n/, "트레일러를 뺀 뒤 빈 인용 줄도 남기지 않는다");
   assert.match(stripped, /`def5678` docs/);
+  assert.match(stripped, /^- 오늘 이 작업을 시작한 계기는\?$/m, "질문 목록은 남긴다");
   const html = await (await handleDevlogAdmin(request("/devlog/admin/posts/2026-09-25-devlog/", { cookie: await cookie() }), env, fakeStore([{ ...draft, reference_markdown: reference }]), now)).text();
   assert.doesNotMatch(html, /userId/);
   assert.match(html, /id="spell-run"/);
