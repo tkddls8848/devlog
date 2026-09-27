@@ -59,6 +59,7 @@ function run(bin, args, label) {
 }
 
 export async function render(dir, { previewFrames = 0, resume = false, log = console.log } = {}) {
+  dir = path.resolve(dir);
   const episode = JSON.parse(readFileSync(path.join(dir, "episode.json"), "utf8"));
   const problems = renderProblems(episode);
   if (problems.length) throw new Error(`episode.json에 빈칸이 있습니다.\n- ${problems.join("\n- ")}`);
@@ -90,7 +91,7 @@ export async function render(dir, { previewFrames = 0, resume = false, log = con
   const total = previewFrames ? Math.min(previewFrames, spec.frames) : spec.frames;
   log(`Blender 렌더링: ${total}프레임 (${(total / fps).toFixed(1)}초, ${width}x${height} ${fps}fps)`);
   const started = Date.now();
-  run(blenderPath(), ["-b", "--factory-startup", "--python", path.join(VIDEO_ROOT, "blender", "episode.py"), "--", specFile, frames, String(total), ...(resume ? ["--resume"] : [])], "Blender 렌더링");
+  run(blenderPath(), ["-b", "--factory-startup", "--python-exit-code", "1", "--python", path.join(VIDEO_ROOT, "blender", "episode.py"), "--", specFile, frames, String(total), ...(resume ? ["--resume"] : [])], "Blender 렌더링");
   log(`렌더링 ${((Date.now() - started) / 1000).toFixed(0)}초`);
 
   const music = firstExisting(path.join(assets, "music-1.mp3"), path.join(assets, "music.mp3")) || null;

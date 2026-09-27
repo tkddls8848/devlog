@@ -267,7 +267,7 @@ export function createStore(db) {
       ).bind(slug).first();
       if (!post) return null;
       const commits = await db.prepare(
-        `SELECT repo, sha, message FROM devlog_commits WHERE post_slug = ? ORDER BY position`
+        `SELECT repo, sha, message, visibility FROM devlog_commits WHERE post_slug = ? AND visibility = 'public' ORDER BY position`
       ).bind(slug).all();
       return { ...post, commits: commits.results || [] };
     },
@@ -302,7 +302,7 @@ export function createStore(db) {
       ).bind(slug).first();
       if (!post) return null;
       const commits = await db.prepare(
-        `SELECT repo, sha, message FROM devlog_commits WHERE post_slug = ? ORDER BY position`
+        `SELECT repo, sha, message, visibility, public_repo AS publicRepo FROM devlog_commits WHERE post_slug = ? ORDER BY position`
       ).bind(slug).all();
       return { ...post, commits: commits.results || [] };
     },
@@ -324,7 +324,7 @@ export function createStore(db) {
       const draft = await this.findDevlogDraft(day);
       if (draft) return draft.slug;
       const repos = await db.prepare(
-        `SELECT c.repo FROM devlog_commits c JOIN devlog_posts p ON p.slug = c.post_slug
+        `SELECT CASE WHEN c.visibility = 'public' THEN c.repo ELSE COALESCE(c.public_repo, '비공개 작업') END AS repo FROM devlog_commits c JOIN devlog_posts p ON p.slug = c.post_slug
          WHERE p.post_date = ? GROUP BY c.repo ORDER BY MIN(c.position), c.repo`
       ).bind(day).all();
       const slug = await this.nextDevlogSlug(day);
@@ -365,8 +365,8 @@ export function createStore(db) {
         ).bind(draft.slug, draft.postDate, draft.title || `${draft.postDate} 작업 회고`, draft.summary || "", draft.bodyMarkdown ?? "", ai, draft.createdAt, status, draft.referenceMarkdown)];
       const offset = draft.existing?.commit_count || 0;
       statements.push(...draft.commits.map((item, index) => db.prepare(
-        `INSERT INTO devlog_commits (sha, post_slug, repo, message, position) VALUES (?, ?, ?, ?, ?)`
-      ).bind(item.sha, draft.slug, item.repo, item.message, offset + index)));
+        `INSERT INTO devlog_commits (sha, post_slug, repo, message, position, visibility, public_repo) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind(item.sha, draft.slug, item.repo, item.message, offset + index, item.visibility || "public", item.publicRepo || null)));
       await db.batch(statements);
     },
 

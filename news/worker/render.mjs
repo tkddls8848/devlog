@@ -304,7 +304,7 @@ export function renderDevlogHome(listing, env, origin, { admin = false } = {}) {
 
 export function renderDevlogPost(post, env, origin, { admin = false } = {}) {
   const groups = new Map();
-  for (const commit of post.commits || []) {
+  for (const commit of (post.commits || []).filter((c) => !c.visibility || c.visibility === "public")) {
     if (!groups.has(commit.repo)) groups.set(commit.repo, []);
     groups.get(commit.repo).push(commit);
   }

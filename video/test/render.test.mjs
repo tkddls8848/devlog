@@ -43,7 +43,7 @@ test("Blender 사양은 음성 길이로 장면 프레임을 정하고, 화면 �
   assert.equal(clip1.panel, undefined, "커밋 해시는 화면에 두지 않는다");
   assert.ok(clip1.chips.every((c) => c.at >= 0 && c.at < clip1.frames));
   assert.notDeepEqual(clip1.accent, clip3.accent, "저장소마다 강조색이 다르다");
-  assert.equal(ending.kicker, "다음 회차");
+  assert.equal(ending.kicker, "마무리");
   // Cues are in scene-local frames and cover the scene.
   assert.equal(clip1.cues.length, 2);
   assert.equal(clip1.cues[0].start, 0);
@@ -57,10 +57,35 @@ test("긴 자막은 띄어쓰기에서 줄을 나눈다", () => {
   assert.ok(opening.cues[0].text.split("\n").every((line) => line.length <= 20));
 });
 
+test("쉬운 설명용 제목과 요약은 커밋 제목보다 우선하고 자막은 새 내레이션을 따른다", () => {
+  const edited = structuredClone(episode);
+  edited.opening.subtitle = "처음 보는 사람을 위한 요약";
+  edited.sessions[0].scenes[0].text = "다른 사람도 쓸 수 있도록";
+  Object.assign(edited.sessions[0].scenes[1], { text: "공개할 때 챙길 것", points: ["첫 버전 공개", "시험 페이지 검색 제외"], narration: "첫 버전을 공개했습니다." });
+  const [opening, title, clip] = buildSpec(edited, seconds).scenes;
+  assert.equal(opening.subtitle, "처음 보는 사람을 위한 요약");
+  assert.equal(title.title, "다른 사람도 쓸 수 있도록");
+  assert.equal(clip.title, "공개할 때 챙길 것");
+  assert.deepEqual(clip.chips.map((c) => c.text), ["첫 버전 공개", "시험 페이지 검색 제외"]);
+  assert.equal(clip.cues[0].text, "첫 버전을 공개했습니다.");
+});
+
 test("장은 저장소 제목 장면에서 시작하고 총 길이를 돌려준다", () => {
   const { chapters, total } = buildChapters(episode, seconds);
   assert.equal(total, 25);
   assert.deepEqual(chapters.map((c) => [c.title, c.start]), [["오프닝", 0], ["app · 공개 배포 1화", 3], ["game · 분위기 2화", 15], ["다음 회차", 22]]);
+});
+
+test("미니멀 회차는 제목 장면 없이도 첫 내용 장면에서 챕터가 시작한다", () => {
+  const edited = structuredClone(episode);
+  edited.style = { layout: "minimal" };
+  edited.sessions[0].scenes[0].kind = "clip";
+  edited.sessions[0].scenes[0].label = "01 / 공개";
+  const { chapters } = buildChapters(edited, seconds);
+  assert.equal(chapters[1].title, "01 / 공개");
+  assert.equal(chapters[1].start, 3);
+  assert.equal(chapters.at(-1).title, "마무리");
+  assert.equal(buildSpec(edited, seconds).layout, "minimal");
 });
 
 test("ffmpeg는 장면 음성을 장면 길이만큼 늘여 잇고, 음악이 있으면 낮게 섞는다", () => {

@@ -2,6 +2,7 @@
 // 저장소마다 따로 불러 병렬로 쓴다. 하루치를 한 번에 쓰면 바쁜 날에는 출력 상한에 잘리거나
 // 업스트림 시간 제한(약 4분)에 걸렸다.
 import { cleanSection, copiesExample, postIntro, postSystem, postTitle, repoHeading, sectionLengths, sectionPrompt, summaryPrompt } from "../../shared/devlog-writing.mjs";
+import { publicationGroups, isPrivateCommit, isPrivateAlias } from "../../shared/devlog-privacy.mjs";
 
 export const WRITER_MODEL = "@cf/openai/gpt-oss-120b";
 
@@ -17,9 +18,13 @@ async function ask(env, content, maxTokens) {
 }
 
 export async function writePost(env, day, groups) {
+  groups = publicationGroups(groups);
   const repos = [...groups].sort((a, b) => b[1].length - a[1].length);
   const lengths = sectionLengths(groups);
   const sections = await Promise.all(repos.map(async ([repo, commits]) => {
+    if (isPrivateAlias(repo) || commits.some(isPrivateCommit)) {
+      return `## ${repoHeading(repo)}\n\n${[...new Set(commits.map((c) => c.message))].join(" ")}`;
+    }
     // Reasoning tokens count toward the cap and vary per run; retry a failed, copied or
     // runaway section. If every usable attempt runs long, keep the shortest one.
     const target = lengths.get(repo);
@@ -40,6 +45,9 @@ export async function writePost(env, day, groups) {
   const body = `${postIntro(groups)}\n\n${sections.join("\n\n")}`;
   // A missing summary is not worth losing the post over.
   let summary = "";
+  if (repos.some(([repo, commits]) => isPrivateAlias(repo) || commits.some(isPrivateCommit))) {
+    summary = "공개 작업과 비공개 작업의 기술 변경을 기록했다. 비공개 작업은 식별 정보와 전체 목표를 제외했다.";
+  }
   for (let attempt = 0; attempt < 3 && !summary; attempt++) {
     try {
       const text = cleanSection(await ask(env, summaryPrompt(day, body), 4000));

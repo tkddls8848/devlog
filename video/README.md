@@ -34,6 +34,13 @@ claude mcp list
 
 ## 매일 경로: Blender 렌더 (`npm run render`)
 
+대본·자막은 [편집 기준](EDITORIAL.md)에 따라 처음 보는 사람을 위한 쉬운 요약으로 작성합니다.
+기본 화면은 미니멀 레이아웃입니다. 큰 두 줄 제목, 한 가지 강조색, 작은 설명과 자막만 사용합니다.
+`scene.label`과 `scene.note`로 장 번호와 보조 설명을 지정합니다. 이전 카드형 화면은
+`episode.style.layout="classic"`으로 선택할 수 있습니다.
+작업 목록보다 목적·변화·의미를 중심으로 설명하고, `scene.text`와 `scene.points`에
+시청자용 제목과 핵심 요약을 넣으면 화면에 우선 표시합니다.
+
 Artlist 생성 클립은 회차마다 크레딧이 들어 매일 올리기 어렵습니다. 매일 경로는 생성형 영상을 쓰지
 않습니다. 음성만 TTS로 만들고, 화면은 Blender가 글과 커밋에서 온 글자로 모션그래픽을 그립니다.
 
@@ -44,8 +51,8 @@ Artlist 생성 클립은 회차마다 크레딧이 들어 매일 올리기 어�
 | 음성·음악 합성, 인코딩 | ffmpeg | 없음 |
 
 - 장면 길이는 그 장면 음성 길이 + 0.4초입니다. 자막은 문장 단위로 나눠 화면에 직접 그립니다.
-- 제목 장면: 저장소 이름, 스레드 회차, 부제. 내용 장면: 부제, 그 세션의 커밋 제목이 칩으로
-  하나씩 나옵니다. 커밋 해시는 화면에 두지 않습니다. 화면 글자는 지어내지 않습니다.
+- 제목 장면: 시청자용 제목, 스레드 회차, 부제. 내용 장면: 제목과 핵심 요약이 하나씩 나옵니다.
+  편집한 제목·요약이 없는 기존 회차는 저장소 이름과 커밋 제목을 사용합니다. 사실의 근거는 원문에 둡니다.
 - 배경 음악은 `assets/music-1.mp3`나 `assets/music.mp3`가 있을 때만 낮게 깝니다.
 - 클립 프롬프트(`prompt`)와 음악 설명(`thread.music`)은 이 경로에서 빈칸이어도 됩니다.
 - 1280x720 24fps 기준 프레임당 약 0.2초, 2분 40초 회차가 약 12분 걸립니다.
@@ -154,6 +161,40 @@ npm run auth              # 브라우저 동의 후 YOUTUBE_REFRESH_TOKEN 출력
   받습니다.
 
 ## 로컬 요구 사항
+
+### Gemini TTS 내레이션
+
+`video/.env`에 다음을 설정합니다. 키는 저장소에 커밋하지 않습니다.
+
+```dotenv
+TTS_PROVIDER=gemini
+GEMINI_API_KEY=발급받은_키
+GEMINI_TTS_MODEL=gemini-3.8-flash-tts
+GEMINI_TTS_VOICE=Charon
+```
+
+기본 말투는 한국어로 5년차 개발자가 동료에게 시행착오를 회고하는 차분한 대화체입니다.
+`GEMINI_TTS_STYLE`로 말투를 바꿀 수 있고, AI Studio에서 설계한 `voice_...` ID를
+`GEMINI_TTS_VOICE`로 지정할 수 있습니다. 말투 지시는 읽을 대본과 분리해 전송합니다.
+응답 WAV는 보관하고 ffmpeg로 MP3를 만들어 기존 합성 경로에 연결합니다.
+
+```powershell
+cd video
+node tools/voice.mjs out/2026-09-26-local-sample --provider=gemini --force
+node tools/render.mjs out/2026-09-26-local-sample --frames=720
+```
+
+`--force`는 해당 폴더의 기존 음성을 교체합니다. 생략하면 기존 파일은 재사용합니다.
+음성 길이가 바뀌므로 영상은 다시 렌더링하고, 이전 프레임을 쓰는 `--resume`은 붙이지 않습니다.
+Gemini 오류가 나면 다른 서비스로 자동 전환하지 않고 중단합니다.
+
+[공식 TTS 문서](https://ai.google.dev/gemini-api/docs/generate-content/speech-generation)를 기준으로 구현했습니다.
+미공개 대본에는 활성 Cloud Billing이 연결된 프로젝트를 사용하세요. 키 문자열만으로 과금 상태를
+판별할 수 없습니다. [공식 약관](https://ai.google.dev/gemini-api/terms)에 따르면 무료 서비스의
+입출력은 제품 개선에 이용될 수 있으며, 유료 서비스의 입출력은 제품 개선에 사용하지 않습니다.
+현재 연결은 개발 일지 영상용이며 다른 프로젝트의 게임 대본을 읽거나 전송하지 않습니다.
+
+### 설치
 
 - Node 20 이상, `ffmpeg`와 `ffprobe`
 - 매일 경로: Blender 5(`BLENDER`로 경로 지정, 기본은 Windows 설치 위치), `pip install edge-tts`

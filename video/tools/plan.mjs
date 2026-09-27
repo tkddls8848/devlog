@@ -10,12 +10,16 @@ export const VIDEO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.ur
 export const SERIES_FILE = path.join(VIDEO_ROOT, "series.json");
 
 export function scriptMarkdown(episode) {
-  const lines = [`# ${episode.title}`, "", `날짜 ${episode.date} · 글 ${episode.postUrl}`, "", "## 오프닝", "", episode.opening.narration || "_(채울 것)_"];
+  const lines = [`# ${episode.title}`, "", `날짜 ${episode.date} · 글 ${episode.postUrl}`, "", "> 편집 방향: 처음 보는 사람에게 목적 → 변화 → 의미를 쉽게 설명한다. 세부 작업 목록은 줄이고, 완료와 계획은 구분한다. video/EDITORIAL.md 참고.", "", "## 오프닝", "", episode.opening.narration || "_(채울 것)_"];
   for (const session of episode.sessions) {
     const { thread } = session;
     lines.push("", `## ${shortRepo(session.repo)} · ${thread.name || "_(스레드 이름)_"} ${thread.episode}화${thread.isNew ? " (새 스레드)" : ""}`, "");
     if (thread.previousSummary) lines.push(`지난 이야기: ${thread.previousSummary}`, "");
-    for (const item of session.scenes) lines.push(`### ${item.id} (${item.kind})`, "", item.narration || "_(채울 것)_", "");
+    for (const item of session.scenes) {
+      lines.push(`### ${item.id} (${item.kind})`, "", item.narration || "_(채울 것)_", "");
+      if (item.text) lines.push(`화면 제목: ${item.text}`, "");
+      if (item.points?.length) lines.push(...item.points.map((text) => `- ${text}`), "");
+    }
   }
   lines.push("## 엔딩", "", episode.ending.narration || "_(채울 것)_", "");
   return lines.join("\n");

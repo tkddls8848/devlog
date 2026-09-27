@@ -225,14 +225,48 @@ def subtitles(s):
             visible(obj, start, end)
 
 
-for s in spec["scenes"]:
-    (title_scene if s["kind"] == "title" else content_scene)(s)
-    subtitles(s)
-    # A gentle push-in per scene.
-    camera_data.ortho_scale = 16
-    camera_data.keyframe_insert("ortho_scale", frame=s["start"])
-    camera_data.ortho_scale = 15.55
-    camera_data.keyframe_insert("ortho_scale", frame=s["start"] + s["frames"] - 1)
+def minimal_scene(s, index, total):
+    start, end = s["start"], s["start"] + s["frames"]
+    closing = index == total - 1
+    paper = (0.94, 0.93, 0.90)
+    ink = (0.012, 0.015, 0.02)
+    muted = (0.18, 0.20, 0.23)
+    accent = (0.015, 0.09, 0.65)
+    if closing:
+        paper, ink, muted, accent = ink, paper, (0.50, 0.52, 0.55), (0.34, 0.52, 1.0)
+    visible(rect(16, 9, 0, 0, paper, z=-0.1), start, end)
+    # Fixed editorial grid; the empty space gives the spoken explanation room.
+    label = text(s.get("label") or f"{index + 1:02d} / DEVLOG", 0.23, -6.65, 3.35, muted)
+    page = text(f"{index + 1:02d} / {total:02d}", 0.23, 6.65, 3.35, muted, align="RIGHT")
+    rule = rect(13.3, 0.012, 0, 2.85, muted)
+    for obj in (label, page, rule):
+        visible(obj, start, end)
+    lines = s["title"].split("\n")
+    for i, line in enumerate(lines):
+        heading = fit(text(line, 1.13, -6.65, 1.15 - i * 1.48,
+                           accent if i == len(lines) - 1 else ink, bold=True), 13.0)
+        visible(heading, start, end)
+        slide_in(heading, start, dy=-0.10, frames=8)
+    note = s.get("note") or ""
+    if note:
+        obj = fit(text(note, 0.29, -6.65, -1.85, muted), 12.8)
+        visible(obj, start, end)
+    # Captions sit on the same canvas, with no band, box or decorative shapes.
+    for cue in s["cues"]:
+        line = fit(text(cue["text"], 0.34, 0, -3.35, ink, align="CENTER"), 13.2)
+        visible(line, start + cue["start"], start + cue["end"])
+
+
+for index, s in enumerate(spec["scenes"]):
+    if spec.get("layout") == "minimal":
+        minimal_scene(s, index, len(spec["scenes"]))
+    else:
+        (title_scene if s["kind"] == "title" else content_scene)(s)
+        subtitles(s)
+        camera_data.ortho_scale = 16
+        camera_data.keyframe_insert("ortho_scale", frame=s["start"])
+        camera_data.ortho_scale = 15.55
+        camera_data.keyframe_insert("ortho_scale", frame=s["start"] + s["frames"] - 1)
 
 # Frames go out as PNG; ffmpeg encodes them together with the voice track. Blender 5 moved
 # video output behind media_type, and a frame folder also survives an interrupted render.

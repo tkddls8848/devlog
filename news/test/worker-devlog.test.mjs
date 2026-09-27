@@ -17,6 +17,8 @@ async function draftFixture({ detailsFail = false, aiText, aiFail = false, count
   const commits = Array.from({ length: count }, (_, i) => ({ sha: String(i).padStart(40, "a"), message: "fix: guard missing user\n\nSkip lookup without userId" }));
   globalThis.fetch = async (url) => {
     requests.push(String(url));
+    if (String(url).includes("/user/repos?")) return { ok: true, json: async () => [] };
+    if (String(url).endsWith("/repos/tkddls8848/app")) return { ok: true, json: async () => ({ id: 1, private: false }) };
     if (String(url).includes("/events/public")) return { ok: true, json: async () => [{ type: "PushEvent", repo: { name: "tkddls8848/app" }, created_at: "2026-09-22T00:00:00Z", payload: { ref: "refs/heads/main", before: "b".repeat(40), head: "c".repeat(40), commits } }] };
     if (detailsFail) return { ok: false, status: 503, json: async () => ({ message: "Unavailable" }) };
     return { ok: true, json: async () => commitApi };
@@ -38,7 +40,7 @@ async function draftFixture({ detailsFail = false, aiText, aiFail = false, count
 
 test("Cron은 그날의 작업 기록을 AI로 써서 발행하고, 참고 자료에는 커밋 근거를 남긴다", async () => {
   const { drafts, input, requests, runs } = await draftFixture();
-  assert.equal(requests.length, 2);
+  assert.equal(requests.length, 4);
   const [draft] = drafts;
   assert.equal(draft.slug, "2026-09-22-devlog");
   assert.equal(draft.status, "published");
@@ -140,7 +142,7 @@ test("개발일지는 GITHUB_TOKEN을 Bearer 인증으로 보낸다", async () =
     const runs = [];
     const result = await runDevlog({ env: { GITHUB_TOKEN: "test-token" }, store: storeFor(runs), now: new Date("2026-08-25T00:10:00Z") });
     assert.equal(result.status, "empty");
-    assert.equal(requests.length, 1);
+    assert.equal(requests.length, 2);
     assert.equal(requests[0].init.headers.Authorization, "Bearer test-token");
     assert.equal(runs[0].status, "empty");
   } finally {

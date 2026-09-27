@@ -1,6 +1,8 @@
 // 개발 일지 한 편을 유튜브 회차로 바꾸는 순수 함수 모음. 파일과 네트워크를 만지지 않으므로
 // 테스트가 그대로 돈다. 글 파싱 형식은 news/tools/devlog-journal.mjs의 pull 결과와 같다.
 
+import { isPrivateAlias } from "../../shared/devlog-privacy.mjs";
+
 export const REFERENCE_MARKER = "<!-- devlog:reference 이 줄 아래는 참고 자료이며 발행되지 않습니다. -->";
 export const SITE_URL = "https://devlog.tkddls8848.workers.dev";
 
@@ -242,6 +244,7 @@ export function formatTimestamp(seconds) {
 }
 
 export function buildTitle(episode) {
+  if (episode.style?.layout === "minimal") return episode.title.slice(0, 100);
   const parts = episode.sessions.map((session) => `[${shortRepo(session.repo)}] ${session.thread.name} #${session.thread.episode}`);
   const subtitle = episode.sessions.length === 1 ? episode.sessions[0].subtitle : episode.title;
   return `${parts.join(" · ")} · ${subtitle}`.slice(0, 100);
@@ -255,7 +258,7 @@ export function buildDescription(episode, chapters) {
   lines.push("", "챕터");
   for (const chapter of chapters) lines.push(`${formatTimestamp(chapter.start)} ${chapter.title}`);
   lines.push("", "커밋");
-  for (const session of episode.sessions) for (const commit of session.commits) lines.push(`https://github.com/${session.repo}/commit/${commit.sha} ${commit.subject}`);
+  for (const session of episode.sessions.filter((s) => !isPrivateAlias(s.repo) && s.visibility !== "private")) for (const commit of session.commits) lines.push(`https://github.com/${session.repo}/commit/${commit.sha} ${commit.subject}`);
   return lines.join("\n").slice(0, 5000);
 }
 
@@ -356,8 +359,8 @@ export function buildChapters(episode, seconds) {
   for (const scene of sceneOrder(episode)) {
     const session = owner.get(scene.id);
     if (scene.id === "opening") chapters.push({ title: "오프닝", start: 0 });
-    else if (scene.kind === "title" && session) chapters.push({ title: `${shortRepo(session.repo)} · ${session.thread.name} ${session.thread.episode}화`, start: at, repo: session.repo });
-    else if (scene.id === "ending") chapters.push({ title: "다음 회차", start: at });
+    else if (session && scene.id === session.scenes[0]?.id) chapters.push({ title: scene.label || `${shortRepo(session.repo)} · ${session.thread.name} ${session.thread.episode}화`, start: at, repo: session.repo });
+    else if (scene.id === "ending") chapters.push({ title: episode.style?.layout === "minimal" ? "마무리" : "다음 회차", start: at });
     at += seconds.get(scene.id);
   }
   return { chapters, total: at };
@@ -379,8 +382,8 @@ export const THEME = { background: [0.965, 0.972, 0.984], ink: [0.06, 0.09, 0.16
 
 const clipText = (text, max) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
 
-// 장면별 화면 구성과 자막 시각을 Blender가 읽는 JSON으로 만든다. 화면 글자는 전부 글과 커밋에서
-// 온 값이다. 칩은 그 세션의 커밋 제목이다.
+// 장면별 화면 구성과 자막 시각. 편집한 제목·요약이 있으면 우선 사용하고,
+// 이전 회차는 커밋 제목 표시를 유지한다. 내레이션 문장은 하단 자막으로 쓴다.
 export function buildSpec(episode, seconds, { width = 1280, height = 720, fps = 24, font, fontBold, maxLine = 44 } = {}) {
   const owner = new Map();
   episode.sessions.forEach((session, index) => session.scenes.forEach((scene) => owner.set(scene.id, { session, index })));
@@ -391,27 +394,28 @@ export function buildSpec(episode, seconds, { width = 1280, height = 720, fps = 
     const found = owner.get(scene.id);
     const accent = ACCENTS[(found?.index ?? ACCENTS.length - 1) % ACCENTS.length];
     const cues = allocateCues(scene.narration, 0, frames).map((cue) => ({ text: wrapLine(cue.text, maxLine), start: Math.round(cue.start), end: Math.round(cue.end) }));
-    const base = { start, frames, accent, cues, chips: [], subtitle: "" };
+    const base = { start, frames, accent, cues, chips: [], subtitle: "", label: scene.label || "", note: scene.note || "" };
     if (!found) {
       const opening = scene.id === "opening";
-      scenes.push({ ...base, kind: "title", kicker: opening ? episode.date : "다음 회차", title: scene.text || episode.title, subtitle: opening ? episode.sessions.map((s) => shortRepo(s.repo)).join(" · ") : "" });
+      scenes.push({ ...base, kind: "title", kicker: opening ? episode.date : "마무리", title: scene.text || episode.title, subtitle: scene.subtitle ?? (opening ? episode.sessions.map((s) => shortRepo(s.repo)).join(" · ") : "") });
     } else {
       const { session } = found;
       const kicker = `${shortRepo(session.repo)} · ${session.thread.name} ${session.thread.episode}화`;
-      if (scene.kind === "title") scenes.push({ ...base, kind: "title", kicker, title: shortRepo(session.repo), subtitle: session.subtitle || "" });
+      if (scene.kind === "title") scenes.push({ ...base, kind: "title", kicker, title: scene.text || shortRepo(session.repo), subtitle: session.subtitle || "" });
       else {
         // Spread the session's commits over its content scenes, at most three chips each.
         const content = session.scenes.filter((item) => item.kind !== "title");
         const slot = content.indexOf(scene);
         const per = Math.ceil(session.commits.length / content.length);
         const mine = session.commits.slice(slot * per, slot * per + per).slice(0, 3);
-        const chips = mine.map((commit, i) => ({ text: clipText(commit.subject, 30), at: Math.round(6 + (i * (frames - 12)) / Math.max(1, mine.length)) }));
-        scenes.push({ ...base, kind: "clip", kicker, title: session.subtitle || shortRepo(session.repo), chips });
+        const points = Array.isArray(scene.points) ? scene.points.slice(0, 3) : mine.map((commit) => commit.subject);
+        const chips = points.map((text, i) => ({ text: clipText(text, 30), at: Math.min(frames - 1, Math.max(0, Math.round(6 + (i * (frames - 12)) / Math.max(1, points.length)))) }));
+        scenes.push({ ...base, kind: "clip", kicker, title: scene.text || session.subtitle || shortRepo(session.repo), chips });
       }
     }
     start += frames;
   }
-  return { width, height, fps, frames: start, font, fontBold, theme: THEME, scenes };
+  return { width, height, fps, frames: start, font, fontBold, layout: episode.style?.layout || "minimal", theme: THEME, scenes };
 }
 
 // video/.env의 KEY=VALUE를 읽어 셸에 없는 값만 채운다.

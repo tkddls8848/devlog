@@ -1,5 +1,6 @@
 import { journalReference, commitDetails, addRepoHeadings, evidenceFromReference } from "../../shared/devlog-writing.mjs";
 import { writePost } from "./devlog-writer.mjs";
+import { privateAlias, privateWorkSummary, publicationGroups } from "../../shared/devlog-privacy.mjs";
 
 const USER = "tkddls8848";
 const BLOG_REPO = `${USER}/devlog`;
@@ -40,7 +41,7 @@ function normalize(item, range) {
   return { repo: range.repo, sha, message, description: String(item.commit?.message || item.message || "").slice(0, 1800), day: DAY.format(new Date(at)) };
 }
 
-async function collect(env, published) {
+async function collect(env, published, now) {
   const token = env.GITHUB_TOKEN;
   const events = [];
   for (let page = 1; page <= 3; page++) {
@@ -49,7 +50,16 @@ async function collect(env, published) {
   }
   const commits = new Map();
   let partial = false;
+  const visibility = new Map();
   for (const range of rangesFrom(events)) {
+    // A formerly public repository can now be private. Never infer current
+    // visibility from an old event, and skip when metadata cannot be verified.
+    let repo;
+    try {
+      if (!visibility.has(range.repo)) visibility.set(range.repo, await github(`/repos/${range.repo}`, token));
+      repo = visibility.get(range.repo);
+      if (typeof repo.private !== "boolean") throw new Error("Unknown visibility");
+    } catch { partial = true; continue; }
     let items = range.commits;
     if (!items.length || items.length < range.size) {
       try { items = (await github(`/repos/${range.repo}/compare/${range.before}...${range.head}`, token)).commits || []; }
@@ -57,22 +67,67 @@ async function collect(env, published) {
     }
     for (const item of items) {
       const commit = normalize(item, range);
-      if (commit && !published.has(commit.sha)) commits.set(commit.sha, commit);
+      if (commit && !published.has(commit.sha)) {
+        commit.visibility = repo.private ? "private" : "public";
+        if (repo.private) {
+          commit.publicRepo = await privateAlias(repo.id);
+          commit.publicSha = (await privateAlias(commit.sha)).slice(-12);
+          commit.message = privateWorkSummary(commit.message);
+          commit.publicMessage = commit.message;
+          delete commit.description;
+        }
+        commits.set(commit.sha, commit);
+      }
     }
   }
+  // Public event feeds omit private pushes. Query owned private repositories with
+  // the authenticated token and read their default branch over a bounded lookback.
+  const lookback = Math.min(90, Math.max(1, Number(env.DEVLOG_PRIVATE_LOOKBACK_DAYS) || 7));
+  const since = new Date(new Date(now).getTime() - lookback * 86400000).toISOString();
+  try {
+    for (let page = 1; page <= 10; page++) {
+      const repos = await github(`/user/repos?visibility=private&affiliation=owner&per_page=100&page=${page}`, token);
+      if (!Array.isArray(repos)) throw new Error("Invalid repository list");
+      for (const repo of repos) {
+        if (repo.private !== true || repo.owner?.login !== USER || repo.full_name === BLOG_REPO || repo.archived || repo.disabled) continue;
+        const alias = await privateAlias(repo.id);
+        try {
+          for (let p = 1; p <= 10; p++) {
+            const items = await github(`/repos/${repo.full_name}/commits?sha=${encodeURIComponent(repo.default_branch)}&since=${encodeURIComponent(since)}&per_page=100&page=${p}`, token);
+            if (!Array.isArray(items)) throw new Error("Invalid commit list");
+            for (const item of items) {
+              const commit = normalize(item, { repo: repo.full_name, createdAt: now });
+              if (!commit || published.has(commit.sha)) continue;
+              commit.visibility = "private";
+              commit.publicRepo = alias;
+              commit.publicSha = (await privateAlias(item.sha)).slice(-12);
+              commit.message = privateWorkSummary(commit.message);
+              commit.publicMessage = commit.message;
+              delete commit.description;
+              commits.set(commit.sha, commit);
+            }
+            if (items.length < 100) break;
+            if (p === 10) partial = true;
+          }
+        } catch { partial = true; }
+      }
+      if (repos.length < 100) break;
+      if (page === 10) partial = true;
+    }
+  } catch { partial = true; }
   return { commits: [...commits.values()], partial };
 }
 
 export async function runDevlog({ env, store, now = new Date() }) {
   const startedAt = new Date(now).toISOString();
   try {
-    const { commits, partial } = await collect(env, await store.publishedDevlogShas());
+    const { commits, partial } = await collect(env, await store.publishedDevlogShas(), now);
     if (!commits.length) {
       await store.saveDevlogRun({ startedAt, finishedAt: new Date().toISOString(), status: partial ? "partial" : "empty", collectedCount: 0, postCount: 0 });
       return { status: partial ? "partial" : "empty" };
     }
     // Bound extra GitHub requests per run; missing details never block the draft.
-    for (const commit of [...commits].sort((a, b) => b.day.localeCompare(a.day)).slice(0, 12)) {
+    for (const commit of [...commits].filter((c) => c.visibility !== "private").sort((a, b) => b.day.localeCompare(a.day)).slice(0, 12)) {
       try { commit.details = commitDetails(await github(`/repos/${commit.repo}/commits/${commit.sha}`, env.GITHUB_TOKEN)); }
       catch (error) { console.warn(`커밋 상세 조회 생략: ${commit.repo}/${commit.sha}`, error.message); }
     }
@@ -85,13 +140,14 @@ export async function runDevlog({ env, store, now = new Date() }) {
     const collectedAt = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul", dateStyle: "short", timeStyle: "short" }).format(new Date(now));
     const autoPublish = String(env.DEVLOG_AUTO_PUBLISH ?? "true") !== "false";
     for (const [day, groups] of [...days].sort(([a], [b]) => a.localeCompare(b))) {
+      const safeGroups = publicationGroups(groups);
       const existing = await store.findDevlogDraft(day);
       // The AI writes the post unless the author already started writing this day's draft.
       const untouched = !existing || !String(existing.body_markdown || "").replace(/^##\s+.*$/gm, "").trim();
       let post = null;
       if (untouched) {
         const all = new Map(existing ? evidenceFromReference(existing.reference_markdown) : []);
-        for (const [repo, commits] of groups) all.set(repo, [...(all.get(repo) || []).filter((old) => !commits.some((c) => c.sha.startsWith(old.sha))), ...commits]);
+        for (const [repo, commits] of safeGroups) all.set(repo, [...(all.get(repo) || []).filter((old) => !commits.some((c) => c.sha.startsWith(old.sha))), ...commits]);
         try { post = await writePost(env, day, all); } catch (error) { console.warn("개발 기록 자동 작성 실패, 소제목만 둔 초안으로 남깁니다", error); }
       }
       await store.saveDevlogDraft({
@@ -99,8 +155,8 @@ export async function runDevlog({ env, store, now = new Date() }) {
         ...(post
           ? { title: post.title, summary: post.summary, bodyMarkdown: post.body, aiGenerated: true, status: autoPublish ? "published" : "draft" }
           // One "## <repo>" part per project; a later run only adds repos the body lacks.
-          : { bodyMarkdown: addRepoHeadings(existing?.body_markdown || "", [...groups.keys()]) }),
-        referenceMarkdown: journalReference({ day, groups, notes: post ? null : "", collectedAt }), commits: [...groups.values()].flat(),
+          : { bodyMarkdown: addRepoHeadings(existing?.body_markdown || "", [...safeGroups.keys()]) }),
+        referenceMarkdown: journalReference({ day, groups: safeGroups, notes: post ? null : "", collectedAt }), commits: [...groups.values()].flat(),
       });
       postCount++;
     }
