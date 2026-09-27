@@ -2,6 +2,7 @@
 // 발행하고, 발행한 글을 고치거나 비공개로 돌린다.
 import { adminConfigured, clearedCookie, createSession, isAdmin, passwordMatches, sameOrigin, sessionCookie } from "./devlog-auth.mjs";
 import { escapeHtml, layout, markdownToHtml } from "./render.mjs";
+import { spellcheck } from "./devlog-spellcheck.mjs";
 
 const DAY = new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Seoul" });
 const STAMP = new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Seoul" });
@@ -89,6 +90,14 @@ const FLASH = {
   unpublished: "비공개로 돌렸습니다. 공개 목록에서 빠졌습니다.",
 };
 
+// The writer only needs commit messages and changed files. Diff excerpts stay in D1
+// because the video workflow turns them into code scenes.
+export const withoutDiffExcerpts = (reference) => String(reference || "")
+  .replace(/^`[^`\n]+` diff 발췌:\n\n(`{3,})diff\n[\s\S]*?\n\1\n?/gm, "")
+  // Older references marked notes as _italic_, which the renderer shows literally.
+  .replace(/^_(.+)_$/gm, "※ $1")
+  .replace(/\n{3,}/g, "\n\n");
+
 export function renderEditor(env, post, { flash = "", error = "", values = null } = {}) {
   const draft = post.status === "draft";
   const form = values || { title: post.title, summary: post.summary, body: post.body_markdown };
@@ -98,7 +107,7 @@ export function renderEditor(env, post, { flash = "", error = "", values = null 
     groups.get(commit.repo).push(commit);
   }
   const commits = [...groups].map(([repo, items]) => `<p class="editor-commit-repo">${escapeHtml(repo)}</p><ul class="editor-commits">${items.map((commit) => `<li><a href="https://github.com/${escapeHtml(repo)}/commit/${escapeHtml(commit.sha)}" rel="noopener" target="_blank"><code>${escapeHtml(commit.sha.slice(0, 7))}</code></a> ${escapeHtml(commit.message)}</li>`).join("")}</ul>`).join("");
-  const reference = String(post.reference_markdown || "").trim();
+  const reference = withoutDiffExcerpts(post.reference_markdown).trim();
   const status = draft
     ? '<span class="admin-tag">초안 · 공개되지 않음</span>'
     : '<span class="admin-tag admin-tag-done">발행됨</span>';
@@ -115,7 +124,13 @@ export function renderEditor(env, post, { flash = "", error = "", values = null 
           <button type="button" role="tab" class="editor-tab is-on" data-tab="write" aria-selected="true">쓰기</button>
           <button type="button" role="tab" class="editor-tab" data-tab="preview" aria-selected="false">미리보기</button>
           <span class="editor-count" id="editor-count" aria-live="polite"></span>
+          <button type="button" class="admin-button admin-button-quiet editor-spell-button" id="spell-run">맞춤법 검사</button>
         </div>
+        <section class="spell-panel" id="spell-panel" aria-live="polite" hidden>
+          <div class="spell-head"><strong id="spell-title">맞춤법 검토</strong><span class="spell-head-actions"><button type="button" class="admin-link" id="spell-apply-all" hidden>모두 적용</button><button type="button" class="admin-link" id="spell-close">닫기</button></span></div>
+          <p class="admin-muted">AI가 규정에 어긋난 곳을 제안합니다. 틀린 제안도 있으니 하나씩 보고 적용하세요. 적용한 뒤에는 저장해야 반영됩니다.</p>
+          <ol class="spell-list" id="spell-list"></ol>
+        </section>
         <textarea name="body" id="editor-body" class="editor-body" rows="26" maxlength="${LIMITS.body}" placeholder="오늘 무엇을 왜 바꿨는지, 어디서 막혔고 무엇을 확인했는지 줄글로 적어 보세요. 오른쪽 참고 자료의 질문과 문장을 출발점으로 쓸 수 있습니다." aria-label="본문">${escapeHtml(form.body)}</textarea>
         <div class="editor-preview journal-prose" id="editor-preview" hidden></div>
         <p class="editor-help">## 소제목 · - 목록 · **강조** · \`코드\` · \`\`\` 코드 블록 · &gt; 인용 · Ctrl+S 저장</p>
@@ -196,6 +211,19 @@ export async function handleDevlogAdmin(request, env, store, now = new Date()) {
     if (!valid) return page("날짜 형식이 올바르지 않습니다.", 400);
     const slug = await store.createDevlogEntry(day, now.toISOString());
     return redirect(`/devlog/admin/posts/${encodeURIComponent(slug)}/`);
+  }
+
+  if (path === "/devlog/admin/spellcheck" && method === "POST") {
+    const form = await request.formData();
+    const values = formValues(form);
+    if (values.body.length > LIMITS.body) return Response.json({ error: "본문이 너무 길어 검사하지 못했습니다." }, { status: 413, headers: { "cache-control": "no-store" } });
+    try {
+      const issues = await spellcheck(env, values);
+      return Response.json({ issues }, { headers: { "cache-control": "no-store" } });
+    } catch (error) {
+      console.error("맞춤법 검사 실패", error);
+      return Response.json({ error: "맞춤법 검사를 하지 못했습니다. 잠시 뒤 다시 시도하세요." }, { status: 502, headers: { "cache-control": "no-store" } });
+    }
   }
 
   if (path === "/devlog/admin/preview" && method === "POST") {

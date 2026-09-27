@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createSession, passwordMatches, sessionValid, SESSION_SECONDS } from "../worker/devlog-auth.mjs";
-import { handleDevlogAdmin } from "../worker/devlog-admin.mjs";
+import { handleDevlogAdmin, withoutDiffExcerpts } from "../worker/devlog-admin.mjs";
+import { chunkText, parseIssues } from "../worker/devlog-spellcheck.mjs";
 import { markdownToHtml, renderDevlogHome, renderDevlogPost } from "../worker/render.mjs";
 
 const env = { DEVLOG_ADMIN_PASSWORD: "correct horse battery" };
@@ -161,4 +162,60 @@ test("참고 자료용 Markdown: h4~h6, 인용, 백틱이 든 긴 울타리", ()
   assert.match(html, /<blockquote><p>첫 줄 둘째 줄<\/p><\/blockquote>/);
   assert.match(html, /<pre><code>\+```js\n\+x\n\+```<\/code><\/pre>/);
   assert.match(html, /<p>끝<\/p>/);
+});
+
+test("맞춤법 제안은 원문에 그대로 있는 구절만, 코드 밖에서만 남긴다", () => {
+  const text = "어느정도 만들었다. `어느정도`는 코드다.\n\n```js\n게임내\n```\n게임내 상황";
+  const raw = `<think>생각</think>설명 [
+    {"original": "어느정도", "suggestion": "어느 정도", "reason": "띄어쓰기"},
+    {"original": "어느정도", "suggestion": "어느 정도", "reason": "중복"},
+    {"original": "없는 구절", "suggestion": "x", "reason": "환각"},
+    {"original": "게임내 상황", "suggestion": "게임 내 상황", "reason": "띄어쓰기"},
+    {"original": "같음", "suggestion": "같음"},
+    {"original": "만들었다", "suggestion": ""}
+  ] 끝`;
+  const issues = parseIssues(raw, text, "body");
+  assert.deepEqual(issues.map((issue) => [issue.original, issue.suggestion]), [["어느정도", "어느 정도"], ["게임내 상황", "게임 내 상황"]]);
+  assert.deepEqual(parseIssues("[]", text, "body"), []);
+  assert.deepEqual(parseIssues("JSON이 아님", text, "body"), []);
+  // 코드 안에만 있는 구절은 버린다.
+  assert.deepEqual(parseIssues('[{"original": "`어느정도`는", "suggestion": "x"}]', text, "body"), []);
+});
+
+test("긴 본문은 빈 줄 기준으로 나눠 검사한다", () => {
+  const chunks = chunkText(["가".repeat(900), "나".repeat(900), "다".repeat(100)].join("\n\n"), 1500);
+  assert.equal(chunks.length, 2);
+  assert.ok(chunks[0].startsWith("가"));
+  assert.ok(chunks[1].startsWith("나") && chunks[1].endsWith("다"));
+});
+
+test("맞춤법 검사 경로는 제목·요약·본문의 제안을 모아 돌려주고, 실패하면 502로 알린다", async () => {
+  const calls = [];
+  const ai = { run: async (model, args) => { calls.push({ model, text: args.messages[1].content }); return { choices: [{ message: { content: '[{"original": "어느정도", "suggestion": "어느 정도", "reason": "띄어쓰기"}]' } }] }; } };
+  const response = await handleDevlogAdmin(request("/devlog/admin/spellcheck", { method: "POST", cookie: await cookie(), form: { title: "제목", summary: "", body: "어느정도 만들었다." } }), { ...env, AI: ai }, fakeStore(), now);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.deepEqual((await response.json()).issues, [{ field: "body", original: "어느정도", suggestion: "어느 정도", reason: "띄어쓰기" }]);
+  assert.equal(calls.length, 2, "빈 요약은 검사하지 않는다");
+  assert.equal(calls[0].model, "@cf/openai/gpt-oss-120b");
+  assert.match(calls[1].text, /<<<\n어느정도 만들었다\.\n>>>/);
+
+  const failing = await handleDevlogAdmin(request("/devlog/admin/spellcheck", { method: "POST", cookie: await cookie(), form: { title: "t", body: "b" } }), { ...env, AI: { run: async () => { throw new Error("down"); } } }, fakeStore(), now);
+  assert.equal(failing.status, 502);
+  assert.match((await failing.json()).error, /맞춤법 검사를 하지 못했습니다/);
+
+  const anonymous = await handleDevlogAdmin(request("/devlog/admin/spellcheck", { method: "POST", form: { body: "b" } }), { ...env, AI: ai }, fakeStore(), now);
+  assert.equal(anonymous.status, 401);
+});
+
+test("편집기 참고 자료에는 diff 발췌를 빼고 커밋 메시지와 변경 파일만 보여 준다", async () => {
+  const reference = "##### `abc1234` fix: guard\n\n> 본문 설명\n\n변경 파일 1개, +3 -1\n- `src/user.ts` modified +3 -1\n\n`src/user.ts` diff 발췌:\n\n````diff\n+```js\n+ if (!userId) return null;\n````\n\n##### `def5678` docs";
+  const stripped = withoutDiffExcerpts(reference);
+  assert.doesNotMatch(stripped, /diff 발췌|userId/);
+  assert.match(stripped, /- `src\/user\.ts` modified \+3 -1/);
+  assert.match(stripped, /> 본문 설명/);
+  assert.match(stripped, /`def5678` docs/);
+  const html = await (await handleDevlogAdmin(request("/devlog/admin/posts/2026-09-25-devlog/", { cookie: await cookie() }), env, fakeStore([{ ...draft, reference_markdown: reference }]), now)).text();
+  assert.doesNotMatch(html, /userId/);
+  assert.match(html, /id="spell-run"/);
 });
