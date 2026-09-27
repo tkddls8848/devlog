@@ -14,6 +14,18 @@ const activities = [
   [/로깅|로그\s*(기록|수집)|logging|observability/i, "실행 상태 기록"],
   [/배포|\bdeploy(ment)?\b/i, "배포 과정"],
   [/리팩터|refactor/i, "코드 구조 정리"],
+  [/문서|readme|\bdocs?\b|documentation/i, "개발 문서 정리"],
+  [/화면|레이아웃|\bui\b|\bux\b|\bcss\b|layout/i, "화면 구성"],
+  [/수집|크롤|\bcrawl|\bscrap/i, "자료 수집"],
+  [/파싱|parser|parsing/i, "자료 형식 해석"],
+  [/검색|\bsearch/i, "검색 처리"],
+  [/데이터|데이타|데이터베이스|\bdatabase\b|\bschema\b|\bsql\b/i, "데이터 처리"],
+  [/자동화|automation|workflow/i, "작업 자동화"],
+  [/분석|\banaly/i, "자료 분석"],
+  [/동기화|\bsync/i, "자료 동기화"],
+  [/설계|아키텍처|architecture/i, "구조 설계"],
+  [/설정|config|configuration/i, "실행 설정 정리"],
+  [/의존성|패키지|dependenc|package/i, "의존성 관리"],
 ];
 
 export const isPrivateCommit = (item) => item.visibility === "private" || item.private === true || item.visibility === "unknown";

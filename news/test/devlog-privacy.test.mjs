@@ -11,6 +11,8 @@ test("비공개 작업은 고정 기술 요약만 허용하고 이름·목표·�
   const summary = privateWorkSummary("SecretProduct 출시를 위한 중복 요청 수정 https://internal.example\n사업 목표: 독점 서비스\nconst secret = 1");
   assert.equal(summary, "중복 요청과 실행 처리 관련 작업을 했다.");
   assert.doesNotMatch(summary, /SecretProduct|출시|독점|secret|internal/);
+  assert.equal(privateWorkSummary("SecretProduct 자료 수집 문서 정리"), "개발 문서 정리, 자료 수집 관련 작업을 했다.");
+  assert.equal(privateWorkSummary("SecretProduct 화면 레이아웃 변경"), "화면 구성 관련 작업을 했다.");
   assert.equal(await privateAlias(12), await privateAlias(12));
   assert.notEqual(await privateAlias(12), await privateAlias(13));
   const safe = publicationGroups(new Map([["owner/SecretProduct", [{ visibility: "private", message: "새 사업 계획", details: { files: ["secret"] } }]]]));
