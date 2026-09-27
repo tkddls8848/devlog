@@ -4,13 +4,13 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "dev": "npm run build && wrangler dev --test-scheduled",
+    "dev": "npm run build && node ../shared/run-with-env.mjs node_modules/wrangler/bin/wrangler.js dev --test-scheduled --env-file ../.env",
     "build": "node tools/export-legacy-archive.mjs && eleventy",
     "feeds:check": "node tools/feed-check.mjs",
     "journal": "node tools/devlog-journal.mjs",
-    "db:migrate:local": "wrangler d1 migrations apply DB --local",
-    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
-    "deploy:worker": "wrangler deploy",
+    "db:migrate:local": "node ../shared/run-with-env.mjs node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --local",
+    "db:migrate:remote": "node ../shared/run-with-env.mjs node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --remote",
+    "deploy:worker": "node ../shared/run-with-env.mjs node_modules/wrangler/bin/wrangler.js deploy",
     "deploy": "npm run build && npm run deploy:worker",
     "deploy:with-migrations": "npm run build && npm run db:migrate:remote && npm run deploy:worker"
   },

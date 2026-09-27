@@ -1,3 +1,4 @@
+import "../../shared/load-env.mjs";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { generate, model, parseDraft, yaml } from "./lib.mjs";

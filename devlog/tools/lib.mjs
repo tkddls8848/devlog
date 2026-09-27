@@ -1,3 +1,4 @@
+import "../../shared/load-env.mjs";
 import { writingSystem } from "../../shared/devlog-writing.mjs";
 const MODEL = process.env.CF_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct-fast";
 

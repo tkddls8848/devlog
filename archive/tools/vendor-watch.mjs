@@ -1,3 +1,4 @@
+import "../../shared/load-env.mjs";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import * as dell from "./sources/dell.mjs";
 import * as hpe from "./sources/hpe.mjs";

@@ -1,5 +1,5 @@
 // YouTube Data API로 final.mp4를 올리고 저장소별 재생목록에 넣은 뒤 series.json에 회차를 기록한다.
-// 비밀값은 환경 변수 또는 video/.env: YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN.
+// 비밀값은 환경 변수 또는 저장소 최상위 .env.
 // 리프레시 토큰은 `npm run auth`로 한 번 받는다. 검수받지 않은 OAuth 앱이 올린 영상은 YouTube가
 // 비공개로 잠그므로 기본 공개 범위는 private이며 --privacy로 바꾼다.
 import { createServer } from "node:http";
@@ -9,20 +9,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { recordEpisode } from "./lib.mjs";
 import { SERIES_FILE, VIDEO_ROOT } from "./plan.mjs";
+import { loadEnv } from "../../shared/env.mjs";
 
 const SCOPE = "https://www.googleapis.com/auth/youtube";
 const API = "https://www.googleapis.com/youtube/v3";
 
-function loadEnv() {
-  const file = path.join(VIDEO_ROOT, ".env");
-  if (!existsSync(file)) return;
-  for (const line of readFileSync(file, "utf8").split("\n")) {
-    const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
-    if (match && !(match[1] in process.env)) process.env[match[1]] = match[2].replace(/^["']|["']$/g, "");
-  }
-}
 
-const need = (name) => { if (!process.env[name]) throw new Error(`환경 변수 ${name}이 없습니다. video/.env 또는 셸에 넣으세요.`); return process.env[name]; };
+const need = (name) => { if (!process.env[name]) throw new Error(`환경 변수 ${name}이 없습니다. 저장소 최상위 .env 또는 셸에 넣으세요.`); return process.env[name]; };
 
 async function json(url, init = {}) {
   const response = await fetch(url, init);
@@ -56,7 +49,7 @@ export async function auth() {
   server.close();
   const data = await json("https://oauth2.googleapis.com/token", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirect, grant_type: "authorization_code" }) });
   if (!data.refresh_token) throw new Error("리프레시 토큰이 오지 않았습니다. Google 계정의 앱 접근 권한을 지우고 다시 시도하세요.");
-  console.log(`YOUTUBE_REFRESH_TOKEN=${data.refresh_token}\n위 줄을 video/.env에 넣으세요. 커밋하지 않습니다.`);
+  console.log(`YOUTUBE_REFRESH_TOKEN=${data.refresh_token}\n위 줄을 저장소 최상위 .env에 넣으세요. 커밋하지 않습니다.`);
 }
 
 export function videoResource(metadata, privacy) {

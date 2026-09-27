@@ -148,8 +148,8 @@ Google Cloud 프로젝트에서 YouTube Data API v3를 켜고 데스크톱 앱 O
 
 ```bash
 cd video
-cp .env.example .env      # YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET
-npm run auth              # 브라우저 동의 후 YOUTUBE_REFRESH_TOKEN 출력 → .env에 추가
+cp ../.env.example ../.env # 최초 설정 시에만. 이미 있으면 복사하지 말고 최상위 .env 수정
+npm run auth              # 브라우저 동의 후 YOUTUBE_REFRESH_TOKEN 출력 → 최상위 .env에 추가
 ```
 
 `.env`는 커밋하지 않습니다. 운영 전에 알아 둘 점:
@@ -164,7 +164,7 @@ npm run auth              # 브라우저 동의 후 YOUTUBE_REFRESH_TOKEN 출력
 
 ### Gemini TTS 내레이션
 
-`video/.env`에 다음을 설정합니다. 키는 저장소에 커밋하지 않습니다.
+저장소 최상위 `.env`에 다음을 설정합니다. 하위 폴더에는 별도 `.env`를 만들지 않습니다. 키는 커밋하지 않습니다.
 
 ```dotenv
 TTS_PROVIDER=gemini

@@ -1,3 +1,4 @@
+import "../shared/load-env.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import { syncSharedTheme, sharedDir } from "../shared/sync.mjs";

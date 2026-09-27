@@ -1,5 +1,6 @@
 // out/<slug>/assets/의 클립·음성·음악을 ffmpeg로 한 편의 영상으로 조립하고 게시 정보를 만든다.
 // 자산 이름 규칙: clip-<장면 id>.mp4, voice-<장면 id>.mp3, music-<세션 번호>.mp3 (없으면 music.mp3).
+import "../../shared/load-env.mjs";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";

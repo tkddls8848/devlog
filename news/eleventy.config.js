@@ -1,3 +1,4 @@
+import "../shared/load-env.mjs";
 const day = new Intl.DateTimeFormat("ko-KR", {
   year: "numeric",
   month: "long",

@@ -4,6 +4,7 @@
 //   CLOUDFLARE_API_TOKEN(D1 편집)과 CLOUDFLARE_ACCOUNT_ID가 있으면 D1 HTTP API로,
 //   없으면 로컬 wrangler 로그인으로 넣는다.
 // 사용: node tools/push-vendor-docs.mjs [--dry-run]
+import "../../shared/load-env.mjs";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

@@ -418,12 +418,4 @@ export function buildSpec(episode, seconds, { width = 1280, height = 720, fps = 
   return { width, height, fps, frames: start, font, fontBold, layout: episode.style?.layout || "minimal", theme: THEME, scenes };
 }
 
-// video/.env의 KEY=VALUE를 읽어 셸에 없는 값만 채운다.
-export function parseEnv(text) {
-  const values = {};
-  for (const line of String(text).split(/\r?\n/)) {
-    const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
-    if (match) values[match[1]] = match[2].replace(/^["']|["']$/g, "");
-  }
-  return values;
-}
+export { parseEnv } from "../../shared/env.mjs";

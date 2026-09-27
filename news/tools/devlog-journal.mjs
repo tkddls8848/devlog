@@ -1,6 +1,7 @@
 // 개발 기록을 직접 쓰는 도구. Cron이 D1에 남긴 초안과 참고 자료를 Markdown
 // 파일로 받아(pull) 그날의 회고를 쓰고, 참고 자료를 뺀 본문만 발행(publish)한다.
 // D1 접근은 로컬 wrangler 로그인을 그대로 쓴다. Worker에는 쓰기 경로가 없다.
+import "../../shared/load-env.mjs";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

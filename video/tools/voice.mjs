@@ -6,15 +6,12 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseEnv, sceneOrder, speechText } from "./lib.mjs";
+import { sceneOrder, speechText } from "./lib.mjs";
+import { loadEnv } from "../../shared/env.mjs";
+export { loadEnv } from "../../shared/env.mjs";
 
 const VIDEO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-export function loadEnv() {
-  const file = path.join(VIDEO_ROOT, ".env");
-  if (!existsSync(file)) return;
-  for (const [key, value] of Object.entries(parseEnv(readFileSync(file, "utf8")))) if (!(key in process.env)) process.env[key] = value;
-}
 
 export const lexicon = () => JSON.parse(readFileSync(path.join(VIDEO_ROOT, "pronunciation.json"), "utf8")).terms || [];
 
@@ -27,7 +24,7 @@ export function pickProvider(env = process.env, requested) {
 export const GEMINI_STYLE = "한국어로, 5년차 개발자가 동료에게 하루의 시행착오를 회고하듯 자연스럽게 말한다. 차분하고 친근한 대화체, 적당한 속도, 문장 사이 짧은 쉼. 과장된 광고 톤은 피한다.";
 
 export async function geminiAudio(text, env = process.env, request = fetch) {
-  if (!env.GEMINI_API_KEY) throw new Error("video/.env에 GEMINI_API_KEY를 설정하세요.");
+  if (!env.GEMINI_API_KEY) throw new Error("저장소 최상위 .env에 GEMINI_API_KEY를 설정하세요.");
   const model = env.GEMINI_TTS_MODEL || "gemini-3.8-flash-tts";
   const response = await request(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: "POST",
