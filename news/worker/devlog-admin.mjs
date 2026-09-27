@@ -3,7 +3,8 @@
 import { adminConfigured, clearedCookie, createSession, isAdmin, passwordMatches, sameOrigin, sessionCookie } from "./devlog-auth.mjs";
 import { escapeHtml, layout, markdownToHtml } from "./render.mjs";
 import { spellcheck } from "./devlog-spellcheck.mjs";
-import { emptySections, repoHeading, repoOutline } from "../../shared/devlog-writing.mjs";
+import { emptySections, evidenceFromReference, repoHeading, repoOutline } from "../../shared/devlog-writing.mjs";
+import { writePost } from "./devlog-writer.mjs";
 
 const DAY = new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Seoul" });
 const STAMP = new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Seoul" });
@@ -50,7 +51,7 @@ export function renderDashboard(env, posts, { today = TODAY.format(new Date()) }
     const editUrl = `/devlog/admin/posts/${encodeURIComponent(post.slug)}/`;
     const label = post.status === "draft"
       ? (post.body_length ? `<span class="admin-tag admin-tag-writing">쓰는 중</span>` : `<span class="admin-tag">아직 안 씀</span>`)
-      : post.ai_generated ? `<span class="admin-tag admin-tag-legacy">이전 AI 자동 기록</span>` : `<span class="admin-tag admin-tag-done">작업 회고</span>`;
+      : post.ai_generated ? `<span class="admin-tag admin-tag-legacy">AI 자동 작성</span>` : `<span class="admin-tag admin-tag-done">작업 회고</span>`;
     const facts = [post.commit_count ? `커밋 ${post.commit_count}건` : "커밋 없음", post.has_reference ? "참고 자료 있음" : "", post.updated_at ? `수정 ${stamp(post.updated_at)}` : ""].filter(Boolean).join(" · ");
     return `<li class="admin-row">
       <div class="admin-row-main">
@@ -135,6 +136,7 @@ export function renderEditor(env, post, { flash = "", error = "", values = null 
           <button type="button" role="tab" class="editor-tab" data-tab="preview" aria-selected="false">미리보기</button>
           <span class="editor-count" id="editor-count" aria-live="polite"></span>
           <button type="button" class="admin-button admin-button-quiet editor-spell-button" id="spell-run">맞춤법 검사</button>
+          ${(post.commits || []).length ? `<button type="button" class="admin-button admin-button-quiet editor-spell-button" id="ai-rewrite" data-url="/devlog/admin/posts/${encodeURIComponent(post.slug)}/rewrite">AI로 본문 다시 쓰기</button>` : ""}
         </div>
         <section class="spell-panel" id="spell-panel" aria-live="polite" hidden>
           <div class="spell-head"><strong id="spell-title">맞춤법 검토</strong><span class="spell-head-actions"><button type="button" class="admin-link" id="spell-apply-all" hidden>모두 적용</button><button type="button" class="admin-link" id="spell-close">닫기</button></span></div>
@@ -236,6 +238,28 @@ export async function handleDevlogAdmin(request, env, store, now = new Date()) {
     } catch (error) {
       console.error("맞춤법 검사 실패", error);
       return Response.json({ error: "맞춤법 검사를 하지 못했습니다. 잠시 뒤 다시 시도하세요." }, { status: 502, headers: { "cache-control": "no-store" } });
+    }
+  }
+
+  const rewrite = path.match(/^\/devlog\/admin\/posts\/([a-z0-9-]+)\/rewrite$/i);
+  if (rewrite && method === "POST") {
+    const post = await store.getDevlogPostForEdit(rewrite[1]);
+    if (!post) return Response.json({ error: "글을 찾지 못했습니다." }, { status: 404, headers: { "cache-control": "no-store" } });
+    let groups = evidenceFromReference(post.reference_markdown);
+    if (!groups.size) {
+      // Older posts have no reference; fall back to the linked commit subjects.
+      groups = new Map();
+      for (const commit of post.commits || []) {
+        if (!groups.has(commit.repo)) groups.set(commit.repo, []);
+        groups.get(commit.repo).push(commit);
+      }
+    }
+    if (!groups.size) return Response.json({ error: "이 글에는 근거가 되는 커밋이 없어 AI로 쓸 수 없습니다." }, { status: 422, headers: { "cache-control": "no-store" } });
+    try {
+      return Response.json(await writePost(env, post.post_date, groups), { headers: { "cache-control": "no-store" } });
+    } catch (error) {
+      console.error("AI 본문 작성 실패", error);
+      return Response.json({ error: "AI가 본문을 쓰지 못했습니다. 잠시 뒤 다시 시도하세요." }, { status: 502, headers: { "cache-control": "no-store" } });
     }
   }
 

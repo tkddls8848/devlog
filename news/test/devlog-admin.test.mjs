@@ -87,7 +87,7 @@ test("관리 화면은 초안과 발행한 글을 나눠 보여 준다", async (
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.match(html, /쓸 차례인 초안 <span>1<\/span>/);
   assert.match(html, /발행한 글 <span>1<\/span>/);
-  assert.match(html, /이전 AI 자동 기록/);
+  assert.match(html, /AI 자동 작성/);
   assert.match(html, /name="date" value="2026-09-26"/);
   assert.match(html, /noindex/);
 });

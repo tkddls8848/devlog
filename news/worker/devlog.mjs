@@ -1,4 +1,5 @@
-import { journalSystem, journalPrompt, journalReference, commitDetails, addRepoHeadings } from "../../shared/devlog-writing.mjs";
+import { journalReference, commitDetails, addRepoHeadings, evidenceFromReference } from "../../shared/devlog-writing.mjs";
+import { writePost } from "./devlog-writer.mjs";
 
 const USER = "tkddls8848";
 const BLOG_REPO = `${USER}/devlog`;
@@ -62,18 +63,6 @@ async function collect(env, published) {
   return { commits: [...commits.values()], partial };
 }
 
-// Reference notes only. The retrospective itself is written by hand.
-async function aiNotes(env, day, groups) {
-  const result = await env.AI.run(env.CF_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct-fast", {
-    messages: [{ role: "system", content: journalSystem }, { role: "user", content: journalPrompt(day, groups) }],
-    max_tokens: 3200, temperature: 0.35,
-  });
-  const text = String(result?.response ?? result?.choices?.[0]?.message?.content ?? result?.output_text ?? "")
-    .replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/^```(?:markdown)?\s*/i, "").replace(/\s*```$/, "").trim();
-  if (!text) throw new Error("Workers AI가 빈 응답을 반환했습니다.");
-  return text;
-}
-
 export async function runDevlog({ env, store, now = new Date() }) {
   const startedAt = new Date(now).toISOString();
   try {
@@ -94,15 +83,24 @@ export async function runDevlog({ env, store, now = new Date() }) {
     }
     let postCount = 0;
     const collectedAt = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul", dateStyle: "short", timeStyle: "short" }).format(new Date(now));
+    const autoPublish = String(env.DEVLOG_AUTO_PUBLISH ?? "true") !== "false";
     for (const [day, groups] of [...days].sort(([a], [b]) => a.localeCompare(b))) {
-      let notes = "";
-      try { notes = await aiNotes(env, day, groups); } catch (error) { console.warn("개발 기록 참고 문구 생성 실패", error); }
       const existing = await store.findDevlogDraft(day);
+      // The AI writes the post unless the author already started writing this day's draft.
+      const untouched = !existing || !String(existing.body_markdown || "").replace(/^##\s+.*$/gm, "").trim();
+      let post = null;
+      if (untouched) {
+        const all = new Map(existing ? evidenceFromReference(existing.reference_markdown) : []);
+        for (const [repo, commits] of groups) all.set(repo, [...(all.get(repo) || []).filter((old) => !commits.some((c) => c.sha.startsWith(old.sha))), ...commits]);
+        try { post = await writePost(env, day, all); } catch (error) { console.warn("개발 기록 자동 작성 실패, 소제목만 둔 초안으로 남깁니다", error); }
+      }
       await store.saveDevlogDraft({
         slug: existing?.slug || await store.nextDevlogSlug(day), existing, postDate: day, createdAt: new Date(now).toISOString(),
-        // One "## <repo>" part per project; a later run only adds repos the body lacks.
-        bodyMarkdown: addRepoHeadings(existing?.body_markdown || "", [...groups.keys()]),
-        referenceMarkdown: journalReference({ day, groups, notes, collectedAt }), commits: [...groups.values()].flat(),
+        ...(post
+          ? { title: post.title, summary: post.summary, bodyMarkdown: post.body, aiGenerated: true, status: autoPublish ? "published" : "draft" }
+          // One "## <repo>" part per project; a later run only adds repos the body lacks.
+          : { bodyMarkdown: addRepoHeadings(existing?.body_markdown || "", [...groups.keys()]) }),
+        referenceMarkdown: journalReference({ day, groups, notes: post ? null : "", collectedAt }), commits: [...groups.values()].flat(),
       });
       postCount++;
     }

@@ -338,24 +338,31 @@ export function createStore(db) {
 
     async findDevlogDraft(day) {
       return db.prepare(
-        `SELECT slug, body_markdown, (SELECT COUNT(*) FROM devlog_commits WHERE post_slug = devlog_posts.slug) AS commit_count
+        `SELECT slug, body_markdown, reference_markdown, (SELECT COUNT(*) FROM devlog_commits WHERE post_slug = devlog_posts.slug) AS commit_count
          FROM devlog_posts WHERE post_date = ? AND status = 'draft' ORDER BY slug LIMIT 1`
       ).bind(day).first();
     },
 
     // A day's draft is created once and later runs append to it, so the author
     // keeps one file per day even when commits arrive across several runs.
+    // With an AI-written post (title given) the row is filled and may be published.
     async saveDevlogDraft(draft) {
+      const status = draft.status || "draft";
+      const ai = draft.aiGenerated ? 1 : 0;
       const statements = [draft.existing
         ? db.prepare(
-          `UPDATE devlog_posts SET reference_markdown = reference_markdown || ?, body_markdown = ?, updated_at = ?
+          `UPDATE devlog_posts SET reference_markdown = reference_markdown || ?, body_markdown = ?,
+             title = COALESCE(?, title), summary = COALESCE(?, summary), ai_generated = ?,
+             published_at = CASE WHEN ? = 'published' THEN ? ELSE published_at END,
+             status = ?, updated_at = ?
            WHERE slug = ? AND status = 'draft'`
-        ).bind(`\n\n${draft.referenceMarkdown}`, draft.bodyMarkdown ?? draft.existing.body_markdown ?? "", draft.createdAt, draft.slug)
+        ).bind(`\n\n${draft.referenceMarkdown}`, draft.bodyMarkdown ?? draft.existing.body_markdown ?? "",
+          draft.title ?? null, draft.summary ?? null, ai, status, draft.createdAt, status, draft.createdAt, draft.slug)
         : db.prepare(
           `INSERT INTO devlog_posts
            (slug, post_date, title, summary, body_markdown, ai_generated, published_at, status, reference_markdown)
-           VALUES (?, ?, ?, '', ?, 0, ?, 'draft', ?)`
-        ).bind(draft.slug, draft.postDate, `${draft.postDate} 작업 회고`, draft.bodyMarkdown ?? "", draft.createdAt, draft.referenceMarkdown)];
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(draft.slug, draft.postDate, draft.title || `${draft.postDate} 작업 회고`, draft.summary || "", draft.bodyMarkdown ?? "", ai, draft.createdAt, status, draft.referenceMarkdown)];
       const offset = draft.existing?.commit_count || 0;
       statements.push(...draft.commits.map((item, index) => db.prepare(
         `INSERT INTO devlog_commits (sha, post_slug, repo, message, position) VALUES (?, ?, ?, ?, ?)`

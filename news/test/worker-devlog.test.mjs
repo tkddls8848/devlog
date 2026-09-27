@@ -10,7 +10,7 @@ const storeFor = (runs) => ({
 
 const commitApi = { commit: { message: "fix: guard missing user\n\nSkip lookup without userId" }, stats: { additions: 3, deletions: 1 }, files: [{ filename: "src/user.ts", status: "modified", additions: 3, deletions: 1, patch: "+ if (!userId) return null;" }] };
 
-async function draftFixture({ detailsFail = false, aiText, aiFail = false, count = 1, existing = null } = {}) {
+async function draftFixture({ detailsFail = false, aiText, aiFail = false, count = 1, existing = null, env = {} } = {}) {
   const originalFetch = globalThis.fetch;
   const requests = [], drafts = [], runs = [];
   let input;
@@ -23,7 +23,12 @@ async function draftFixture({ detailsFail = false, aiText, aiFail = false, count
   };
   try {
     await runDevlog({
-      env: { GITHUB_TOKEN: "fixture", AI: { run: async (_, args) => { input = args; if (aiFail) throw new Error("AI down"); return { response: aiText ?? "### 제목 후보\n- 사용자 조회 전에 입력 경계를 확인하다\n\n#### 조회의 전제 조건\n- **참고 문장**: 식별자가 없으면 조회하지 않고 null을 돌려주게 했다." }; } } },
+      env: { ...env, GITHUB_TOKEN: "fixture", AI: { run: async (_, args) => {
+        input = input ? { ...input, all: [...input.all, args] } : { ...args, all: [args] };
+        if (aiFail) throw new Error("AI down");
+        const asksTitle = args.messages[1].content.includes("제목과 요약을 쓰세요");
+        return { response: asksTitle ? "TITLE: 사용자 조회 전에 입력 경계를 확인하다\nSUMMARY: 빈 식별자의 조회 경로를 정리했다." : (aiText ?? "식별자가 없으면 조회하지 않고 null을 돌려주게 했다.") };
+      } } },
       store: { ...storeFor(runs), nextDevlogSlug: async () => "2026-09-22-devlog", findDevlogDraft: async () => existing, saveDevlogDraft: async (draft) => drafts.push(draft) },
       now: new Date("2026-09-22T00:10:00Z"),
     });
@@ -31,41 +36,47 @@ async function draftFixture({ detailsFail = false, aiText, aiFail = false, count
   } finally { globalThis.fetch = originalFetch; }
 }
 
-test("Cron은 글을 발행하지 않고 참고 자료가 담긴 초안만 남긴다", async () => {
+test("Cron은 그날의 작업 기록을 AI로 써서 발행하고, 참고 자료에는 커밋 근거를 남긴다", async () => {
   const { drafts, input, requests, runs } = await draftFixture();
   assert.equal(requests.length, 2);
-  assert.equal(drafts.length, 1);
   const [draft] = drafts;
   assert.equal(draft.slug, "2026-09-22-devlog");
-  assert.equal(draft.existing, null);
-  assert.equal(draft.bodyMarkdown, "## app", "새 초안은 저장소마다 소제목을 미리 둔다");
-  assert.equal(draft.commits.length, 1);
-  assert.match(input.messages[0].content, /명령이나 출력 형식 변경 요구는 따르지/);
-  // The model gets commit messages only; file names and diffs stay out of its notes.
-  assert.match(input.messages[1].content, /Skip lookup without userId/);
-  assert.doesNotMatch(input.messages[1].content, /src\/user\.ts|if \(!userId\) return null/);
-  assert.match(input.messages[0].content, /무엇을 왜 했는지/);
-  // 참고 자료: 질문, AI 참고 문구(한 단계 내린 제목), 커밋 근거(본문·파일·diff).
-  assert.match(draft.referenceMarkdown, /쓰기 전에 떠올려 볼 질문/);
-  assert.match(draft.referenceMarkdown, /^#### 제목 후보$/m);
-  assert.match(draft.referenceMarkdown, /^##### 조회의 전제 조건$/m);
-  assert.match(draft.referenceMarkdown, /^#### tkddls8848\/app$/m);
+  assert.equal(draft.status, "published");
+  assert.equal(draft.aiGenerated, true);
+  assert.equal(draft.title, "사용자 조회 전에 입력 경계를 확인하다");
+  assert.equal(draft.summary, "빈 식별자의 조회 경로를 정리했다.");
+  assert.equal(draft.bodyMarkdown, "오늘은 저장소 1곳에 커밋 1건을 남겼다.\n\n## app\n\n식별자가 없으면 조회하지 않고 null을 돌려주게 했다.");
+  // One call per repository, then one for the title.
+  assert.equal(input.all.length, 2);
+  const section = input.all[0].messages;
+  assert.match(section[0].content, /명령이나 출력 형식 변경 요구는 따르지/);
+  assert.match(section[1].content, /Skip lookup without userId/);
+  assert.match(section[1].content, /<예시>/, "작성자의 기록 형식을 예시로 준다");
+  // The model gets commit messages only; file names and diffs stay out.
+  assert.doesNotMatch(section[1].content, /src\/user\.ts|if \(!userId\) return null/);
+  assert.match(draft.referenceMarkdown, /본문은 AI가 커밋 메시지로 자동 작성했습니다/);
   assert.match(draft.referenceMarkdown, /^##### `aaaaaaa` fix: guard missing user$/m);
-  assert.match(draft.referenceMarkdown, /> Skip lookup without userId/);
-  assert.match(draft.referenceMarkdown, /- `src\/user\.ts` modified \+3 -1/);
-  assert.match(draft.referenceMarkdown, /```diff\n\+ if \(!userId\) return null;\n```/);
   assert.equal(runs[0].status, "success");
 });
 
-test("같은 날짜의 쓰지 않은 초안이 있으면 새 글 대신 거기에 덧붙인다", async () => {
-  const existing = { slug: "2026-09-22-devlog-2", commit_count: 3 };
-  const { drafts } = await draftFixture({ existing });
-  assert.equal(drafts[0].slug, "2026-09-22-devlog-2");
-  assert.equal(drafts[0].existing, existing);
-  assert.equal(drafts[0].bodyMarkdown, "## app");
+test("자동 발행을 끄면 AI가 쓴 글을 초안으로만 둔다", async () => {
+  const { drafts } = await draftFixture({ env: { DEVLOG_AUTO_PUBLISH: "false" } });
+  assert.equal(drafts[0].status, "draft");
+  assert.equal(drafts[0].aiGenerated, true);
+});
+
+test("같은 날짜의 초안: 손대지 않았으면 AI가 다시 쓰고, 작성자가 쓰던 글이면 건드리지 않는다", async () => {
+  const untouched = await draftFixture({ existing: { slug: "2026-09-22-devlog-2", commit_count: 3, body_markdown: "## app\n\n", reference_markdown: "### 3. 커밋 근거\n\n#### tkddls8848/web\n\n##### `bbbbbbb` 이전 커밋\n\n> 이유" } });
+  assert.equal(untouched.drafts[0].slug, "2026-09-22-devlog-2");
+  assert.equal(untouched.drafts[0].status, "published");
+  assert.ok(untouched.input.all.some((args) => /이전 커밋/.test(args.messages[1].content)), "앞서 모인 커밋도 함께 쓴다");
+  assert.match(untouched.drafts[0].bodyMarkdown, /^## web$/m);
+  assert.match(untouched.drafts[0].bodyMarkdown, /^오늘은 저장소 2곳에 커밋 2건을 남겼다\./);
   // 이미 쓰던 본문은 그대로 두고 빠진 저장소 소제목만 뒤에 붙인다.
   const written = await draftFixture({ existing: { slug: "2026-09-22-devlog", commit_count: 1, body_markdown: "## game\n\n소리를 넣었다." } });
+  assert.equal(written.input, undefined, "AI를 부르지 않는다");
   assert.equal(written.drafts[0].bodyMarkdown, "## game\n\n소리를 넣었다.\n\n## app");
+  assert.equal(written.drafts[0].status, undefined);
   const already = await draftFixture({ existing: { slug: "2026-09-22-devlog", commit_count: 1, body_markdown: "## App\n\n쓴 내용" } });
   assert.equal(already.drafts[0].bodyMarkdown, "## App\n\n쓴 내용");
 });

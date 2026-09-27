@@ -87,6 +87,30 @@
     body.focus();
   });
 
+  // Rewrites title, summary and body from the day's commits. Nothing is saved until the author saves.
+  const rewrite = document.getElementById("ai-rewrite");
+  rewrite?.addEventListener("click", async () => {
+    if (body.value.replace(/^##\s+.*$/gm, "").trim() && !window.confirm("지금 쓴 제목·요약·본문을 AI가 쓴 글로 바꿀까요? 저장하기 전까지는 되돌릴 수 있습니다(새로고침).")) return;
+    const label = rewrite.textContent;
+    rewrite.disabled = true;
+    rewrite.textContent = "AI가 쓰는 중… (1분 안팎)";
+    try {
+      const response = await fetch(rewrite.dataset.url, { method: "POST", credentials: "same-origin" });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "AI가 본문을 쓰지 못했습니다.");
+      form.elements.title.value = result.title;
+      form.elements.summary.value = result.summary;
+      body.value = result.body;
+      update();
+      grow();
+    } catch (error) {
+      window.alert(error.message);
+    } finally {
+      rewrite.disabled = false;
+      rewrite.textContent = label;
+    }
+  });
+
   // Spelling review: the server suggests, the author applies one change at a time.
   const spell = {
     run: document.getElementById("spell-run"),
