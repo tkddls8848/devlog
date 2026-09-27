@@ -201,20 +201,13 @@ def content_scene(s):
         for obj in (box, dot, label):
             visible(obj, at, end)
             slide_in(obj, at, dy=-0.25, frames=8)
-    # A card on the right lists the commits this scene comes from.
-    panel = s.get("panel") or {"title": "", "lines": []}
-    shown = panel["lines"][:5]
-    height = 1.2 + 0.5 * len(shown)
-    top = 2.0
-    card = rect(3.4, height, 5.5, top - height / 2, PAPER, z=0.05)
-    stripe = rect(3.4, 0.14, 5.5, top, accent, z=0.06)
-    parts = [card, stripe, text(panel["title"], 0.32, 4.15, top - 0.5, accent, bold=True, z=0.08)]
-    for k, line in enumerate(shown):
-        parts.append(text(line, 0.3, 4.15, top - 1.05 - k * 0.5, MUTED, z=0.08))
-    for obj in parts:
+    # Soft shapes on the right keep the frame moving; no text there.
+    big = circle(1.9, 5.6, 0.2, mix(accent, PAPER, 0.88), z=0.02)
+    dot = circle(0.45, 4.2, -1.2, mix(accent, PAPER, 0.55), z=0.03)
+    for obj in (big, dot):
         visible(obj, start, end)
-        slide_in(obj, start + 4, dy=-0.2, frames=12)
-    drift(card, start + 16, end, dy=0.08)
+    drift(big, start, end, dx=-0.25, dy=0.2)
+    drift(dot, start, end, dx=0.3, dy=0.25)
 
 
 def subtitles(s):

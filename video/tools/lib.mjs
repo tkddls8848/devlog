@@ -380,7 +380,7 @@ export const THEME = { background: [0.965, 0.972, 0.984], ink: [0.06, 0.09, 0.16
 const clipText = (text, max) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
 
 // 장면별 화면 구성과 자막 시각을 Blender가 읽는 JSON으로 만든다. 화면 글자는 전부 글과 커밋에서
-// 온 값이다. 칩은 그 세션의 커밋 제목이고, 오른쪽 카드는 커밋 해시다.
+// 온 값이다. 칩은 그 세션의 커밋 제목이다.
 export function buildSpec(episode, seconds, { width = 1280, height = 720, fps = 24, font, fontBold, maxLine = 44 } = {}) {
   const owner = new Map();
   episode.sessions.forEach((session, index) => session.scenes.forEach((scene) => owner.set(scene.id, { session, index })));
@@ -406,8 +406,7 @@ export function buildSpec(episode, seconds, { width = 1280, height = 720, fps = 
         const per = Math.ceil(session.commits.length / content.length);
         const mine = session.commits.slice(slot * per, slot * per + per).slice(0, 3);
         const chips = mine.map((commit, i) => ({ text: clipText(commit.subject, 30), at: Math.round(6 + (i * (frames - 12)) / Math.max(1, mine.length)) }));
-        const panel = { title: `커밋 ${session.commits.length}건`, lines: session.commits.slice(0, 5).map((commit) => commit.sha.slice(0, 7)) };
-        scenes.push({ ...base, kind: "clip", kicker, title: session.subtitle || shortRepo(session.repo), chips, panel });
+        scenes.push({ ...base, kind: "clip", kicker, title: session.subtitle || shortRepo(session.repo), chips });
       }
     }
     start += frames;

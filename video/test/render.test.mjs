@@ -40,7 +40,7 @@ test("Blender 사양은 음성 길이로 장면 프레임을 정하고, 화면 �
   // Three commits over two content scenes: two chips, then one.
   assert.deepEqual(clip1.chips.map((c) => c.text), ["처음 공개 배포한다", "저작권자를 바로잡는다"]);
   assert.deepEqual(clip2.chips.map((c) => c.text), ["기본 포트를 옮긴다"]);
-  assert.deepEqual(clip1.panel, { title: "커밋 3건", lines: ["aaaaaaa", "bbbbbbb", "ccccccc"] });
+  assert.equal(clip1.panel, undefined, "커밋 해시는 화면에 두지 않는다");
   assert.ok(clip1.chips.every((c) => c.at >= 0 && c.at < clip1.frames));
   assert.notDeepEqual(clip1.accent, clip3.accent, "저장소마다 강조색이 다르다");
   assert.equal(ending.kicker, "다음 회차");
