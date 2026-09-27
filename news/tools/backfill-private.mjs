@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { privateAlias, privateWorkSummary, publicationGroups } from "../../shared/devlog-privacy.mjs";
+import { privateAlias, privateWorkSummary, publicationGroups, privateProjectLabel, privateDisplayName } from "../../shared/devlog-privacy.mjs";
 import { journalReference } from "../../shared/devlog-writing.mjs";
 import { sqlString } from "./devlog-journal.mjs";
 
@@ -40,7 +40,10 @@ async function prepare() {
     const repos = gh(`/user/repos?visibility=private&affiliation=owner&per_page=100&page=${page}`);
     for (const repo of repos) {
       if (!repo.private || repo.owner?.login !== "tkddls8848" || repo.archived || repo.disabled) continue;
-      const alias = await privateAlias(repo.id);
+      const key = await privateAlias(repo.id);
+      d1(`INSERT OR IGNORE INTO devlog_private_aliases(alias_key,ordinal) SELECT ${sqlString(key)},COALESCE(MAX(ordinal),0)+1 FROM devlog_private_aliases`);
+      const [mapping] = d1(`SELECT ordinal FROM devlog_private_aliases WHERE alias_key=${sqlString(key)}`);
+      const alias = privateProjectLabel(mapping.ordinal);
       checked++;
       for (let p = 1; p <= 10; p++) {
         const items = gh(`/repos/${repo.full_name}/commits?sha=${encodeURIComponent(repo.default_branch)}&since=2026-09-23T15:00:00Z&until=2026-09-26T15:00:00Z&per_page=100&page=${p}`);
@@ -71,7 +74,7 @@ async function prepare() {
     const paragraphs = [...safe].map(([alias, items]) => {
       const known = [...new Set(items.map((c) => c.message).filter((m) => !m.includes("분류하지 못했다")))];
       const labels = [...new Set(known.flatMap((m) => m.replace(/ 관련 작업을 했다\.$/, "").split(", ")))];
-      return `### ${alias}\n\n${labels.length ? `${labels.join(", ")} 관련 작업을 했다.` : "비공개 작업을 진행했다. 프로젝트를 식별할 수 있는 세부 내용은 생략했다."}`;
+      return `### ${privateDisplayName(alias)}\n\n${labels.length ? `${labels.join(", ")} 관련 작업을 했다.` : "비공개 작업을 진행했다. 프로젝트를 식별할 수 있는 세부 내용은 생략했다."}`;
     });
     const addition = `\n\n## 비공개 작업\n\n${paragraphs.join("\n\n")}`;
     const reference = journalReference({ day: original.post_date, groups: safe, notes: "비공개 작업은 기술 유형만 요약했습니다.", collectedAt: new Date().toISOString() });

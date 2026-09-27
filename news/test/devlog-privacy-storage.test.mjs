@@ -8,7 +8,7 @@ const { DatabaseSync } = await import("node:sqlite").catch(() => ({}));
 test("마이그레이션과 D1 저장은 공개 범위를 유지하고 공개 조회에서 비공개 커밋을 제외한다", { skip: !DatabaseSync }, async () => {
   const sqlite = new DatabaseSync(":memory:");
   try {
-    for (const name of ["0003_devlog.sql", "0004_devlog_journal.sql", "0005_devlog_privacy.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${name}`, import.meta.url), "utf8"));
+    for (const name of ["0003_devlog.sql", "0004_devlog_journal.sql", "0005_devlog_privacy.sql", "0006_private_project_labels.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${name}`, import.meta.url), "utf8"));
     const db = {
       prepare(sql) {
         const statement = sqlite.prepare(sql);
@@ -18,6 +18,9 @@ test("마이그레이션과 D1 저장은 공개 범위를 유지하고 공개 �
       async batch(statements) { for (const statement of statements) await statement.run(); },
     };
     const store = createStore(db);
+    assert.equal(await store.privateRepoAlias("first"), "비공개-프로젝트-A");
+    assert.equal(await store.privateRepoAlias("second"), "비공개-프로젝트-B");
+    assert.equal(await store.privateRepoAlias("first"), "비공개-프로젝트-A");
     await store.saveDevlogDraft({ slug: "2026-09-27-devlog", postDate: "2026-09-27", createdAt: "2026-09-27T00:00:00Z", status: "published", title: "작업", bodyMarkdown: "안전한 요약", referenceMarkdown: "", commits: [
       { repo: "o/public", sha: "a", message: "public change", visibility: "public" },
       { repo: "o/secret", sha: "b", message: "검증용 테스트 관련 작업을 했다.", visibility: "private", publicRepo: "비공개-작업-123456abcdef" },

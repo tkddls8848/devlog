@@ -29,7 +29,15 @@ const activities = [
 ];
 
 export const isPrivateCommit = (item) => item.visibility === "private" || item.private === true || item.visibility === "unknown";
-export const isPrivateAlias = (repo) => /^비공개-작업-[a-f0-9]{12}$/.test(repo);
+export const isPrivateAlias = (repo) => /^(비공개-작업-[a-f0-9]{12}|비공개-프로젝트-[A-Z]+)$/.test(repo);
+
+export function privateProjectLabel(ordinal) {
+  if (!Number.isSafeInteger(ordinal) || ordinal < 1) throw Error("Invalid private project ordinal");
+  let letters = "";
+  for (let n = ordinal; n > 0; n = Math.floor((n - 1) / 26)) letters = String.fromCharCode(65 + (n - 1) % 26) + letters;
+  return `비공개-프로젝트-${letters}`;
+}
+export const privateDisplayName = (name) => /^비공개-프로젝트-[A-Z]+$/.test(name) ? name.replaceAll("-", " ") : name;
 
 export async function privateAlias(repoId) {
   const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`devlog-private:${repoId}`)));

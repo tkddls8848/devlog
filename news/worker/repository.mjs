@@ -1,6 +1,7 @@
 import legacyArchive from "./generated/legacy-archive.mjs";
 import { normalizeUrl } from "../tools/rss.mjs";
 import { repoOutline } from "../../shared/devlog-writing.mjs";
+import { privateProjectLabel } from "../../shared/devlog-privacy.mjs";
 
 const chunks = (values, size = 50) => {
   const result = [];
@@ -275,6 +276,13 @@ export function createStore(db) {
     async publishedDevlogShas() {
       const result = await db.prepare("SELECT sha FROM devlog_commits").all();
       return new Set((result.results || []).map((row) => row.sha));
+    },
+
+    async privateRepoAlias(key) {
+      await db.prepare(`INSERT OR IGNORE INTO devlog_private_aliases(alias_key, ordinal)
+        SELECT ?, COALESCE(MAX(ordinal), 0) + 1 FROM devlog_private_aliases`).bind(key).run();
+      const row = await db.prepare("SELECT ordinal FROM devlog_private_aliases WHERE alias_key = ?").bind(key).first();
+      return privateProjectLabel(row.ordinal);
     },
 
     async nextDevlogSlug(day) {

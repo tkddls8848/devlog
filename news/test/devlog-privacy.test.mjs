@@ -33,7 +33,7 @@ test("비공개 수집 → 재작성 → 공개 HTML과 영상 근거까지 원�
   try {
     const env = { GITHUB_TOKEN: "fixture", AI: { run: () => { throw Error("Private raw text must not reach AI"); } } };
     const result = await runDevlog({ env, now: new Date("2026-09-27"), store: {
-      publishedDevlogShas: async () => new Set(), findDevlogDraft: async () => null,
+      publishedDevlogShas: async () => new Set(), findDevlogDraft: async () => null, privateRepoAlias: async () => "비공개-프로젝트-A",
       nextDevlogSlug: async () => "2026-09-27-devlog", saveDevlogDraft: async (draft) => drafts.push(draft), saveDevlogRun: async (run) => runs.push(run),
     } });
     assert.equal(result.status, "success");

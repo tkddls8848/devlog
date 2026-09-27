@@ -1,7 +1,7 @@
 // 개발 일지 한 편을 유튜브 회차로 바꾸는 순수 함수 모음. 파일과 네트워크를 만지지 않으므로
 // 테스트가 그대로 돈다. 글 파싱 형식은 news/tools/devlog-journal.mjs의 pull 결과와 같다.
 
-import { isPrivateAlias } from "../../shared/devlog-privacy.mjs";
+import { isPrivateAlias, privateDisplayName } from "../../shared/devlog-privacy.mjs";
 
 export const REFERENCE_MARKER = "<!-- devlog:reference 이 줄 아래는 참고 자료이며 발행되지 않습니다. -->";
 export const SITE_URL = "https://devlog.tkddls8848.workers.dev";
@@ -9,7 +9,7 @@ export const SITE_URL = "https://devlog.tkddls8848.workers.dev";
 // 장면 종류별 기본 길이(초). 실제 길이는 보이스오버 길이에 맞춰 조립 단계에서 정해진다.
 export const SCENE_SECONDS = { title: 4, clip: 10, diff: 8 };
 
-export const shortRepo = (repo) => String(repo || "").split("/").pop();
+export const shortRepo = (repo) => privateDisplayName(String(repo || "").split("/").pop());
 export const slugify = (text) => String(text || "").toLowerCase().normalize("NFKC")
   .replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "thread";
 

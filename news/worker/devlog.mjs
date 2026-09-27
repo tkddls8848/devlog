@@ -122,6 +122,9 @@ export async function runDevlog({ env, store, now = new Date() }) {
   const startedAt = new Date(now).toISOString();
   try {
     const { commits, partial } = await collect(env, await store.publishedDevlogShas(), now);
+    for (const commit of commits) {
+      if (commit.visibility === "private") commit.publicRepo = await store.privateRepoAlias(commit.publicRepo);
+    }
     if (!commits.length) {
       await store.saveDevlogRun({ startedAt, finishedAt: new Date().toISOString(), status: partial ? "partial" : "empty", collectedCount: 0, postCount: 0 });
       return { status: partial ? "partial" : "empty" };
