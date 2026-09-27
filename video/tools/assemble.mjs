@@ -7,7 +7,9 @@ import { fileURLToPath } from "node:url";
 import { allocateCues, buildDescription, buildSrt, buildTags, buildTitle, playlistTitle, sceneOrder, shortRepo, validateEpisode } from "./lib.mjs";
 
 const FONT = process.env.VIDEO_FONT || "/usr/share/fonts/truetype/nanum/NanumGothic.ttf";
-const SIZE = "1920x1080";
+// VIDEO_SIZE=1280x720 makes a lighter preview; text sizes scale with the height.
+const SIZE = /^\d+x\d+$/.test(process.env.VIDEO_SIZE || "") ? process.env.VIDEO_SIZE : "1920x1080";
+const SCALE = Number(SIZE.split("x")[1]) / 1080;
 const MUSIC_VOLUME = process.env.VIDEO_MUSIC_VOLUME || "0.12";
 
 function run(bin, args) {
@@ -26,22 +28,29 @@ export function probeSeconds(file) {
 // drawtext는 콜론과 따옴표를 특별하게 다루므로 텍스트는 파일로 넘긴다.
 const escapeFilterPath = (file) => file.replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'");
 
-// 장면 하나를 보이스오버 길이의 mp4 조각으로 만든다. 클립은 짧으면 반복하고 길면 자른다.
-export function segmentArgs({ scene, seconds, clip, voice, textFile, output }) {
+// Generated clips come out dark; lift them a little. VIDEO_EQ="" turns it off.
+const EQ = process.env.VIDEO_EQ ?? "eq=brightness=0.07:contrast=1.04:saturation=1.1:gamma=1.15";
+const CARD_BACKGROUND = process.env.VIDEO_CARD_BG || "0xf1f5f9";
+const CARD_TEXT = process.env.VIDEO_CARD_TEXT || "0x0f172a";
+
+// 장면 하나를 보이스오버 길이의 mp4 조각으로 만든다. 클립이 음성보다 짧으면 반복하지 않고
+// 느리게 늘려 한 번만 흐르게 하고(반복은 집중을 깬다), 길면 자연 속도로 자른다.
+export function segmentArgs({ scene, seconds, clip, clipSeconds, voice, textFile, output }) {
   const encode = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "48000", "-ac", "2", "-t", String(seconds), "-y", output];
   if (scene.kind === "clip") {
-    return ["-stream_loop", "-1", "-i", clip, "-i", voice,
-      "-filter_complex", `[0:v]scale=${SIZE.replace("x", ":")}:force_original_aspect_ratio=increase,crop=${SIZE.replace("x", ":")},setsar=1,fps=30[v]`,
-      "-map", "[v]", "-map", "1:a", ...encode];
+    const stretch = clipSeconds ? Math.max(1, seconds / clipSeconds) : 1;
+    const filters = [`setpts=${stretch.toFixed(4)}*PTS`, `scale=${SIZE.replace("x", ":")}:force_original_aspect_ratio=increase`, `crop=${SIZE.replace("x", ":")}`, "setsar=1", EQ, "fps=30"].filter(Boolean);
+    return ["-i", clip, "-i", voice, "-filter_complex", `[0:v]${filters.join(",")}[v]`, "-map", "[v]", "-map", "1:a", ...encode];
   }
-  const size = scene.kind === "diff" ? 30 : 56;
-  const draw = `drawtext=fontfile='${escapeFilterPath(FONT)}':textfile='${escapeFilterPath(textFile)}':fontcolor=white:fontsize=${size}:line_spacing=10:x=${scene.kind === "diff" ? "120" : "(w-text_w)/2"}:y=${scene.kind === "diff" ? "120" : "(h-text_h)/2"}`;
-  return ["-f", "lavfi", "-i", `color=c=0x0f172a:s=${SIZE}:r=30`, "-i", voice, "-vf", draw, "-map", "0:v", "-map", "1:a", ...encode];
+  const size = Math.round((scene.kind === "diff" ? 30 : 56) * SCALE);
+  const margin = Math.round(120 * SCALE);
+  const draw = `drawtext=fontfile='${escapeFilterPath(FONT)}':textfile='${escapeFilterPath(textFile)}':fontcolor=${CARD_TEXT}:fontsize=${size}:line_spacing=${Math.round(10 * SCALE)}:x=${scene.kind === "diff" ? margin : "(w-text_w)/2"}:y=${scene.kind === "diff" ? margin : "(h-text_h)/2"}`;
+  return ["-f", "lavfi", "-i", `color=c=${CARD_BACKGROUND}:s=${SIZE}:r=30`, "-i", voice, "-vf", draw, "-map", "0:v", "-map", "1:a", ...encode];
 }
 
 export function concatArgs({ list, srt, music, output }) {
   const inputs = ["-f", "concat", "-safe", "0", "-i", list];
-  const video = `[0:v]subtitles='${escapeFilterPath(srt)}':force_style='FontName=NanumGothic,FontSize=20,Outline=1,MarginV=40'[v]`;
+  const video = `[0:v]subtitles='${escapeFilterPath(srt)}':force_style='FontName=NanumGothic,FontSize=18,Outline=1.5,Shadow=0,MarginV=36'[v]`;
   if (!music) return [...inputs, "-filter_complex", video, "-map", "[v]", "-map", "0:a", "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "aac", "-movflags", "+faststart", "-y", output];
   return [...inputs, "-stream_loop", "-1", "-i", music,
     "-filter_complex", `${video};[1:a]volume=${MUSIC_VOLUME}[m];[0:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]`,
@@ -75,7 +84,9 @@ export function assemble(dir, { dryRun = false } = {}) {
     const output = path.join(work, `seg-${scene.id}.mp4`);
     const textFile = path.join(work, `text-${scene.id}.txt`);
     if (scene.kind !== "clip") writeFileSync(textFile, scene.text || "", "utf8");
-    const args = segmentArgs({ scene, seconds, clip: path.join(assets, `clip-${scene.id}.mp4`), voice, textFile, output });
+    const clip = path.join(assets, `clip-${scene.id}.mp4`);
+    const clipSeconds = scene.kind === "clip" && !dryRun ? probeSeconds(clip) : 0;
+    const args = segmentArgs({ scene, seconds, clip, clipSeconds, voice, textFile, output });
     if (!dryRun) run("ffmpeg", args);
     const owner = sessionOf.get(scene.id);
     if (scene.id === "opening") chapters.push({ title: "오프닝", start: 0 });

@@ -215,10 +215,31 @@ test("자막은 문장 길이 비율로 시간을 나눈다", () => {
   assert.match(buildSrt(cues), /^1\n00:00:10,000 --> 00:00:1\d,\d{3}\n짧다\.\n\n2\n/);
 });
 
-test("ffmpeg 인자는 클립은 반복하고 제목은 텍스트 파일로 그린다", () => {
-  const clip = segmentArgs({ scene: { id: "a", kind: "clip" }, seconds: 7.5, clip: "c.mp4", voice: "v.mp3", textFile: "t.txt", output: "o.mp4" });
-  assert.deepEqual(clip.slice(0, 5), ["-stream_loop", "-1", "-i", "c.mp4", "-i"]);
-  assert.ok(clip.includes("-t") && clip[clip.indexOf("-t") + 1] === "7.5");
+test("클립은 반복하지 않고 음성 길이만큼 늘리며, 길면 자연 속도로 자른다", () => {
+  const clip = segmentArgs({ scene: { id: "a", kind: "clip" }, seconds: 15, clipSeconds: 10, clip: "c.mp4", voice: "v.mp3", textFile: "t.txt", output: "o.mp4" });
+  assert.ok(!clip.includes("-stream_loop"), "반복 재생하지 않는다");
+  assert.deepEqual(clip.slice(0, 4), ["-i", "c.mp4", "-i", "v.mp3"]);
+  assert.match(clip[clip.indexOf("-filter_complex") + 1], /setpts=1\.5000\*PTS/);
+  assert.match(clip[clip.indexOf("-filter_complex") + 1], /eq=brightness=/);
+  assert.ok(clip.includes("-t") && clip[clip.indexOf("-t") + 1] === "15");
+  const longer = segmentArgs({ scene: { id: "a", kind: "clip" }, seconds: 6, clipSeconds: 10, clip: "c.mp4", voice: "v.mp3", textFile: "t.txt", output: "o.mp4" });
+  assert.match(longer[longer.indexOf("-filter_complex") + 1], /setpts=1\.0000\*PTS/, "빨리 감지 않는다");
+});
+
+test("자막은 단어 사이에서만 줄을 바꾸고, 음성용 문장은 발음 사전으로 바꾼다", async () => {
+  const { wrapLine, speechText } = await import("../tools/lib.mjs");
+  assert.equal(wrapLine("사내 문서를 바탕으로 답하는 AI 검색 도구를 PoC 수준까지", 16), "사내 문서를 바탕으로 답하는\nAI 검색 도구를 PoC\n수준까지");
+  const lexicon = [["RAG", "래그"], ["local RAG", "로컬 래그"], ["PoC", "피오씨"], ["game", "게임"]];
+  assert.equal(speechText("local RAG의 PoC, RAG 시스템, game과 gameplay", lexicon), "로컬 래그의 피오씨, 래그 시스템, 게임과 gameplay");
+});
+
+test("제목 카드는 밝은 배경에 어두운 글자로 그린다", () => {
+  const title = segmentArgs({ scene: { id: "b", kind: "title" }, seconds: 4, voice: "v.mp3", textFile: "t.txt", output: "o.mp4" });
+  assert.match(title[title.indexOf("-i") + 1], /color=c=0xf1f5f9/);
+  assert.match(title[title.indexOf("-vf") + 1], /fontcolor=0x0f172a/);
+});
+
+test("제목은 텍스트 파일로 그리고 음악이 있으면 섞는다", () => {
   const title = segmentArgs({ scene: { id: "b", kind: "title" }, seconds: 4, voice: "v.mp3", textFile: "/w/t:x.txt", output: "o.mp4" });
   assert.equal(title[0], "-f");
   assert.match(title[title.indexOf("-vf") + 1], /textfile='\/w\/t\\:x\.txt'/);

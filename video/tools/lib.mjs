@@ -315,6 +315,32 @@ const srtTime = (seconds) => {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(rest).padStart(3, "0")}`;
 };
 
-export function buildSrt(cues) {
-  return cues.map((cue, index) => `${index + 1}\n${srtTime(cue.start)} --> ${srtTime(cue.end)}\n${cue.text}\n`).join("\n");
+// libass breaks Korean lines between any two syllables, so wrap at spaces ourselves.
+export function wrapLine(text, max = 26) {
+  const lines = [];
+  let line = "";
+  for (const word of String(text).split(/\s+/).filter(Boolean)) {
+    if (line && line.length + 1 + word.length > max) { lines.push(line); line = word; }
+    else line = line ? `${line} ${word}` : word;
+  }
+  if (line) lines.push(line);
+  return lines.join("\n");
+}
+
+export function buildSrt(cues, { maxLine = 26 } = {}) {
+  return cues.map((cue, index) => `${index + 1}\n${srtTime(cue.start)} --> ${srtTime(cue.end)}\n${wrapLine(cue.text, maxLine)}\n`).join("\n");
+}
+
+// 내레이션(자막)은 원래 표기를 두고, 음성 합성에는 한국어 개발자가 읽는 발음으로 바꿔 보낸다.
+// 영어 철자를 그대로 주면 TTS가 원어민 억양으로 굴리거나 약어를 글자 단위로 읽는다(RAG → 알에이지).
+export function speechText(text, lexicon = []) {
+  let speech = String(text || "");
+  // Longer terms first so "local RAG" wins over "RAG".
+  for (const [term, reading] of [...lexicon].sort((a, b) => b[0].length - a[0].length)) {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const boundary = /^[A-Za-z0-9]/.test(term) ? "(?<![A-Za-z0-9])" : "";
+    const end = /[A-Za-z0-9]$/.test(term) ? "(?![A-Za-z0-9])" : "";
+    speech = speech.replace(new RegExp(`${boundary}${escaped}${end}`, "gi"), reading);
+  }
+  return speech;
 }
