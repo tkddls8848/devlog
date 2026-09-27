@@ -192,7 +192,7 @@ test("긴 본문은 빈 줄 기준으로 나눠 검사한다", () => {
 test("맞춤법 검사 경로는 제목·요약·본문의 제안을 모아 돌려주고, 실패하면 502로 알린다", async () => {
   const calls = [];
   const ai = { run: async (model, args) => { calls.push({ model, text: args.messages[1].content }); return { choices: [{ message: { content: '[{"original": "어느정도", "suggestion": "어느 정도", "reason": "띄어쓰기"}]' } }] }; } };
-  const response = await handleDevlogAdmin(request("/devlog/admin/spellcheck", { method: "POST", cookie: await cookie(), form: { title: "제목", summary: "", body: "어느정도 만들었다." } }), { ...env, AI: ai }, fakeStore(), now);
+  const response = await handleDevlogAdmin(request("/devlog/admin/spellcheck", { method: "POST", cookie: await cookie(), form: { title: "제목", summary: "", body: "어느정도 만들었다." } }), { ...env, DEVLOG_SPELLCHECK_PROVIDER: "ai", AI: ai }, fakeStore(), now);
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.deepEqual((await response.json()).issues, [{ field: "body", original: "어느정도", suggestion: "어느 정도", reason: "띄어쓰기" }]);
@@ -200,12 +200,43 @@ test("맞춤법 검사 경로는 제목·요약·본문의 제안을 모아 돌�
   assert.equal(calls[0].model, "@cf/openai/gpt-oss-120b");
   assert.match(calls[1].text, /<<<\n어느정도 만들었다\.\n>>>/);
 
-  const failing = await handleDevlogAdmin(request("/devlog/admin/spellcheck", { method: "POST", cookie: await cookie(), form: { title: "t", body: "b" } }), { ...env, AI: { run: async () => { throw new Error("down"); } } }, fakeStore(), now);
+  const failing = await handleDevlogAdmin(request("/devlog/admin/spellcheck", { method: "POST", cookie: await cookie(), form: { title: "t", body: "b" } }), { ...env, DEVLOG_SPELLCHECK_PROVIDER: "ai", AI: { run: async () => { throw new Error("down"); } } }, fakeStore(), now);
   assert.equal(failing.status, 502);
   assert.match((await failing.json()).error, /맞춤법 검사를 하지 못했습니다/);
 
   const anonymous = await handleDevlogAdmin(request("/devlog/admin/spellcheck", { method: "POST", form: { body: "b" } }), { ...env, AI: ai }, fakeStore(), now);
   assert.equal(anonymous.status, 401);
+});
+
+test("맞춤법 검사는 기본으로 다음 검사기를 쓰고 AI 토큰을 쓰지 않는다", async () => {
+  const daumPage = (hits) => `<html><title>다음 맞춤법검사기</title>${hits.map(([type, input, output, context]) => `<a href="#none" class="txt_spell"\n\tdata-error-type="${type}" data-error-input="${input}" data-error-output="${output}" data-error-context="${context}">`).join("")}</html>`;
+  const originalFetch = globalThis.fetch;
+  const sent = [];
+  let aiCalls = 0;
+  const ai = { run: async () => { aiCalls++; return { response: '[{"original": "만들엇다", "suggestion": "만들었다", "reason": "맞춤법"}]' }; } };
+  try {
+    globalThis.fetch = async (url, init) => {
+      sent.push({ url: String(url), sentence: new URLSearchParams(init.body).get("sentence") });
+      return new Response(daumPage([["space", "할수", "할 수", "오늘 할수 있는"], ["spell", "&quot;되요&quot;", "&quot;돼요&quot;", "x"], ["spell", "`npm", "npm", "`npm"]]));
+    };
+    const body = "오늘 할수 있는 일을 했다. \"되요\" 라고 썼다. `npm test`를 돌렸다.\n\n내일도 할수 있다.";
+    const response = await handleDevlogAdmin(request("/devlog/admin/spellcheck", { method: "POST", cookie: await cookie(), form: { title: "제목", summary: "", body } }), { ...env, DAUM_SPELLCHECK_TIMING: { gapMs: 0, retryMs: 0 }, AI: ai }, fakeStore(), now);
+    const { issues } = await response.json();
+    assert.equal(aiCalls, 0);
+    assert.ok(sent.every((call) => call.url === "https://dic.daum.net/grammar_checker.do"));
+    assert.deepEqual(issues, [
+      { field: "body", original: "오늘 할수 있는", suggestion: "오늘 할 수 있는", reason: "띄어쓰기" },
+      { field: "body", original: "\"되요\"", suggestion: "\"돼요\"", reason: "맞춤법" },
+    ], "여러 번 나오는 구절은 문맥으로 위치를 정하고, 코드 안은 고치지 않는다");
+
+    // A blocked or changed page falls back to Workers AI instead of reporting "no errors".
+    globalThis.fetch = async () => new Response("<html>blocked</html>", { status: 403 });
+    const fallback = await handleDevlogAdmin(request("/devlog/admin/spellcheck", { method: "POST", cookie: await cookie(), form: { title: "", summary: "", body: "만들엇다" } }), { ...env, DAUM_SPELLCHECK_TIMING: { gapMs: 0, retryMs: 0 }, AI: ai }, fakeStore(), now);
+    assert.deepEqual((await fallback.json()).issues, [{ field: "body", original: "만들엇다", suggestion: "만들었다", reason: "맞춤법" }]);
+    assert.equal(aiCalls, 1);
+  } finally { globalThis.fetch = originalFetch; }
+  const long = chunkText("가나다 ".repeat(400).trim(), 1000);
+  assert.ok(long.length > 1 && long.every((chunk) => chunk.length <= 1000), "빈 줄 없는 긴 문단도 1000자 안으로 자른다");
 });
 
 test("편집기 참고 자료에는 코드 내용 없이 커밋 메시지만 보여 준다", async () => {
