@@ -72,6 +72,21 @@
   };
   for (const tab of tabs) tab.addEventListener("click", () => show(tab.dataset.tab));
 
+  // Adds a "## <repo>" heading for every repo of the day that the body does not have yet.
+  const addHeadings = document.getElementById("add-repo-headings");
+  addHeadings?.addEventListener("click", () => {
+    let names = [];
+    try { names = JSON.parse(addHeadings.dataset.repos || "[]"); } catch { /* keep empty */ }
+    const present = new Set([...body.value.matchAll(/^##\s+(.+?)\s*$/gm)].map((match) => match[1].toLowerCase()));
+    const missing = names.filter((name) => !present.has(String(name).toLowerCase()));
+    if (!missing.length) { addHeadings.textContent = "모든 저장소 소제목이 있습니다"; return; }
+    const text = body.value.trimEnd();
+    body.value = `${text}${text ? "\n\n" : ""}${missing.map((name) => `## ${name}\n\n`).join("\n").trimEnd()}\n\n`;
+    update();
+    grow();
+    body.focus();
+  });
+
   // Spelling review: the server suggests, the author applies one change at a time.
   const spell = {
     run: document.getElementById("spell-run"),

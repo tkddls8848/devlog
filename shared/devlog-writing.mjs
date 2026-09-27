@@ -135,6 +135,40 @@ export function journalPrompt(day, groups) {
 ${JSON.stringify(evidence)}`;
 }
 
+// Each repo with commits gets a "## <repo>" heading so the author writes one part per
+// project, and the video workflow can map every part to its repo session.
+export const repoHeading = (repo) => String(repo || "").split("/").pop();
+
+const hasHeading = (body, name) => new RegExp(`^##\\s+${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "mi").test(String(body || ""));
+
+export function repoOutline(repos) {
+  const names = [...new Set(repos.map(repoHeading).filter(Boolean))];
+  return names.map((name) => `## ${name}\n\n`).join("\n").trimEnd();
+}
+
+// Appends headings for repos the body does not have yet; existing text is untouched.
+export function addRepoHeadings(body, repos) {
+  const text = String(body || "").trimEnd();
+  const missing = [...new Set(repos.map(repoHeading).filter(Boolean))].filter((name) => !hasHeading(text, name));
+  if (!missing.length) return String(body || "");
+  const outline = repoOutline(missing);
+  return text ? `${text}\n\n${outline}` : outline;
+}
+
+// "## heading" parts with nothing written under them.
+export function emptySections(body) {
+  const empty = [];
+  let heading = null, filled = false;
+  for (const line of `${String(body || "")}\n## `.split(/\r?\n/)) {
+    const match = line.match(/^##\s+(.*)$/);
+    if (match) {
+      if (heading !== null && !filled) empty.push(heading);
+      heading = match[1].trim(); filled = false;
+    } else if (heading !== null && line.trim()) filled = true;
+  }
+  return empty.filter(Boolean);
+}
+
 export const JOURNAL_QUESTIONS = [
   "오늘 이 작업을 시작한 계기는 무엇이었나? 커밋에는 남지 않은 맥락이 있었나?",
   "가장 오래 붙잡고 있던 문제는 무엇이었고, 어떻게 풀었나?",

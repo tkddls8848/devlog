@@ -140,7 +140,9 @@ a.journal-page:hover { border-color: var(--line-strong); color: var(--fg); }
 .spell-actions { display: flex; gap: .3rem; margin: .4rem 0 0; }
 .spell-actions .admin-button { min-height: 1.9rem; font-size: .76rem; }
 .spell-note { color: var(--soft); font-size: .76rem; }
-.editor-help {margin: .6rem 0 0; color: var(--soft); font-size: .74rem; }
+.editor-repos { margin: .6rem 0 0; color: var(--soft); font-size: .78rem; line-height: 1.8; }
+.editor-repos code { padding: .05rem .35rem; border-radius: .3rem; background: var(--surface-2); color: var(--fg); }
+.editor-help { margin: .6rem 0 0; color: var(--soft); font-size: .74rem; }
 .editor-actions { position: sticky; bottom: 0; display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1.2rem; padding: .9rem 0; border-top: 1px solid var(--line); background: var(--bg); }
 .editor-reference { position: sticky; top: 5.5rem; max-height: calc(100vh - 7rem); overflow: auto; border: 1px solid var(--line); border-radius: .6rem; background: var(--surface-2); }
 .editor-reference-inner { padding: 1.2rem 1.3rem; }

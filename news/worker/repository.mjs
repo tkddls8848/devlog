@@ -1,5 +1,6 @@
 import legacyArchive from "./generated/legacy-archive.mjs";
 import { normalizeUrl } from "../tools/rss.mjs";
+import { repoOutline } from "../../shared/devlog-writing.mjs";
 
 const chunks = (values, size = 50) => {
   const result = [];
@@ -317,19 +318,27 @@ export function createStore(db) {
       return (result.meta?.changes ?? 1) > 0;
     },
 
+    // Opens the day's unwritten draft if there is one, so a date never gets two drafts.
+    // Otherwise the new post starts with a heading per repo that had commits that day.
     async createDevlogEntry(day, now) {
+      const draft = await this.findDevlogDraft(day);
+      if (draft) return draft.slug;
+      const repos = await db.prepare(
+        `SELECT c.repo FROM devlog_commits c JOIN devlog_posts p ON p.slug = c.post_slug
+         WHERE p.post_date = ? GROUP BY c.repo ORDER BY MIN(c.position), c.repo`
+      ).bind(day).all();
       const slug = await this.nextDevlogSlug(day);
       await db.prepare(
         `INSERT INTO devlog_posts
          (slug, post_date, title, summary, body_markdown, ai_generated, published_at, status, reference_markdown, updated_at)
-         VALUES (?, ?, ?, '', '', 0, ?, 'draft', '', ?)`
-      ).bind(slug, day, `${day} 작업 회고`, now, now).run();
+         VALUES (?, ?, ?, '', ?, 0, ?, 'draft', '', ?)`
+      ).bind(slug, day, `${day} 작업 회고`, repoOutline((repos.results || []).map((row) => row.repo)), now, now).run();
       return slug;
     },
 
     async findDevlogDraft(day) {
       return db.prepare(
-        `SELECT slug, (SELECT COUNT(*) FROM devlog_commits WHERE post_slug = devlog_posts.slug) AS commit_count
+        `SELECT slug, body_markdown, (SELECT COUNT(*) FROM devlog_commits WHERE post_slug = devlog_posts.slug) AS commit_count
          FROM devlog_posts WHERE post_date = ? AND status = 'draft' ORDER BY slug LIMIT 1`
       ).bind(day).first();
     },
@@ -339,14 +348,14 @@ export function createStore(db) {
     async saveDevlogDraft(draft) {
       const statements = [draft.existing
         ? db.prepare(
-          `UPDATE devlog_posts SET reference_markdown = reference_markdown || ?, updated_at = ?
+          `UPDATE devlog_posts SET reference_markdown = reference_markdown || ?, body_markdown = ?, updated_at = ?
            WHERE slug = ? AND status = 'draft'`
-        ).bind(`\n\n${draft.referenceMarkdown}`, draft.createdAt, draft.slug)
+        ).bind(`\n\n${draft.referenceMarkdown}`, draft.bodyMarkdown ?? draft.existing.body_markdown ?? "", draft.createdAt, draft.slug)
         : db.prepare(
           `INSERT INTO devlog_posts
            (slug, post_date, title, summary, body_markdown, ai_generated, published_at, status, reference_markdown)
-           VALUES (?, ?, ?, '', '', 0, ?, 'draft', ?)`
-        ).bind(draft.slug, draft.postDate, `${draft.postDate} 작업 회고`, draft.createdAt, draft.referenceMarkdown)];
+           VALUES (?, ?, ?, '', ?, 0, ?, 'draft', ?)`
+        ).bind(draft.slug, draft.postDate, `${draft.postDate} 작업 회고`, draft.bodyMarkdown ?? "", draft.createdAt, draft.referenceMarkdown)];
       const offset = draft.existing?.commit_count || 0;
       statements.push(...draft.commits.map((item, index) => db.prepare(
         `INSERT INTO devlog_commits (sha, post_slug, repo, message, position) VALUES (?, ?, ?, ?, ?)`

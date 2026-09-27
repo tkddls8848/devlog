@@ -3,6 +3,7 @@
 import { adminConfigured, clearedCookie, createSession, isAdmin, passwordMatches, sameOrigin, sessionCookie } from "./devlog-auth.mjs";
 import { escapeHtml, layout, markdownToHtml } from "./render.mjs";
 import { spellcheck } from "./devlog-spellcheck.mjs";
+import { emptySections, repoHeading, repoOutline } from "../../shared/devlog-writing.mjs";
 
 const DAY = new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Seoul" });
 const STAMP = new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Seoul" });
@@ -106,7 +107,10 @@ export const withoutDiffExcerpts = (reference) => String(reference || "")
 
 export function renderEditor(env, post, { flash = "", error = "", values = null } = {}) {
   const draft = post.status === "draft";
+  const repos = [...new Set((post.commits || []).map((commit) => commit.repo))];
   const form = values || { title: post.title, summary: post.summary, body: post.body_markdown };
+  // Drafts saved before the outline existed open with one heading per repo to fill in.
+  if (!values && draft && !String(form.body || "").trim() && repos.length) form.body = repoOutline(repos);
   const groups = new Map();
   for (const commit of post.commits || []) {
     if (!groups.has(commit.repo)) groups.set(commit.repo, []);
@@ -139,6 +143,7 @@ export function renderEditor(env, post, { flash = "", error = "", values = null 
         </section>
         <textarea name="body" id="editor-body" class="editor-body" rows="26" maxlength="${LIMITS.body}" placeholder="오늘 무엇을 왜 바꿨는지, 어디서 막혔고 무엇을 확인했는지 줄글로 적어 보세요. 오른쪽 참고 자료의 질문과 문장을 출발점으로 쓸 수 있습니다." aria-label="본문">${escapeHtml(form.body)}</textarea>
         <div class="editor-preview journal-prose" id="editor-preview" hidden></div>
+        ${repos.length ? `<p class="editor-repos">이 날 커밋이 있는 저장소: ${repos.map((repo) => `<code>${escapeHtml(repoHeading(repo))}</code>`).join(" ")} · 저장소마다 <code>## 저장소</code> 소제목 아래에 씁니다. <button type="button" class="admin-link" id="add-repo-headings" data-repos="${escapeHtml(JSON.stringify(repos.map(repoHeading)))}">빠진 소제목 넣기</button></p>` : ""}
         <p class="editor-help">## 소제목 · - 목록 · **강조** · \`코드\` · \`\`\` 코드 블록 · &gt; 인용 · Ctrl+S 저장</p>
         <div class="editor-actions">
           ${draft
@@ -168,6 +173,8 @@ export function validatePost(values, status) {
   if (values.body.length > LIMITS.body) errors.push(`본문은 ${LIMITS.body.toLocaleString("ko-KR")}자 이하로 써 주세요.`);
   if (!values.title) errors.push("제목을 채워 주세요.");
   if (status === "published" && !values.body) errors.push("본문을 쓴 뒤 발행해 주세요.");
+  const empty = status === "published" && values.body ? emptySections(values.body) : [];
+  if (empty.length) errors.push(`비어 있는 소제목이 있습니다: ${empty.join(", ")}. 내용을 쓰거나 그 소제목을 지운 뒤 발행해 주세요.`);
   return errors;
 }
 

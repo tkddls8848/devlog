@@ -227,3 +227,15 @@ test("ffmpeg 인자는 클립은 반복하고 제목은 텍스트 파일로 그�
   const noMusic = concatArgs({ list: "l.txt", srt: "s.srt", music: null, output: "f.mp4" });
   assert.ok(!noMusic.join(" ").includes("amix"));
 });
+
+test("저장소 이름 소제목은 본문 내용과 상관없이 그 저장소에 배정한다", () => {
+  const groups = [
+    { repo: "o/game", commits: [{ files: [] }] },
+    { repo: "o/localRAG", commits: [{ files: [] }] },
+  ];
+  // game 부분 본문이 localRAG를 언급해도 소제목이 game이면 game으로 간다.
+  const { assigned, unassigned } = assignSections([{ heading: "game", text: "localRAG localrag 이야기와 비교했다" }, { heading: "localRAG", text: "검색" }], groups);
+  assert.deepEqual(assigned["o/game"].map((s) => s.heading), ["game"]);
+  assert.deepEqual(assigned["o/localRAG"].map((s) => s.heading), ["localRAG"]);
+  assert.deepEqual(unassigned, []);
+});

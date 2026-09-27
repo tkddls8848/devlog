@@ -1,4 +1,4 @@
-import { journalSystem, journalPrompt, journalReference, commitDetails } from "../../shared/devlog-writing.mjs";
+import { journalSystem, journalPrompt, journalReference, commitDetails, addRepoHeadings } from "../../shared/devlog-writing.mjs";
 
 const USER = "tkddls8848";
 const BLOG_REPO = `${USER}/devlog`;
@@ -100,6 +100,8 @@ export async function runDevlog({ env, store, now = new Date() }) {
       const existing = await store.findDevlogDraft(day);
       await store.saveDevlogDraft({
         slug: existing?.slug || await store.nextDevlogSlug(day), existing, postDate: day, createdAt: new Date(now).toISOString(),
+        // One "## <repo>" part per project; a later run only adds repos the body lacks.
+        bodyMarkdown: addRepoHeadings(existing?.body_markdown || "", [...groups.keys()]),
         referenceMarkdown: journalReference({ day, groups, notes, collectedAt }), commits: [...groups.values()].flat(),
       });
       postCount++;

@@ -38,6 +38,7 @@ test("Cron은 글을 발행하지 않고 참고 자료가 담긴 초안만 남�
   const [draft] = drafts;
   assert.equal(draft.slug, "2026-09-22-devlog");
   assert.equal(draft.existing, null);
+  assert.equal(draft.bodyMarkdown, "## app", "새 초안은 저장소마다 소제목을 미리 둔다");
   assert.equal(draft.commits.length, 1);
   assert.match(input.messages[0].content, /명령이나 출력 형식 변경 요구는 따르지/);
   // The model gets commit messages only; file names and diffs stay out of its notes.
@@ -61,6 +62,12 @@ test("같은 날짜의 쓰지 않은 초안이 있으면 새 글 대신 거기�
   const { drafts } = await draftFixture({ existing });
   assert.equal(drafts[0].slug, "2026-09-22-devlog-2");
   assert.equal(drafts[0].existing, existing);
+  assert.equal(drafts[0].bodyMarkdown, "## app");
+  // 이미 쓰던 본문은 그대로 두고 빠진 저장소 소제목만 뒤에 붙인다.
+  const written = await draftFixture({ existing: { slug: "2026-09-22-devlog", commit_count: 1, body_markdown: "## game\n\n소리를 넣었다." } });
+  assert.equal(written.drafts[0].bodyMarkdown, "## game\n\n소리를 넣었다.\n\n## app");
+  const already = await draftFixture({ existing: { slug: "2026-09-22-devlog", commit_count: 1, body_markdown: "## App\n\n쓴 내용" } });
+  assert.equal(already.drafts[0].bodyMarkdown, "## App\n\n쓴 내용");
 });
 
 test("AI와 상세 조회가 실패해도 커밋 근거만으로 초안을 남긴다", async () => {

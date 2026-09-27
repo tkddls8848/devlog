@@ -219,3 +219,29 @@ test("편집기 참고 자료에는 코드 내용 없이 커밋 메시지만 보
   assert.doesNotMatch(html, /userId/);
   assert.match(html, /id="spell-run"/);
 });
+
+test("저장소 소제목 뼈대: 만들기, 빠진 것만 더하기, 빈 부분 찾기", async () => {
+  const { repoOutline, addRepoHeadings, emptySections } = await import("../../shared/devlog-writing.mjs");
+  assert.equal(repoOutline(["o/game", "o/localRAG", "o/game"]), "## game\n\n\n## localRAG");
+  assert.equal(addRepoHeadings("## game\n\n소리", ["o/game", "o/stock_chatbot"]), "## game\n\n소리\n\n## stock_chatbot");
+  assert.equal(addRepoHeadings("## GAME\n\n소리", ["o/game"]), "## GAME\n\n소리", "대소문자가 달라도 같은 소제목으로 본다");
+  assert.equal(addRepoHeadings("", ["o/a.b"]), "## a.b");
+  assert.deepEqual(emptySections("도입\n\n## game\n\n소리\n\n## localRAG\n\n\n## stock_chatbot\n"), ["localRAG", "stock_chatbot"]);
+  assert.deepEqual(emptySections("## game\n소리"), []);
+});
+
+test("편집기는 빈 초안을 저장소 소제목으로 채워 열고, 빈 소제목이 남으면 발행하지 않는다", async () => {
+  const repos = { ...draft, body_markdown: "", commits: [{ repo: "o/game", sha: "a".repeat(40), message: "소리" }, { repo: "o/localRAG", sha: "b".repeat(40), message: "검색" }, { repo: "o/game", sha: "c".repeat(40), message: "빛" }] };
+  const html = await (await handleDevlogAdmin(request("/devlog/admin/posts/2026-09-25-devlog/", { cookie: await cookie() }), env, fakeStore([repos]), now)).text();
+  assert.match(html, /aria-label="본문">## game\n\n\n## localRAG<\/textarea>/);
+  assert.match(html, /id="add-repo-headings" data-repos="\[&quot;game&quot;,&quot;localRAG&quot;\]"/);
+
+  const store = fakeStore([repos]);
+  const rejected = await handleDevlogAdmin(request("/devlog/admin/posts/2026-09-25-devlog/", { method: "POST", cookie: await cookie(), form: { title: "t", summary: "", body: "## game\n\n소리를 넣었다.\n\n## localRAG\n", action: "publish" } }), env, store, now);
+  assert.equal(rejected.status, 422);
+  assert.match(await rejected.text(), /비어 있는 소제목이 있습니다: localRAG/);
+  assert.equal(store.calls.update.length, 0);
+  // 임시 저장은 빈 소제목이 있어도 된다.
+  const saved = await handleDevlogAdmin(request("/devlog/admin/posts/2026-09-25-devlog/", { method: "POST", cookie: await cookie(), form: { title: "t", summary: "", body: "## game\n\n## localRAG\n", action: "save" } }), env, store, now);
+  assert.equal(saved.status, 303);
+});

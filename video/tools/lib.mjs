@@ -111,6 +111,9 @@ export function assignSections(sections, groups) {
   const assigned = Object.fromEntries(groups.map((group) => [group.repo, []]));
   const unassigned = [];
   for (const section of sections) {
+    // The editor writes one "## <repo>" part per project; that heading decides outright.
+    const named = groups.find((group) => shortRepo(group.repo).toLowerCase() === section.heading.toLowerCase());
+    if (named) { assigned[named.repo].push(section); continue; }
     const haystack = `${section.heading}\n${section.text}`.toLowerCase();
     let best = null;
     for (const { repo, tokens } of tokensByRepo) {
