@@ -53,7 +53,10 @@ async function handle(request, env) {
   // The author sees edit links, so their copy of a page must never be cached or shared.
   if (url.pathname === "/devlog" || url.pathname === "/devlog/") {
     const admin = await isAdmin(request, env);
-    return html(renderDevlogHome(await store.listDevlogPosts(), env, origin, { admin }), 200, admin ? "private, no-store" : undefined);
+    const page = Number.parseInt(url.searchParams.get("page") || "1", 10) || 1;
+    const query = String(url.searchParams.get("q") || "").trim().slice(0, 100);
+    const listing = await store.listDevlogPage({ page, perPage: 5, query });
+    return html(renderDevlogHome(listing, env, origin, { admin }), 200, admin ? "private, no-store" : undefined);
   }
 
   const devlogMatch = url.pathname.match(/^\/devlog\/posts\/([a-z0-9-]+)\/?$/i);

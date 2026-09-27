@@ -242,12 +242,21 @@ export function createStore(db) {
       ).bind(run.startedAt, run.finishedAt, run.status, run.collectedCount, run.insertedCount, JSON.stringify(run.failedSources || []), run.error || null).run();
     },
 
-    async listDevlogPosts(limit = 100) {
+    // One page of published posts. The search covers every post, not just the page.
+    async listDevlogPage({ page = 1, perPage = 5, query = "" } = {}) {
+      const pattern = `%${String(query).replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+      const filter = query ? " AND (title LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\')" : "";
+      const binds = query ? [pattern, pattern] : [];
+      const counted = await db.prepare(`SELECT COUNT(*) AS total FROM devlog_posts WHERE status = 'published'${filter}`).bind(...binds).first();
+      const total = Number(counted?.total || 0);
+      const pages = Math.max(1, Math.ceil(total / perPage));
+      const current = Math.min(Math.max(1, page), pages);
       const result = await db.prepare(
         `SELECT slug, post_date, title, summary, ai_generated, published_at
-         FROM devlog_posts WHERE status = 'published' ORDER BY post_date DESC, published_at DESC LIMIT ?`
-      ).bind(limit).all();
-      return result.results || [];
+         FROM devlog_posts WHERE status = 'published'${filter}
+         ORDER BY post_date DESC, published_at DESC LIMIT ? OFFSET ?`
+      ).bind(...binds, perPage, (current - 1) * perPage).all();
+      return { posts: result.results || [], total, page: current, pages, perPage, query };
     },
 
     async getDevlogPost(slug) {

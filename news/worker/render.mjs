@@ -224,9 +224,41 @@ export function renderArchive(records, env, origin) {
   return layout({ env, title: "벤더 문서 아카이브", summary: "IBM, Lenovo, HPE, Dell, NetApp, Oracle 제품 문서 아카이브", current: "archive", content, canonical: `${origin}/archive/`, wide: true });
 }
 
-export function renderDevlogHome(posts, env, origin, { admin = false } = {}) {
-  const rows = posts.map((post, index) => `<li class="journal-card${index === 0 ? ' journal-featured' : ''}" data-journal-entry>
-    <div class="journal-card-meta"><span>${index === 0 ? 'LATEST ENTRY' : 'DEVELOPMENT LOG'}</span><time datetime="${escapeHtml(post.post_date)}">${DAY.format(new Date(post.post_date))}</time></div>
+// Page numbers to show: all when few, otherwise first, last and the current neighbourhood.
+export function pageWindow(page, pages) {
+  if (pages <= 7) return Array.from({ length: pages }, (_, index) => index + 1);
+  const shown = new Set([1, pages, page - 1, page, page + 1].filter((value) => value >= 1 && value <= pages));
+  const sorted = [...shown].sort((a, b) => a - b);
+  return sorted.flatMap((value, index) => (index && value - sorted[index - 1] > 1 ? ["…", value] : [value]));
+}
+
+const devlogPageUrl = (page, query) => {
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+  if (page > 1) params.set("page", String(page));
+  const search = params.toString();
+  return `/devlog/${search ? `?${search}` : ""}`;
+};
+
+function devlogPagination({ page, pages, query }) {
+  if (pages <= 1) return "";
+  const link = (target, label, rel = "") => `<a class="journal-page" href="${escapeHtml(devlogPageUrl(target, query))}"${rel ? ` rel="${rel}"` : ""}>${label}</a>`;
+  const numbers = pageWindow(page, pages).map((value) => value === "…"
+    ? '<span class="journal-page journal-page-gap" aria-hidden="true">…</span>'
+    : value === page ? `<span class="journal-page is-current" aria-current="page">${value}</span>` : link(value, String(value))).join("");
+  const prev = page > 1 ? link(page - 1, '<span aria-hidden="true">←</span> 이전', "prev") : '<span class="journal-page is-disabled" aria-hidden="true">← 이전</span>';
+  const next = page < pages ? link(page + 1, '다음 <span aria-hidden="true">→</span>', "next") : '<span class="journal-page is-disabled" aria-hidden="true">다음 →</span>';
+  return `<nav class="journal-pagination" aria-label="개발 기록 페이지">${prev}<span class="journal-pages">${numbers}</span>${next}</nav>`;
+}
+
+export function renderDevlogHome(listing, env, origin, { admin = false } = {}) {
+  const { posts, total, page, pages, query } = Array.isArray(listing)
+    ? { posts: listing, total: listing.length, page: 1, pages: 1, query: "" }
+    : listing;
+  // Only the newest post on the unfiltered first page is the featured one.
+  const featured = page === 1 && !query;
+  const rows = posts.map((post, index) => `<li class="journal-card${featured && index === 0 ? ' journal-featured' : ''}" data-journal-entry>
+    <div class="journal-card-meta"><span>${featured && index === 0 ? 'LATEST ENTRY' : 'DEVELOPMENT LOG'}</span><time datetime="${escapeHtml(post.post_date)}">${DAY.format(new Date(post.post_date))}</time></div>
     <h3><a href="/devlog/posts/${encodeURIComponent(post.slug)}/">${escapeHtml(post.title)}</a></h3>
     ${post.summary ? `<p>${escapeHtml(post.summary)}</p>` : ""}
     <div class="journal-card-bottom"><span>${post.ai_generated ? '이전 AI 자동 기록' : '작업 회고'}</span><span class="journal-read">글 읽기 <span aria-hidden="true">↗</span></span></div>
@@ -239,13 +271,20 @@ export function renderDevlogHome(posts, env, origin, { admin = false } = {}) {
     ${admin ? '<p class="journal-owner"><a class="journal-owner-link" href="/devlog/admin/">글 관리 · 새 글 쓰기</a></p>' : ""}
   </section>
   <div class="journal-layout"><section aria-labelledby="entries-title">
-    <div class="journal-toolbar"><h2 id="entries-title">개발 기록 <span>${posts.length}</span></h2><label class="journal-search"><span class="visually-hidden">글 제목과 요약 검색</span><input id="journal-query" type="search" placeholder="제목과 요약 검색" /></label></div>
-    <p class="visually-hidden" id="journal-count" role="status" aria-live="polite">${posts.length}편의 기록</p>
+    <div class="journal-toolbar"><h2 id="entries-title">${query ? "검색 결과" : "개발 기록"} <span>${total}</span></h2><form class="journal-search" method="get" action="/devlog/" role="search"><label><span class="visually-hidden">글 제목과 요약 검색</span><input name="q" type="search" value="${escapeHtml(query)}" placeholder="제목과 요약 검색" /></label></form></div>
+    ${query ? `<p class="journal-filter">‘${escapeHtml(query)}’에 맞는 글 ${total}편 · <a href="/devlog/">전체 목록</a></p>` : ""}
     <ul class="journal-list">${rows}</ul>
-    <div class="journal-empty" id="journal-empty"${posts.length ? ' hidden' : ''}><h3>${posts.length ? '검색 결과가 없습니다.' : '첫 번째 기록을 기다리고 있습니다.'}</h3><p>${posts.length ? '다른 키워드로 제목과 요약을 검색해 보세요.' : '공개 저장소의 새로운 커밋이 모이면 이곳에 개발 기록이 쌓입니다.'}</p></div>
+    ${posts.length ? "" : `<div class="journal-empty"><h3>${query ? "검색 결과가 없습니다." : "첫 번째 기록을 기다리고 있습니다."}</h3><p>${query ? '다른 키워드로 찾아보거나 <a href="/devlog/">전체 목록</a>으로 돌아가세요.' : "공개 저장소의 새로운 커밋이 모이면 이곳에 개발 기록이 쌓입니다."}</p></div>`}
+    ${devlogPagination({ page, pages, query })}
   </section>
   <aside class="journal-sidebar"><div class="journal-about"><span class="journal-avatar" aria-hidden="true">&lt;/&gt;</span><p class="journal-eyebrow">BEHIND THE CODE</p><h2>변경 너머의 맥락</h2><p>작동하는 코드를 만드는 일과 그 이유를 설명하는 일. 이곳에는 두 가지를 함께 남깁니다.</p><dl><dt>01 / 구현</dt><dd>실제 코드에서 확인한 변화</dd><dt>02 / 판단</dt><dd>설계의 의미와 유지보수 비용</dd><dt>03 / 회고</dt><dd>남은 질문과 다음 검증</dd></dl></div><p class="journal-note">그날의 커밋을 옆에 두고 직접 쓴 작업 회고입니다. 각 글 하단에서 근거가 된 커밋을 함께 확인할 수 있습니다.</p></aside></div>`;
-  return layout({ env, title: "개발 기록", summary: "커밋에 담긴 구현, 설계 판단과 다음 검증을 기록하는 기술 블로그", current: "devlog", content, canonical: `${origin}/devlog/` });
+  return layout({
+    env, current: "devlog", content,
+    title: query ? `‘${query}’ 검색` : page > 1 ? `개발 기록 ${page}쪽` : "개발 기록",
+    summary: "커밋에 담긴 구현, 설계 판단과 다음 검증을 기록하는 기술 블로그",
+    canonical: `${origin}${devlogPageUrl(query ? 1 : page, "")}`,
+    robots: query ? "noindex, follow" : "",
+  });
 }
 
 export function renderDevlogPost(post, env, origin, { admin = false } = {}) {
