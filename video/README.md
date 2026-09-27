@@ -32,6 +32,30 @@ claude mcp list
 예비 생성 경로는 두지 않습니다. Artlist 인증이 실패하면 계획 단계까지만 하고 멈추며, 다음
 실행에서 같은 `out/<slug>/episode.json`으로 이어갑니다.
 
+## 매일 경로: Blender 렌더 (`npm run render`)
+
+Artlist 생성 클립은 회차마다 크레딧이 들어 매일 올리기 어렵습니다. 매일 경로는 생성형 영상을 쓰지
+않습니다. 음성만 TTS로 만들고, 화면은 Blender가 글과 커밋에서 온 글자로 모션그래픽을 그립니다.
+
+| 단계 | 도구 | 비용 |
+| --- | --- | --- |
+| 내레이션 | ElevenLabs API(`ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`), 없으면 edge-tts `ko-KR-InJoonNeural` | ElevenLabs 글자 수 과금 / edge-tts 무료 |
+| 화면, 자막 | Blender 5 헤드리스, EEVEE (`blender/episode.py`) | 로컬 CPU·GPU |
+| 음성·음악 합성, 인코딩 | ffmpeg | 없음 |
+
+- 장면 길이는 그 장면 음성 길이 + 0.4초입니다. 자막은 문장 단위로 나눠 화면에 직접 그립니다.
+- 제목 장면: 저장소 이름, 스레드 회차, 부제. 내용 장면: 부제, 그 세션의 커밋 제목이 칩으로
+  하나씩 나오고, 오른쪽 카드에 커밋 해시가 보입니다. 화면 글자는 지어내지 않습니다.
+- 배경 음악은 `assets/music-1.mp3`나 `assets/music.mp3`가 있을 때만 낮게 깝니다.
+- 클립 프롬프트(`prompt`)와 음악 설명(`thread.music`)은 이 경로에서 빈칸이어도 됩니다.
+- 1280x720 24fps 기준 프레임당 약 0.2초, 2분 40초 회차가 약 12분 걸립니다.
+
+```bash
+npm run voice -- out/<slug>                  # 음성만 (있는 파일은 건너뜀, --force로 다시)
+npm run render -- out/<slug> --frames=600    # 앞 25초만 preview.mp4로 미리 보기
+npm run render -- out/<slug>                 # final.mp4, chapters.json, metadata.json
+```
+
 ## 파이프라인
 
 ```text
@@ -132,7 +156,9 @@ npm run auth              # 브라우저 동의 후 YOUTUBE_REFRESH_TOKEN 출력
 ## 로컬 요구 사항
 
 - Node 20 이상, `ffmpeg`와 `ffprobe`
-- 한국어 글꼴. 기본은 `/usr/share/fonts/truetype/nanum/NanumGothic.ttf`이며 `VIDEO_FONT`로 바꿉니다.
+- 매일 경로: Blender 5(`BLENDER`로 경로 지정, 기본은 Windows 설치 위치), `pip install edge-tts`
+- 한국어 글꼴. 기본은 NanumGothic(Windows는 `C:/Windows/Fonts`, Linux는 `/usr/share/fonts/truetype/nanum`)이며
+  `VIDEO_FONT`, `VIDEO_FONT_BOLD`로 바꿉니다.
 - `VIDEO_MUSIC_VOLUME`(기본 0.12)으로 음악 볼륨을 조절합니다.
 
 테스트는 네트워크, ffmpeg, 비밀값 없이 돕니다. 글 파싱, 세션 배정, 시리즈 판정, 게시 정보,

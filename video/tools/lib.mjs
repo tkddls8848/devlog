@@ -344,3 +344,83 @@ export function speechText(text, lexicon = []) {
   }
   return speech;
 }
+
+// ---------------------------------------------------------------- 장과 게시 정보
+
+// seconds: 장면 id → 그 장면이 화면에 머무는 초. 조립기(ffmpeg)와 렌더러(Blender)가 함께 쓴다.
+export function buildChapters(episode, seconds) {
+  const owner = new Map();
+  episode.sessions.forEach((session) => session.scenes.forEach((scene) => owner.set(scene.id, session)));
+  const chapters = [];
+  let at = 0;
+  for (const scene of sceneOrder(episode)) {
+    const session = owner.get(scene.id);
+    if (scene.id === "opening") chapters.push({ title: "오프닝", start: 0 });
+    else if (scene.kind === "title" && session) chapters.push({ title: `${shortRepo(session.repo)} · ${session.thread.name} ${session.thread.episode}화`, start: at, repo: session.repo });
+    else if (scene.id === "ending") chapters.push({ title: "다음 회차", start: at });
+    at += seconds.get(scene.id);
+  }
+  return { chapters, total: at };
+}
+
+export function buildMetadata(episode, chapters, { file, seconds }) {
+  return {
+    title: buildTitle(episode), description: buildDescription(episode, chapters), tags: buildTags(episode),
+    playlists: [...new Set(episode.sessions.map((session) => playlistTitle(session.repo)))],
+    categoryId: "28", defaultLanguage: "ko", privacy: "private", file, seconds: Math.round(seconds), chapters,
+  };
+}
+
+// ---------------------------------------------------------------- Blender 사양
+
+// 밝은 배경 위에서 저장소마다 구분되는 강조색(선형 RGB가 아니라 화면 sRGB 값).
+export const ACCENTS = [[0.05, 0.55, 0.62], [0.39, 0.40, 0.95], [0.91, 0.45, 0.16], [0.13, 0.62, 0.36], [0.85, 0.24, 0.47], [0.2, 0.47, 0.85]];
+export const THEME = { background: [0.965, 0.972, 0.984], ink: [0.06, 0.09, 0.16], muted: [0.28, 0.33, 0.41], paper: [1, 1, 1] };
+
+const clipText = (text, max) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
+
+// 장면별 화면 구성과 자막 시각을 Blender가 읽는 JSON으로 만든다. 화면 글자는 전부 글과 커밋에서
+// 온 값이다. 칩은 그 세션의 커밋 제목이고, 오른쪽 카드는 커밋 해시다.
+export function buildSpec(episode, seconds, { width = 1280, height = 720, fps = 24, font, fontBold, maxLine = 44 } = {}) {
+  const owner = new Map();
+  episode.sessions.forEach((session, index) => session.scenes.forEach((scene) => owner.set(scene.id, { session, index })));
+  const scenes = [];
+  let start = 0;
+  for (const scene of sceneOrder(episode)) {
+    const frames = Math.max(1, Math.round(seconds.get(scene.id) * fps));
+    const found = owner.get(scene.id);
+    const accent = ACCENTS[(found?.index ?? ACCENTS.length - 1) % ACCENTS.length];
+    const cues = allocateCues(scene.narration, 0, frames).map((cue) => ({ text: wrapLine(cue.text, maxLine), start: Math.round(cue.start), end: Math.round(cue.end) }));
+    const base = { start, frames, accent, cues, chips: [], subtitle: "" };
+    if (!found) {
+      const opening = scene.id === "opening";
+      scenes.push({ ...base, kind: "title", kicker: opening ? episode.date : "다음 회차", title: scene.text || episode.title, subtitle: opening ? episode.sessions.map((s) => shortRepo(s.repo)).join(" · ") : "" });
+    } else {
+      const { session } = found;
+      const kicker = `${shortRepo(session.repo)} · ${session.thread.name} ${session.thread.episode}화`;
+      if (scene.kind === "title") scenes.push({ ...base, kind: "title", kicker, title: shortRepo(session.repo), subtitle: session.subtitle || "" });
+      else {
+        // Spread the session's commits over its content scenes, at most three chips each.
+        const content = session.scenes.filter((item) => item.kind !== "title");
+        const slot = content.indexOf(scene);
+        const per = Math.ceil(session.commits.length / content.length);
+        const mine = session.commits.slice(slot * per, slot * per + per).slice(0, 3);
+        const chips = mine.map((commit, i) => ({ text: clipText(commit.subject, 30), at: Math.round(6 + (i * (frames - 12)) / Math.max(1, mine.length)) }));
+        const panel = { title: `커밋 ${session.commits.length}건`, lines: session.commits.slice(0, 5).map((commit) => commit.sha.slice(0, 7)) };
+        scenes.push({ ...base, kind: "clip", kicker, title: session.subtitle || shortRepo(session.repo), chips, panel });
+      }
+    }
+    start += frames;
+  }
+  return { width, height, fps, frames: start, font, fontBold, theme: THEME, scenes };
+}
+
+// video/.env의 KEY=VALUE를 읽어 셸에 없는 값만 채운다.
+export function parseEnv(text) {
+  const values = {};
+  for (const line of String(text).split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (match) values[match[1]] = match[2].replace(/^["']|["']$/g, "");
+  }
+  return values;
+}
