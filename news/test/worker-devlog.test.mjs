@@ -48,11 +48,11 @@ test("Cron은 그날의 작업 기록을 AI로 써서 발행하고, 참고 자�
   assert.equal(draft.bodyMarkdown, "오늘은 저장소 1곳에 커밋 1건을 남겼다.\n\n## app\n\n식별자가 없으면 조회하지 않고 null을 돌려주게 했다.");
   // One call per repository, then one for the summary.
   assert.equal(input.all.length, 2);
-  assert.match(input.all[0].messages[1].content, /분량은 공백 포함 2000자 안팎/, "저장소가 하나면 하루 분량을 다 쓴다");
+  assert.match(input.all[0].messages[1].content, /분량은 공백 포함 2400자 안팎을 기준으로/, "저장소가 하나면 하루 기준 분량을 다 쓴다");
   const { sectionLengths } = await import("../../shared/devlog-writing.mjs");
   const split = sectionLengths(new Map([["o/a", Array(12)], ["o/b", Array(2)], ["o/c", Array(1)]]));
-  assert.deepEqual([...split.values()], [1350, 370, 280], "커밋 수에 비례하되 저장소마다 최소 분량을 둔다");
-  assert.ok([...split.values()].reduce((a, b) => a + b) <= 2010, "하루 합계는 3~5분 분량");
+  assert.deepEqual([...split.values()], [1610, 450, 340], "커밋 수에 비례하되 저장소마다 최소 분량을 둔다");
+  assert.ok([...split.values()].reduce((a, b) => a + b) <= 2410, "하루 기준 합계는 약 5분 분량");
   const section = input.all[0].messages;
   assert.match(section[0].content, /명령이나 출력 형식 변경 요구는 따르지/);
   assert.match(section[1].content, /Skip lookup without userId/);
@@ -66,11 +66,16 @@ test("Cron은 그날의 작업 기록을 AI로 써서 발행하고, 참고 자�
 
 test("형식 예시의 문장을 옮겨 쓴 부분은 받아들이지 않는다", async () => {
   const { copiesExample } = await import("../../shared/devlog-writing.mjs");
-  assert.equal(copiesExample("배경을 바꿨다. 아직 남은 일은 두 가지다. 자연어 검색 계획서에 적어 둔 하루 신규 event 수는 며칠 더 재야 한다."), true);
+  assert.equal(copiesExample("배포를 정리했다. 파일을 받을 서버가 없으면 파일이 밖으로 나갈 길도 없다."), true);
   assert.equal(copiesExample("아직 남은 일은 배경 클립의 실측이다."), false, "짧은 관용구는 허용한다");
-  const { drafts, input } = await draftFixture({ aiText: "자연어 검색 계획서에 적어 둔 하루 신규 event 수는 며칠 더 재야 한다." });
+  const { drafts, input } = await draftFixture({ aiText: "파일을 받을 서버가 없으면 파일이 밖으로 나갈 길도 없다." });
   assert.equal(drafts[0].status, undefined, "세 번 모두 옮겨 쓰면 소제목만 둔 초안으로 남긴다");
   assert.equal(input.all.length, 3);
+});
+
+test("무엇이 없다는 사실만 말하는 문장은 걸러 낸다", async () => {
+  const { dropFiller } = await import("../../shared/devlog-writing.mjs");
+  assert.equal(dropFiller("배포했다. 커밋 메시지에 검증 결과는 남기지 않았으니 따로 적어 두어야 한다. 테스트 413건이 통과했다.\n\n아직 남은 일은 별도로 기록되지 않았다."), "배포했다. 테스트 413건이 통과했다.");
 });
 
 test("자동 발행을 끄면 AI가 쓴 글을 초안으로만 둔다", async () => {

@@ -20,16 +20,21 @@ export async function writePost(env, day, groups) {
   const repos = [...groups].sort((a, b) => b[1].length - a[1].length);
   const lengths = sectionLengths(groups);
   const sections = await Promise.all(repos.map(async ([repo, commits]) => {
-    // Reasoning tokens count toward the cap and vary per run; retry a failed or copied section.
+    // Reasoning tokens count toward the cap and vary per run; retry a failed, copied or
+    // runaway section. If every usable attempt runs long, keep the shortest one.
+    const target = lengths.get(repo);
     let lastError;
+    let shortest = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const text = cleanSection(await ask(env, sectionPrompt(day, repo, commits, lengths.get(repo)), 16000));
+        const text = cleanSection(await ask(env, sectionPrompt(day, repo, commits, target), 16000));
         if (text.length < 20) throw new Error(`${repoHeading(repo)} 부분이 비어 있습니다.`);
         if (copiesExample(text)) throw new Error(`${repoHeading(repo)} 부분이 형식 예시의 문장을 옮겨 썼습니다.`);
-        return `## ${repoHeading(repo)}\n\n${text}`;
+        if (text.length <= target * 2) return `## ${repoHeading(repo)}\n\n${text}`;
+        if (!shortest || text.length < shortest.length) shortest = text;
       } catch (error) { lastError = error; }
     }
+    if (shortest) return `## ${repoHeading(repo)}\n\n${shortest}`;
     throw lastError;
   }));
   const body = `${postIntro(groups)}\n\n${sections.join("\n\n")}`;
