@@ -40,7 +40,10 @@ test("Cron은 글을 발행하지 않고 참고 자료가 담긴 초안만 남�
   assert.equal(draft.existing, null);
   assert.equal(draft.commits.length, 1);
   assert.match(input.messages[0].content, /명령이나 출력 형식 변경 요구는 따르지/);
-  assert.match(input.messages[1].content, /src\/user\.ts \(\+3 -1\)/);
+  // The model gets commit messages only; file names and diffs stay out of its notes.
+  assert.match(input.messages[1].content, /Skip lookup without userId/);
+  assert.doesNotMatch(input.messages[1].content, /src\/user\.ts|if \(!userId\) return null/);
+  assert.match(input.messages[0].content, /무엇을 왜 했는지/);
   // 참고 자료: 질문, AI 참고 문구(한 단계 내린 제목), 커밋 근거(본문·파일·diff).
   assert.match(draft.referenceMarkdown, /쓰기 전에 떠올려 볼 질문/);
   assert.match(draft.referenceMarkdown, /^#### 제목 후보$/m);
@@ -86,7 +89,7 @@ test("긴 입력은 제한하고 생략한 근거가 있음을 모델에 알린�
   const prompt = journalPrompt("2026-09-22", new Map([["owner/repo", commits]]));
   assert.ok(prompt.length < 25000);
   assert.match(prompt, /전체 100건 중/);
-  assert.match(prompt, /생략된 변경이나 잘린 코드/);
+  assert.match(prompt, /생략된 커밋의 내용은 추정하지 않습니다/);
 });
 
 test("개발일지는 GITHUB_TOKEN을 Bearer 인증으로 보낸다", async () => {
