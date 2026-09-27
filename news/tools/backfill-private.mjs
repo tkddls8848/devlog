@@ -14,7 +14,6 @@ const planFile = path.join(work, "plan.json");
 const dates = ["2026-09-24", "2026-09-25", "2026-09-26"];
 const dayOf = (at) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date(at));
 const excluded = /^merge\s|^revert\s|^(chore|ci)(\(deps\))?:|^bump\s|^(wip|test|tmp|temp|initial commit)$|\[skip ci\]/i;
-const marker = "<!-- private-backfill:2026-09-24-26 -->";
 
 function run(bin, args) {
   const result = spawnSync(bin, args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
@@ -65,7 +64,7 @@ async function prepare() {
   for (const original of originals) {
     const commits = [...found.values()].filter((c) => c.day === original.post_date);
     if (!commits.length) { console.log(`${original.post_date}: no missing private commits`); continue; }
-    if (original.body_markdown.includes(marker)) throw Error("Backfill marker already exists; inspect before extending");
+    if (/^## 비공개 작업\s*$/m.test(original.body_markdown)) throw Error("Private work section already exists; inspect before extending");
     const groups = new Map();
     for (const c of commits) { if (!groups.has(c.repo)) groups.set(c.repo, []); groups.get(c.repo).push(c); }
     const safe = publicationGroups(groups);
@@ -74,7 +73,7 @@ async function prepare() {
       const labels = [...new Set(known.flatMap((m) => m.replace(/ 관련 작업을 했다\.$/, "").split(", ")))];
       return `### ${alias}\n\n${labels.length ? `${labels.join(", ")} 관련 작업을 했다.` : "비공개 작업을 진행했다. 프로젝트를 식별할 수 있는 세부 내용은 생략했다."}`;
     });
-    const addition = `\n\n${marker}\n\n## 비공개 작업\n\n${paragraphs.join("\n\n")}`;
+    const addition = `\n\n## 비공개 작업\n\n${paragraphs.join("\n\n")}`;
     const reference = journalReference({ day: original.post_date, groups: safe, notes: "비공개 작업은 기술 유형만 요약했습니다.", collectedAt: new Date().toISOString() });
     const update = { original, commits, body: original.body_markdown + addition, reference: original.reference_markdown + "\n\n" + reference };
     updates.push(update);
