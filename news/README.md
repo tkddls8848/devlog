@@ -105,7 +105,8 @@ Workers Builds와 중복 배포하지 않습니다.
 - Cron `0 22 * * *`: UTC 22:00, KST 07:00
 - Cron `10 0 * * *`: UTC 00:10, KST 09:10, 개발 기록 초안·참고 자료 생성 (발행은 `npm run journal`, `devlog/README.md` 참고)
 - Cron `25 0 * * *`: UTC 00:25, KST 09:25, 벤더 문서 아카이브 수집
-- `CF_AI_MODEL`: 사용할 Workers AI 모델
+- `CF_AI_MODEL`: 뉴스 다이제스트를 쓰는 Workers AI 모델, 기본 `@cf/openai/gpt-oss-20b`. 2026-09-27 실제 30건으로 비교해 2~3분 줄글과 출처 번호를 가장 잘 지킨 싼 모델이다(회당 약 150 neurons, gpt-oss-120b의 40%).
+- `NEWS_READ_LIMIT`: 피드 요약이 없는 기사 중 페이지를 직접 읽을 최대 건수, 기본 12
 - `NEWS_WINDOW_HOURS`: 수집 시간 창, 기본 24
 - `NEWS_PER_SOURCE`: 소스별 최대 기사, 기본 3
 - `NEWS_MAX_ITEMS`: 이슈 전체 최대 기사, 기본 30

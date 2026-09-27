@@ -39,6 +39,20 @@ function linkOf(entry) {
   return decode(href) || tag(entry, "link") || tag(entry, "guid") || tag(entry, "id");
 }
 
+// 다이제스트가 제목만 보고 글을 쓰지 않도록 피드가 주는 요약이나 본문 앞부분을 함께 읽는다.
+// 태그와 공백을 걷어 내고 앞부분만 남긴다.
+export const EXCERPT_CHARS = 500;
+export function plainText(html, limit = EXCERPT_CHARS) {
+  const text = decode(String(html || "").replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]+>/g, " "))
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > limit ? `${text.slice(0, limit).replace(/\s\S*$/, "")}…` : text;
+}
+
+const excerptOf = (entry) =>
+  plainText(tag(entry, "description") || tag(entry, "summary") || tag(entry, "content:encoded") || tag(entry, "content"));
+
 // 항목에 날짜 태그를 하나도 달지 않는 피드가 있다. 요즘IT와 rss.app이 만든 피드가
 // 그렇다. 날짜 없는 항목을 버리는 규칙만 두면 이런 소스는 통째로 0건이 되어 조용히
 // 빠진다. 채널이 스스로 밝힌 갱신 시각을 대신 쓴다. 지어낸 시각이 아니라서 갱신이
@@ -65,8 +79,10 @@ export function parseFeed(xml) {
       tag(entry, "updated") ||
       tag(entry, "dc:date");
     const at = new Date(stamp);
-    if (Number.isNaN(at.getTime())) return fallback ? { title, url, at: new Date(fallback) } : [];
-    return { title, url, at };
+    const excerpt = excerptOf(entry);
+    const extra = excerpt && excerpt !== title ? { excerpt } : {};
+    if (Number.isNaN(at.getTime())) return fallback ? { title, url, at: new Date(fallback), ...extra } : [];
+    return { title, url, at, ...extra };
   });
 }
 
@@ -120,7 +136,7 @@ export function feedSource({ source, kind, urls, limit = 5 }) {
       return items
         .sort((a, b) => b.at - a.at)
         .slice(0, limit)
-        .map((item) => ({ source, kind, title: item.title, url: item.url, at: item.at.toISOString() }));
+        .map((item) => ({ source, kind, title: item.title, url: item.url, at: item.at.toISOString(), ...(item.excerpt ? { excerpt: item.excerpt } : {}) }));
     }
     throw new Error(`${source} 피드를 찾지 못했습니다: ${failures.join(" / ")}`);
   };

@@ -19,7 +19,7 @@
     }
   ],
   "vars": {
-    "CF_AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast",
+    "CF_AI_MODEL": "@cf/openai/gpt-oss-20b",
     "NEWS_WINDOW_HOURS": "24",
     "NEWS_PER_SOURCE": "3",
     "NEWS_MAX_ITEMS": "30",

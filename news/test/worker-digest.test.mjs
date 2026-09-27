@@ -45,14 +45,15 @@ function memoryStore(published = []) {
   };
 }
 
-const ai = (response = "TITLE: 오늘의 뉴스\nSUMMARY: 중요한 소식입니다.\n\n## 동향\n\n본문입니다.") => ({
+const PROSE = "첫 기사가 다룬 변화는 오늘 가장 눈여겨볼 흐름이다. ".repeat(12);
+const ai = (response = `TITLE: 오늘의 뉴스\nSUMMARY: 중요한 소식입니다.\n\n## 동향\n\n${PROSE}[1]\n\n둘째 기사도 같은 방향을 가리킨다[2, 9].\n\n## 출처\n\n- [1] 첫 기사`) => ({
   run: async () => ({ response }),
 });
 
 test("여러 소스의 새 소식을 Workers AI로 묶어 D1 저장소에 넘긴다", async () => {
   const store = memoryStore();
   const result = await runDigest({
-    env: { AI: ai() },
+    env: { AI: ai(), NEWS_READ_LIMIT: "0" },
     store,
     now: NOW,
     sources: [
@@ -67,12 +68,49 @@ test("여러 소스의 새 소식을 Workers AI로 묶어 D1 저장소에 넘긴
   assert.equal(store.issue.aiGenerated, true);
   assert.equal(countEntries(store.issue.sources), 2);
   assert.equal(store.run.status, "success");
+  // [n] becomes a link to the numbered article; unknown numbers and a model-written source list go away.
+  assert.match(store.issue.bodyMarkdown, /흐름이다\. \[\[1\]\]\(https:\/\/example\.com\/a\)/);
+  assert.match(store.issue.bodyMarkdown, /가리킨다\[\[2\]\]\(https:\/\/example\.net\/b\)\.$/);
+  assert.doesNotMatch(store.issue.bodyMarkdown, /## 출처|\[9\]/);
+});
+
+test("프롬프트에는 번호와 발췌를 주고, 발췌가 없는 기사는 페이지를 읽어 채운다", async () => {
+  const { buildPrompt, readArticles, articleExcerpt } = await import("../worker/digest.mjs");
+  const html = `<html><head><meta property="og:description" content="새 칩을 발표했다."></head><body><nav><p>메뉴</p></nav><article><p>${"회사는 오늘 데이터센터용 새 칩을 공개하고 전력 효율을 두 배로 높였다고 밝혔다. ".repeat(2)}</p></article></body></html>`;
+  assert.match(articleExcerpt(html), /^새 칩을 발표했다\. 회사는 오늘/);
+  const originalFetch = globalThis.fetch;
+  const fetched = [];
+  globalThis.fetch = async (url) => { fetched.push(url); return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } }); };
+  try {
+    const entries = [
+      { source: "HN", title: "Chip", url: "https://a.example/chip", note: "300 points" },
+      { source: "피드", title: "요약 있음", url: "https://b.example/x", excerpt: "피드가 준 충분히 긴 요약입니다. ".repeat(6) },
+    ];
+    await readArticles(entries);
+    assert.deepEqual(fetched, ["https://a.example/chip"], "피드 요약이 충분하면 페이지를 열지 않는다");
+    const prompt = buildPrompt("2026-09-27", [{ source: "HN", kind: "커뮤니티", entries }]);
+    assert.match(prompt, /\[1\] HN · Chip\n {4}\(300 points\)\n {4}발췌: 새 칩을 발표했다/);
+    assert.match(prompt, /\[2\] 피드 · 요약 있음/);
+    assert.match(prompt, /2~3분/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("출처 번호가 없는 AI 응답은 한 번 더 쓰게 하고, 그래도 없으면 링크 목록으로 발행한다", async () => {
+  const store = memoryStore();
+  let calls = 0;
+  await runDigest({
+    env: { AI: { run: async () => { calls++; return { response: `TITLE: 제목\nSUMMARY: 요약\n\n${PROSE}` }; } }, NEWS_READ_LIMIT: "0" },
+    store, now: NOW,
+    sources: [source("소스", [story("기사", "https://example.com/a")])],
+  });
+  assert.equal(calls, 2);
+  assert.equal(store.issue.aiGenerated, false);
 });
 
 test("D1에 이미 저장한 정규화 주소와 한 수집 안의 중복을 제외한다", async () => {
   const store = memoryStore(["example.com/already"]);
   await runDigest({
-    env: { AI: ai() },
+    env: { AI: ai(), NEWS_READ_LIMIT: "0" },
     store,
     now: NOW,
     sources: [
@@ -91,7 +129,7 @@ test("AI가 실패하면 링크 본문을 저장하고 발행은 성공한다", 
   const store = memoryStore();
   const failingAi = { run: async () => { throw new Error("모델 오류"); } };
   await runDigest({
-    env: { AI: failingAi },
+    env: { AI: failingAi, NEWS_READ_LIMIT: "0" },
     store,
     now: NOW,
     sources: [source("소스", [story("기사", "https://example.com/a")])],
@@ -105,7 +143,7 @@ test("AI가 실패하면 링크 본문을 저장하고 발행은 성공한다", 
 test("일부 소스 실패는 partial 실행 이력과 함께 성공한 기사로 발행한다", async () => {
   const store = memoryStore();
   const result = await runDigest({
-    env: { AI: ai() },
+    env: { AI: ai(), NEWS_READ_LIMIT: "0" },
     store,
     now: NOW,
     sources: [
@@ -125,7 +163,7 @@ test("모든 소스 실패는 failed 이력을 남기고 던진다", async () =>
   await assert.rejects(
     () =>
       runDigest({
-        env: { AI: ai() },
+        env: { AI: ai(), NEWS_READ_LIMIT: "0" },
         store,
         now: NOW,
         sources: [source("실패", [], { fail: true })],
@@ -139,7 +177,7 @@ test("모든 소스 실패는 failed 이력을 남기고 던진다", async () =>
 test("새 소식이 없으면 이슈 없이 empty 이력만 저장한다", async () => {
   const store = memoryStore();
   const result = await runDigest({
-    env: { AI: ai() },
+    env: { AI: ai(), NEWS_READ_LIMIT: "0" },
     store,
     now: NOW,
     sources: [source("조용한 소스", [])],
@@ -164,11 +202,12 @@ test("시간 창 밖 기사와 깨진 날짜를 제외한다", () => {
 
 test("잘못된 숫자 설정은 안전한 기본값으로 돌아간다", () => {
   assert.deepEqual(configFromEnv({ NEWS_WINDOW_HOURS: "0", NEWS_MAX_ITEMS: "NaN" }), {
-    model: "@cf/meta/llama-3.1-8b-instruct-fast",
+    model: "@cf/openai/gpt-oss-20b",
     windowHours: 24,
     perSource: 3,
     maxItems: 30,
     hnMinPoints: 100,
+    readLimit: 12,
   });
 });
 

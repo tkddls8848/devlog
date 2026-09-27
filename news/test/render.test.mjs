@@ -118,3 +118,16 @@ test("개발 기록 목록은 페이지 번호로 나누고 검색어를 유지�
   assert.doesNotMatch(first.replace(/journal-pagination[\s\S]*/, ""), /journal-pagination/);
   assert.doesNotMatch(renderDevlogHome([post(1)], {}, "https://example.com"), /journal-pagination/, "한 페이지면 번호를 그리지 않는다");
 });
+
+test("뉴스 본문의 [n] 출처 번호는 번호 붙은 출처 목록으로 이어지고, 나머지 소식은 접어 둔다", async () => {
+  const { renderIssue } = await import("../worker/render.mjs");
+  const entry = (title, url) => ({ title, url, at: "2026-09-27T01:00:00Z" });
+  const html = renderIssue({
+    title: "t", summary: "s", published_at: "2026-09-27T22:00:00Z", entry_count: 3, source_count: 2, ai_generated: 1,
+    body_markdown: "## 흐름\n\n문장이다.[[2]](https://b.example/2)",
+    sources: [{ source: "A", kind: "k", entries: [entry("하나", "https://a.example/1"), entry("둘", "https://b.example/2")] }, { source: "B", kind: "k", entries: [entry("셋", "https://c.example/3")] }],
+  }, {}, "https://news.example");
+  assert.match(html, /문장이다\.<sup class="cite"><a href="#source-2">\[2\]<\/a><\/sup>/);
+  assert.match(html, /<h2>출처<\/h2><ol class="links cited"><li id="source-2" value="2"><a href="https:\/\/b\.example\/2"/);
+  assert.match(html, /<summary>함께 모은 소식 2건 펼쳐 보기<\/summary>/);
+});

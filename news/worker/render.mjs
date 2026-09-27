@@ -21,14 +21,16 @@ export const escapeHtml = (value) =>
 
 const inlineMarkdown = (value) => {
   const raw = String(value || "");
-  const pattern = /`([^`\n]+)`|\*\*([^*\n]+)\*\*|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+  const pattern = /\[\[(\d{1,3})\]\]\((https?:\/\/[^)\s]+)\)|`([^`\n]+)`|\*\*([^*\n]+)\*\*|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
   let output = "";
   let offset = 0;
   for (const match of raw.matchAll(pattern)) {
     output += escapeHtml(raw.slice(offset, match.index));
-    if (match[1] !== undefined) output += `<code>${escapeHtml(match[1])}</code>`;
-    else if (match[2] !== undefined) output += `<strong>${escapeHtml(match[2])}</strong>`;
-    else output += `<a href="${escapeHtml(match[4])}" rel="noopener">${escapeHtml(match[3])}</a>`;
+    // [[3]](url) is a numbered source reference in the news digest.
+    if (match[1] !== undefined) output += `<sup class="cite"><a href="#source-${match[1]}">[${match[1]}]</a></sup>`;
+    else if (match[3] !== undefined) output += `<code>${escapeHtml(match[3])}</code>`;
+    else if (match[4] !== undefined) output += `<strong>${escapeHtml(match[4])}</strong>`;
+    else output += `<a href="${escapeHtml(match[6])}" rel="noopener">${escapeHtml(match[5])}</a>`;
     offset = match.index + match[0].length;
   }
   return output + escapeHtml(raw.slice(offset));
@@ -173,17 +175,30 @@ export function renderHome(issues, env, origin) {
   return layout({ env, summary: "매일 발행되는 IT 뉴스 다이제스트", current: "home", content, canonical: `${origin}/` });
 }
 
-export function renderIssue(issue, env, origin) {
-  const sources = issue.sources
+const sourceItem = (entry, number) =>
+  `<li${number ? ` id="source-${number}" value="${number}"` : ""}><a href="${escapeHtml(entry.url)}" rel="noopener">${escapeHtml(entry.title)}</a><span class="meta">${number ? `${escapeHtml(entry.source)} · ` : ""}<time datetime="${escapeHtml(entry.at)}">${CLOCK.format(new Date(entry.at))}</time>${entry.note ? ` · ${escapeHtml(entry.note)}` : ""}</span></li>`;
+
+function issueSources(issue) {
+  const grouped = (groups) => groups
     .map(
       (group) => `<h3>${escapeHtml(group.source)}${group.kind ? ` <span class="meta">${escapeHtml(group.kind)}</span>` : ""}</h3>
-      <ul class="links">${group.entries
-        .map(
-          (entry) => `<li><a href="${escapeHtml(entry.url)}" rel="noopener">${escapeHtml(entry.title)}</a><span class="meta"><time datetime="${escapeHtml(entry.at)}">${CLOCK.format(new Date(entry.at))}</time>${entry.note ? ` · ${escapeHtml(entry.note)}` : ""}</span></li>`
-        )
-        .join("")}</ul>`
+      <ul class="links">${group.entries.map((entry) => sourceItem(entry)).join("")}</ul>`
     )
     .join("\n");
+  // Numbers follow the stored entry order, the same order the prompt numbered them.
+  const all = issue.sources.flatMap((group) => group.entries.map((entry) => ({ ...entry, source: group.source })));
+  const cited = new Set([...String(issue.body_markdown || "").matchAll(/\[\[(\d+)\]\]\(/g)].map((m) => Number(m[1])));
+  if (!cited.size) return `<section class="sources"><h2>오늘 읽은 소식</h2>${grouped(issue.sources)}</section>`;
+  const used = all.map((entry, index) => [entry, index + 1]).filter(([, number]) => cited.has(number));
+  const rest = issue.sources
+    .map((group) => ({ ...group, entries: group.entries.filter((entry) => !used.some(([cite]) => cite.url === entry.url)) }))
+    .filter((group) => group.entries.length);
+  const others = rest.reduce((sum, group) => sum + group.entries.length, 0);
+  return `<section class="sources" id="sources"><h2>출처</h2><ol class="links cited">${used.map(([entry, number]) => sourceItem(entry, number)).join("")}</ol>${others ? `<details><summary>함께 모은 소식 ${others}건 펼쳐 보기</summary>${grouped(rest)}</details>` : ""}</section>`;
+}
+
+export function renderIssue(issue, env, origin) {
+  const sources = issueSources(issue);
   const content = `<article class="post">
   <header class="post-header">
     <h1>${escapeHtml(issue.title)}</h1>
@@ -191,7 +206,7 @@ export function renderIssue(issue, env, origin) {
     ${issue.summary ? `<p class="post-summary">${escapeHtml(issue.summary)}</p>` : ""}
   </header>
   ${markdownToHtml(issue.body_markdown)}
-  <section class="sources"><h2>오늘 읽은 소식</h2>${sources}</section>
+  ${sources}
   <p class="back"><a href="/">← 뉴스레터</a></p>
 </article>`;
   return layout({
