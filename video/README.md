@@ -32,7 +32,7 @@ claude mcp list
 예비 생성 경로는 두지 않습니다. Artlist 인증이 실패하면 계획 단계까지만 하고 멈추며, 다음
 실행에서 같은 `out/<slug>/episode.json`으로 이어갑니다.
 
-## 매일 경로: Blender 렌더 (`npm run render`)
+## 매일 경로: 자체 렌더러 (`npm run render`)
 
 대본·자막은 [편집 기준](EDITORIAL.md)에 따라 처음 보는 사람을 위한 쉬운 요약으로 작성합니다.
 기본 화면은 미니멀 레이아웃입니다. 큰 두 줄 제목, 한 가지 강조색, 작은 설명과 자막만 사용합니다.
@@ -42,12 +42,15 @@ claude mcp list
 시청자용 제목과 핵심 요약을 넣으면 화면에 우선 표시합니다.
 
 Artlist 생성 클립은 회차마다 크레딧이 들어 매일 올리기 어렵습니다. 매일 경로는 생성형 영상을 쓰지
-않습니다. 음성만 TTS로 만들고, 화면은 Blender가 글과 커밋에서 온 글자로 모션그래픽을 그립니다.
+않습니다. 음성만 TTS로 만들고, 화면은 이 저장소의 렌더러(`tools/engine`)가 직접 그립니다.
+글꼴 파일(TrueType)의 윤곽선을 직접 읽어 래스터화하고, 장면을 RGB 프레임으로 합성해 ffmpeg 표준
+입력으로 바로 보냅니다. 중간 이미지 파일이 없고, 바뀌지 않는 프레임은 다시 그리지 않습니다.
+ffmpeg는 H.264/AAC 인코딩과 음성·음악 합성만 맡습니다.
 
 | 단계 | 도구 | 비용 |
 | --- | --- | --- |
 | 내레이션 | ElevenLabs API(`ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`), 없으면 edge-tts `ko-KR-InJoonNeural` | ElevenLabs 글자 수 과금 / edge-tts 무료 |
-| 화면, 자막 | Blender 5 헤드리스, EEVEE (`blender/episode.py`) | 로컬 CPU·GPU |
+| 화면, 자막 | 자체 렌더러 `tools/engine` (글꼴 해석 `font.mjs`, 래스터화 `raster.mjs`, 미니멀 화면 `minimal.mjs`) | 없음 |
 | 음성·음악 합성, 인코딩 | ffmpeg | 없음 |
 
 - 장면 길이는 그 장면 음성 길이 + 0.4초입니다. 자막은 문장 단위로 나눠 화면에 직접 그립니다.
@@ -55,7 +58,9 @@ Artlist 생성 클립은 회차마다 크레딧이 들어 매일 올리기 어�
   편집한 제목·요약이 없는 기존 회차는 저장소 이름과 커밋 제목을 사용합니다. 사실의 근거는 원문에 둡니다.
 - 배경 음악은 `assets/music-1.mp3`나 `assets/music.mp3`가 있을 때만 낮게 깝니다.
 - 클립 프롬프트(`prompt`)와 음악 설명(`thread.music`)은 이 경로에서 빈칸이어도 됩니다.
-- 1280x720 24fps 기준 프레임당 약 0.2초, 2분 40초 회차가 약 12분 걸립니다.
+- 1280x720 24fps에서 46초 회차가 약 3초에 끝납니다(같은 회차를 Blender로 그리면 수 분).
+- 자체 렌더러는 미니멀 레이아웃만 그립니다. 이전 카드형(`layout="classic"`)은 Blender(`blender/episode.py`)로
+  그리며, `VIDEO_ENGINE=blender`로 미니멀도 Blender로 그릴 수 있습니다.
 
 ```bash
 npm run voice -- out/<slug>                  # 음성만 (있는 파일은 건너뜀, --force로 다시)
@@ -197,7 +202,7 @@ Gemini 오류가 나면 다른 서비스로 자동 전환하지 않고 중단합
 ### 설치
 
 - Node 20 이상, `ffmpeg`와 `ffprobe`
-- 매일 경로: Blender 5(`BLENDER`로 경로 지정, 기본은 Windows 설치 위치), `pip install edge-tts`
+- 매일 경로: 추가 프로그램 없음(TTS 서비스만). 카드형 레이아웃만 Blender 5가 필요합니다(`BLENDER`로 경로 지정).
 - 한국어 글꼴. 기본은 NanumGothic(Windows는 `C:/Windows/Fonts`, Linux는 `/usr/share/fonts/truetype/nanum`)이며
   `VIDEO_FONT`, `VIDEO_FONT_BOLD`로 바꿉니다.
 - `VIDEO_MUSIC_VOLUME`(기본 0.12)으로 음악 볼륨을 조절합니다.

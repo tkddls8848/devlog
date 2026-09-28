@@ -1,14 +1,16 @@
 // 생성형 영상 클립 없이 회차 한 편을 만든다. 크레딧이 드는 Artlist 경로(assemble.mjs)를 대신한다.
 //   1. 장면마다 음성을 만든다(voice.mjs: ElevenLabs, 키가 없으면 edge-tts). 있는 파일은 다시 쓰지 않는다.
-//   2. 음성 길이로 장면 길이를 정해 Blender가 모션그래픽과 자막을 PNG 프레임으로 렌더링한다.
+//   2. 음성 길이로 장면 길이를 정해 화면과 자막을 그린다. 기본은 이 저장소의 자체 렌더러
+//      (tools/engine: 글꼴 해석, 래스터화, 합성)이고, VIDEO_ENGINE=blender면 Blender가 그린다.
 //   3. ffmpeg가 프레임, 장면별 음성, 배경 음악(assets/music-1.mp3 또는 music.mp3, 없으면 생략)을 합친다.
 // 사용: node tools/render.mjs out/<slug> [--frames=N 앞부분만 미리 보기] [--resume 끊긴 렌더 이어 하기]
-// 환경 변수: BLENDER(실행 파일), VIDEO_SIZE(기본 1280x720), VIDEO_FPS(기본 24), VIDEO_FONT, VIDEO_FONT_BOLD
+// 환경 변수: VIDEO_ENGINE(native|blender), BLENDER(실행 파일), VIDEO_SIZE(기본 1280x720), VIDEO_FPS(기본 24), VIDEO_FONT, VIDEO_FONT_BOLD
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { probeSeconds } from "./assemble.mjs";
+import { rawVideoInput, renderToFfmpeg } from "./engine/index.mjs";
 import { buildChapters, buildMetadata, buildSpec, sceneOrder, validateEpisode } from "./lib.mjs";
 import { loadEnv, makeVoices } from "./voice.mjs";
 
@@ -29,12 +31,19 @@ export function fonts(env = process.env) {
   return { font: regular.replace(/\\/g, "/"), fontBold: bold.replace(/\\/g, "/") };
 }
 
+// The native renderer draws the minimal layout; the older card layout still needs Blender.
+export function pickEngine(spec, env = process.env) {
+  if (env.VIDEO_ENGINE === "blender" || env.VIDEO_ENGINE === "native") return env.VIDEO_ENGINE;
+  return (spec.layout || "minimal") === "minimal" ? "native" : "blender";
+}
+
 // The Artlist fields (clip prompts, music descriptions) are not needed here.
 export const renderProblems = (episode) => validateEpisode(episode).filter((problem) => !/prompt가 비었|thread\.music/.test(problem));
 
 // Every scene's voice padded to the scene length, in order, with optional music underneath.
-export function muxArgs({ frames, fps, voices, music, musicVolume = "0.12", seconds, output }) {
-  const inputs = ["-framerate", String(fps), "-i", path.join(frames, "f%04d.png")];
+// `video` replaces the PNG frame folder input (the native renderer streams raw frames).
+export function muxArgs({ frames, fps, video, voices, music, musicVolume = "0.12", seconds, output }) {
+  const inputs = video ? [...video] : ["-framerate", String(fps), "-i", path.join(frames, "f%04d.png")];
   const filters = [];
   voices.forEach((voice, i) => {
     inputs.push("-i", voice.file);
@@ -85,18 +94,24 @@ export async function render(dir, { previewFrames = 0, resume = false, log = con
   const specFile = path.join(work, "spec.json");
   writeFileSync(specFile, `${JSON.stringify(spec, null, 1)}\n`, "utf8");
 
-  const frames = path.join(work, "frames");
-  if (!resume) rmSync(frames, { recursive: true, force: true });
-  mkdirSync(frames, { recursive: true });
   const total = previewFrames ? Math.min(previewFrames, spec.frames) : spec.frames;
-  log(`Blender 렌더링: ${total}프레임 (${(total / fps).toFixed(1)}초, ${width}x${height} ${fps}fps)`);
-  const started = Date.now();
-  run(blenderPath(), ["-b", "--factory-startup", "--python-exit-code", "1", "--python", path.join(VIDEO_ROOT, "blender", "episode.py"), "--", specFile, frames, String(total), ...(resume ? ["--resume"] : [])], "Blender 렌더링");
-  log(`렌더링 ${((Date.now() - started) / 1000).toFixed(0)}초`);
-
   const music = firstExisting(path.join(assets, "music-1.mp3"), path.join(assets, "music.mp3")) || null;
   const output = path.join(dir, previewFrames ? "preview.mp4" : "final.mp4");
-  run("ffmpeg", muxArgs({ frames, fps, voices, music, musicVolume: process.env.VIDEO_MUSIC_VOLUME, seconds: total / fps, output }), "ffmpeg 합치기");
+  const mux = { fps, voices, music, musicVolume: process.env.VIDEO_MUSIC_VOLUME, seconds: total / fps, output };
+  const engine = pickEngine(spec);
+  log(`${engine === "native" ? "자체 렌더러" : "Blender"}: ${total}프레임 (${(total / fps).toFixed(1)}초, ${width}x${height} ${fps}fps)`);
+  const started = Date.now();
+  if (engine === "native") {
+    // Frames go straight into ffmpeg's stdin; nothing is written to disk but the result.
+    await renderToFfmpeg(spec, { total, args: muxArgs({ ...mux, video: rawVideoInput(spec) }) });
+  } else {
+    const frames = path.join(work, "frames");
+    if (!resume) rmSync(frames, { recursive: true, force: true });
+    mkdirSync(frames, { recursive: true });
+    run(blenderPath(), ["-b", "--factory-startup", "--python-exit-code", "1", "--python", path.join(VIDEO_ROOT, "blender", "episode.py"), "--", specFile, frames, String(total), ...(resume ? ["--resume"] : [])], "Blender 렌더링");
+    run("ffmpeg", muxArgs({ ...mux, frames }), "ffmpeg 합치기");
+  }
+  log(`렌더링 ${((Date.now() - started) / 1000).toFixed(0)}초`);
 
   const { chapters, total: length } = buildChapters(episode, seconds);
   const metadata = buildMetadata(episode, chapters, { file: output, seconds: previewFrames ? total / fps : length });
