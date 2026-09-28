@@ -6,7 +6,8 @@
 // 배경: episode.json 장면의 background(회차 폴더 기준 경로) 또는 assets/bg-<장면 id>.mp4|png|jpg.
 //       없으면 Workers AI로 그린다(backgrounds.mjs). --no-generate면 짙은 단색.
 //       사진 배경은 천천히 밀고 흐르며, 장면 사이 배경은 0.5초 겹쳐 서서히 넘어간다.
-// 사용: node tools/compose.mjs out/<slug> [--seconds=N 앞부분만 preview.mp4] [--force-voice] [--no-generate]
+// 사용: node tools/compose.mjs out/<slug> [--seconds=N 앞부분만 preview.mp4] [--scene=<장면 id> 그 장면만 preview-<id>.mp4]
+//       [--force-voice] [--no-generate]
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -72,7 +73,7 @@ function run(bin, args, label) {
   return result.stdout;
 }
 
-export async function compose(dir, { previewSeconds = 0, forceVoice = false, generate = true, log = console.log } = {}) {
+export async function compose(dir, { previewSeconds = 0, onlyScene = "", forceVoice = false, generate = true, log = console.log } = {}) {
   dir = path.resolve(dir);
   const episode = JSON.parse(readFileSync(path.join(dir, "episode.json"), "utf8"));
   const problems = renderProblems(episode);
@@ -134,11 +135,15 @@ export async function compose(dir, { previewSeconds = 0, forceVoice = false, gen
   const subtitles = phrases.flat().map((p) => ({ start: p.start, end: p.end, text: balancedLines(p.text, measure, CAPTION.width).join("\n") }));
   writeFileSync(path.join(work, "phrases.json"), JSON.stringify(subtitles, null, 1), "utf8");
 
-  const output = path.join(dir, previewSeconds ? "preview.mp4" : "final.mp4");
+  const onlyIndex = onlyScene ? scenes.findIndex((scene) => scene.id === onlyScene) : -1;
+  if (onlyScene && onlyIndex < 0) throw new Error(`장면 ${onlyScene}이 없습니다. 장면 id: ${scenes.map((s) => s.id).join(", ")}`);
+  const partial = previewSeconds || onlyIndex >= 0;
+  const output = path.join(dir, onlyIndex >= 0 ? `preview-${onlyScene}.mp4` : previewSeconds ? "preview.mp4" : "final.mp4");
   const manifest = path.join(work, "vse-manifest.json");
   writeFileSync(manifest, JSON.stringify({
     width: WIDTH, height: HEIGHT, fps: FPS, duration, audio, output, crossfade: CROSSFADE,
     max_frames: previewSeconds ? Math.round(previewSeconds * FPS) : 0,
+    range: onlyIndex >= 0 ? [spans[onlyIndex].start, spans[onlyIndex].end] : null,
     backgrounds, cards, subtitles,
     // Blender text size is the em size; match the caption's visible height.
     caption: { font: fontFiles.fontBold, em_size: (CAPTION.size * bold.unitsPerEm) / (bold.ascender - bold.descender), bottom: CAPTION.bottom, color: COLORS.ink },
@@ -159,8 +164,8 @@ export async function compose(dir, { previewSeconds = 0, forceVoice = false, gen
     else if (session) chapters.push({ title: scene.label || `${shortRepo(session.repo)} · ${session.thread.name}`, start: Math.round(spans[i].start), repo: session.repo });
     else if (scene.id === "ending") chapters.push({ title: "마무리", start: Math.round(spans[i].start) });
   });
-  const metadata = buildMetadata(episode, chapters, { file: output, seconds: previewSeconds || duration });
-  if (!previewSeconds) {
+  const metadata = buildMetadata(episode, chapters, { file: output, seconds: onlyIndex >= 0 ? spans[onlyIndex].end - spans[onlyIndex].start : previewSeconds || duration });
+  if (!partial) {
     writeFileSync(path.join(dir, "chapters.json"), `${JSON.stringify(chapters, null, 2)}\n`, "utf8");
     writeFileSync(path.join(dir, "metadata.json"), `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
   }
@@ -172,8 +177,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const argv = process.argv.slice(2);
   const [dir] = argv.filter((arg) => !arg.startsWith("--"));
   const previewSeconds = Number(argv.find((arg) => arg.startsWith("--seconds="))?.split("=")[1]) || 0;
+  const onlyScene = argv.find((arg) => arg.startsWith("--scene="))?.split("=")[1] || "";
   if (!dir) { console.error("사용법: node tools/compose.mjs out/<slug> [--seconds=N] [--force-voice]"); process.exit(1); }
-  compose(dir, { previewSeconds, forceVoice: argv.includes("--force-voice"), generate: !argv.includes("--no-generate") })
+  compose(dir, { previewSeconds, onlyScene, forceVoice: argv.includes("--force-voice"), generate: !argv.includes("--no-generate") })
     .then((m) => console.log(`${m.file} (${Math.round(m.seconds)}초)\n챕터:\n${m.chapters.map((c) => `  ${c.start}s ${c.title}`).join("\n")}`))
     .catch((error) => { console.error(error.message); process.exit(1); });
 }

@@ -22,10 +22,10 @@ def tone(strip, row):
     mapping.update()
 
 
-# Subtle motion: at 1.02 -> 1.10 and 36 px the move itself drew the eye; a fifth of that was too slow
-# to notice (2026-09-28). Now 0.3 of the original: felt, not watched.
-DRIFT_SCALE = (1.02, 1.044)
-DRIFT_PX = 5.4
+# Motion history (2026-09-28/29): 1.02 -> 1.10 and 36 px drew the eye; a fifth of that was invisible;
+# 0.3 was still too slow. Now 0.6 of the original.
+DRIFT_SCALE = (1.02, 1.068)
+DRIFT_PX = 10.8
 
 
 def drift(strip, start, end, index):
@@ -53,6 +53,10 @@ def render(manifest):
     scene.frame_start, scene.frame_end = 1, max(1, round(manifest["duration"] * fps))
     if manifest.get("max_frames"):
         scene.frame_end = min(scene.frame_end, manifest["max_frames"])
+    if manifest.get("range"):
+        # Render one scene only; strips keep their full-timeline positions so sound stays in sync.
+        first, last = manifest["range"]
+        scene.frame_start, scene.frame_end = 1 + round(first * fps), round(last * fps)
     scene.render.use_sequencer = True
     scene.render.image_settings.media_type = "VIDEO"
     scene.render.image_settings.color_mode = "RGB"
