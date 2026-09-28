@@ -1,166 +1,140 @@
-# video — 개발 일지를 유튜브 시리즈로
+# video — 개발 일지를 유튜브 영상으로
 
-발행한 개발 일지 한 편을 유튜브 영상 한 편으로 만드는 워크플로입니다. 영상은 그날 커밋이 있던
-저장소마다 하나의 세션(챕터)을 두고, 같은 저장소에서 이어지는 작업은 별개 영상이 아니라 같은
-스레드의 다음 회차로 묶습니다. 예를 들어 `game` 저장소에 사운드를 넣은 영상이 있었고 이틀 뒤
-인물 목소리를 구현했다면, 두 번째 영상은 `[game] 오디오 시스템 #2`가 되고 오프닝에서 지난
-이야기를 짧게 되짚습니다. 커밋이 없던 저장소는 언급하지 않습니다.
+발행한 개발 일지 한 편을 가로 유튜브 영상 한 편으로 만듭니다. 그날 커밋이 있던 저장소마다 하나의
+세션(챕터)을 두고, 같은 저장소에서 이어지는 작업은 같은 스레드의 다음 회차로 묶습니다. 커밋이
+없던 저장소는 언급하지 않습니다.
 
-Claude Code 스킬 `/devlog-video`가 절차를 이끌고, 이 폴더의 스크립트가 결정적인 부분(글 분해,
-시리즈 판정, ffmpeg 조립, 업로드)을 맡습니다. 편집 판단(내레이션, 프롬프트, 스레드 이름)은
-Claude가 `episode.json`의 빈칸을 채우는 방식으로 합니다. 다른 폴더의 코드를 참조하지 않으며,
-입력은 `news` 폴더의 `npm run journal -- pull`이 만드는 Markdown 파일입니다.
+제작 방식은 stock_chatbot/shorts의 방식을 가로 영상에 옮긴 것입니다. **생성형 영상 클립과 Artlist를
+쓰지 않습니다.** 배경은 Cloudflare Workers AI로 그린 이미지이고, 음성은 edge-tts, 합성은 로컬
+Blender입니다. 대본과 자막 기준은 [EDITORIAL.md](EDITORIAL.md)에 있습니다.
 
-## 도구 조합
-
-| 단계 | 도구 | Codex 기준 대응 |
-| --- | --- | --- |
-| 에이전트 | Claude Code 스킬 `.claude/skills/devlog-video/SKILL.md` | Codex |
-| 장면 클립 | Artlist MCP의 Seedance 2.5 | Artlist MCP + Seedance 2.5 |
-| 보이스오버, 음악 | Artlist MCP (ElevenLabs 보이스오버, Artlist 음악) | Artlist MCP |
-| 편집, 자막, 합성 | ffmpeg (`tools/assemble.mjs`) | 수동 편집 |
-| 업로드, 재생목록 | YouTube Data API (`tools/upload.mjs`) | 수동 업로드 |
-
-Artlist MCP는 원격 HTTP 서버라 로컬 프로세스가 필요 없습니다. 저장소 루트의 `.mcp.json`이
-연결 설정이며, 처음 한 번 Artlist 계정으로 로그인합니다. 유료 플랜의 AI 크레딧을 씁니다.
-
-```bash
-claude mcp add artlist --transport http https://mcp.artlist.io/mcp   # .mcp.json이 없을 때
-claude mcp list
-```
-
-예비 생성 경로는 두지 않습니다. Artlist 인증이 실패하면 계획 단계까지만 하고 멈추며, 다음
-실행에서 같은 `out/<slug>/episode.json`으로 이어갑니다.
-
-## 매일 경로: 자체 렌더러 (`npm run render`)
-
-대본·자막은 [편집 기준](EDITORIAL.md)에 따라 처음 보는 사람을 위한 쉬운 요약으로 작성합니다.
-기본 화면은 미니멀 레이아웃입니다. 큰 두 줄 제목, 한 가지 강조색, 작은 설명과 자막만 사용합니다.
-`scene.label`과 `scene.note`로 장 번호와 보조 설명을 지정합니다. 이전 카드형 화면은
-`episode.style.layout="classic"`으로 선택할 수 있습니다.
-작업 목록보다 목적·변화·의미를 중심으로 설명하고, `scene.text`와 `scene.points`에
-시청자용 제목과 핵심 요약을 넣으면 화면에 우선 표시합니다.
-
-Artlist 생성 클립은 회차마다 크레딧이 들어 매일 올리기 어렵습니다. 매일 경로는 생성형 영상을 쓰지
-않습니다. 음성만 TTS로 만들고, 화면은 이 저장소의 렌더러(`tools/engine`)가 직접 그립니다.
-글꼴 파일(TrueType)의 윤곽선을 직접 읽어 래스터화하고, 장면을 RGB 프레임으로 합성해 ffmpeg 표준
-입력으로 바로 보냅니다. 중간 이미지 파일이 없고, 바뀌지 않는 프레임은 다시 그리지 않습니다.
-ffmpeg는 H.264/AAC 인코딩과 음성·음악 합성만 맡습니다.
+## 쓰는 도구와 비용
 
 | 단계 | 도구 | 비용 |
 | --- | --- | --- |
-| 내레이션 | ElevenLabs API(`ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`), 없으면 edge-tts `ko-KR-InJoonNeural` | ElevenLabs 글자 수 과금 / edge-tts 무료 |
-| 화면, 자막 | 자체 렌더러 `tools/engine` (글꼴 해석 `font.mjs`, 래스터화 `raster.mjs`, 미니멀 화면 `minimal.mjs`) | 없음 |
-| 음성·음악 합성, 인코딩 | ffmpeg | 없음 |
+| 대본(`episode.json` 편집 칸) | Claude Code가 글과 커밋 근거로 채움 | — |
+| 음성 | edge-tts `ko-KR-InJoonNeural` (`tools/speech.py`) | 무료, API 키 없음(비공식 서비스) |
+| 배경 묘사 | Workers AI `@cf/openai/gpt-oss-20b` | Workers AI 사용량 |
+| 배경 이미지 | Workers AI `@cf/black-forest-labs/flux-2-klein-4b` (느리면 `flux-2-klein-9b`) | 한 장 약 210~310 neurons(9b는 약 1,560) |
+| 글자·사람 검사 | Workers AI `@cf/meta/llama-3.2-11b-vision-instruct` | 검사 한 번 약 7 neurons |
+| 자막 시각, 카드 그림 | 이 폴더의 코드 (`tools/timeline.mjs`, `tools/engine/`) | 없음 |
+| 합성, 인코딩 | Blender 5.2 VSE (`blender/vse.py`) | 로컬, 무료 |
+| 쉼 편집, 길이 측정, 축소 | ffmpeg, ffprobe | 로컬, 무료 |
+| 업로드, 재생목록 | YouTube Data API (`tools/upload.mjs`) | 무료(일일 할당량) |
 
-- 장면 길이는 그 장면 음성 길이 + 0.4초입니다. 자막은 문장 단위로 나눠 화면에 직접 그립니다.
-- 제목 장면: 시청자용 제목, 스레드 회차, 부제. 내용 장면: 제목과 핵심 요약이 하나씩 나옵니다.
-  편집한 제목·요약이 없는 기존 회차는 저장소 이름과 커밋 제목을 사용합니다. 사실의 근거는 원문에 둡니다.
-- 배경 음악은 `assets/music-1.mp3`나 `assets/music.mp3`가 있을 때만 낮게 깝니다.
-- 클립 프롬프트(`prompt`)와 음악 설명(`thread.music`)은 이 경로에서 빈칸이어도 됩니다.
-- 1280x720 24fps에서 46초 회차가 약 3초에 끝납니다(같은 회차를 Blender로 그리면 수 분).
-- 자체 렌더러는 미니멀 레이아웃만 그립니다. 이전 카드형(`layout="classic"`)은 Blender(`blender/episode.py`)로
-  그리며, `VIDEO_ENGINE=blender`로 미니멀도 Blender로 그릴 수 있습니다.
+Workers AI 무료 한도는 하루 10,000 neurons입니다. 장면 6개 회차의 배경은 4b 기준 약 1,300~1,900
+neurons입니다. 개발 일지 자동 작성(gpt-oss-120b)도 같은 한도를 씁니다.
 
-```bash
-npm run voice -- out/<slug>                  # 음성만 (있는 파일은 건너뜀, --force로 다시)
-npm run render -- out/<slug> --frames=600    # 앞 25초만 preview.mp4로 미리 보기
-npm run render -- out/<slug>                 # final.mp4, chapters.json, metadata.json
-```
-
-## 권장 경로: 쇼츠 방식 합성 (`npm run compose`)
-
-stock_chatbot/shorts의 제작 방식을 가로 영상에 옮긴 경로입니다. 1920x1080 30fps.
-
-1. **음성** `tools/speech.py`: 원고 전체를 edge-tts로 한 번에 합성하고 단어별 발화 시각을 받습니다.
-   장면마다 따로 합성하면 경계마다 음색과 호흡이 다시 시작됩니다. 합성 뒤 쉼을 자리마다 조정합니다
-   (도입→첫 장면 0.6초, 장면 사이 0.75초, 마무리 앞 0.9초, 문장 끝 0.45초). 말 속도는 `EDGE_TTS_RATE`
-   (기본 +30%). 원고·목소리·속도가 같으면 다시 합성하지 않습니다(`--force-voice`로 강제).
-2. **자막·장면 시각** `tools/timeline.mjs`: 문장으로 끊고 긴 문장만 쉼표·연결어미에서 균등하게
-   나눕니다. 구절은 첫 단어보다 0.05초(장면 첫 구절은 0.55초) 먼저 뜨고, 장면은 첫 구절과 함께 바뀝니다.
-   발음 사전으로 바꾼 말(RAG→래그)도 자막에는 원래 표기가 나옵니다.
-3. **카드** `engine/cards.mjs`: 배경 위에 얹는 투명 PNG. 왼쪽·아래 어둠, DEVLOG 헤더와 날짜, 장 표시,
-   큰 두 줄 제목(둘째 줄 강조색), 쪽 번호와 칸 진행바, 설명. 제목만 먼저 세우고 설명을 얹습니다.
-4. **합성** `blender/vse.py`: Blender VSE가 배경(장면 강조색으로 색조) + 카드 + 외곽선·그림자 자막 +
-   음성을 합쳐 H.264/AAC로 인코딩합니다.
-
-배경은 장면의 `background`(회차 폴더 기준 경로) 또는 `assets/bg-<장면 id>.mp4|png|jpg`입니다. 없으면
-`tools/backgrounds.mjs`가 Cloudflare Workers AI로 그립니다(Artlist 크레딧 없음, Workers AI 사용량만).
-stock_chatbot/shorts의 `media.py`와 같은 방식입니다.
-
-- 무엇을 그릴지: 장면의 `visual`(영문 한 문장)이 있으면 그대로 씁니다. 없으면 `gpt-oss-20b`가 회차의
-  모든 장면 묘사를 한 번에 씁니다. 장면마다 다른 장소와 비유를 쓰고, 책상·램프·머그 같은 상투적 소품은
-  금지합니다(한 장면씩 물으면 여섯 중 넷이 책상 위 머그였습니다).
-- 그림: `flux-2-klein-9b`, 1920x1088. 주제는 오른쪽, 왼쪽은 같은 장면의 그늘로 어둡게 둡니다.
-- 검사: `llama-3.2-11b-vision-instruct`가 글자와 사람을 찾으면 다시 그립니다(최대 3번). 끝까지 걸리면
-  그 장면은 짙은 단색입니다. llava-1.5는 2026-09-28에 503만 돌려줘 바꿨습니다.
-- 인증: 최상위 `.env`의 `CLOUDFLARE_API_TOKEN`(Workers AI 권한)과 `CLOUDFLARE_ACCOUNT_ID`, 없으면
-  `news` 폴더의 wrangler 로그인 토큰을 씁니다.
-- 기록: `assets/backgrounds.json`에 장면별 묘사·프롬프트·시도 횟수가 남습니다. 있는 배경은 다시 그리지
-  않고, `node tools/backgrounds.mjs out/<slug> --force`로 다시 그립니다. `--no-generate`면 그리지 않습니다.
-
-사진 배경은 장면 동안 천천히 확대되며 옆으로 흐르고(카드와 자막은 고정), 장면 사이 배경은 0.5초
-겹쳐 서서히 넘어갑니다. 이미 만든 Artlist 클립도 배경으로 쓸 수 있습니다.
-강조색은 처음·끝이 금색, 저장소 세션은 파랑·빨강·초록·보라 순서입니다.
-
-```bash
-npm run compose -- out/<slug> --seconds=15   # 앞 15초만 preview.mp4
-npm run compose -- out/<slug>                # final.mp4, chapters.json, metadata.json
-```
-
-35초 회차가 배경 6장 생성과 음성 합성을 포함해 약 2분에 끝납니다.
-
-## 파이프라인
+## 흐름
 
 ```text
-devlog/journal/<slug>.md            news 폴더의 journal pull 결과 (발행한 글 + 참고 자료)
+devlog/journal/<slug>.md       news 폴더의 journal pull 결과 (발행한 글 + 커밋 근거)
       │  npm run plan
       ▼
-out/<slug>/episode.json             저장소 세션, 스레드 판정, 장면 뼈대. 편집 칸은 null
-out/<slug>/script.md                사람이 읽는 대본
-      │  Claude가 빈칸을 채움 → Artlist MCP로 assets/ 생성
+out/<slug>/episode.json        저장소 세션, 스레드 판정, 장면 뼈대. 편집 칸은 null
+      │  Claude가 대본·화면 문구를 채움 (EDITORIAL.md)
       ▼
-out/<slug>/assets/clip-*.mp4, voice-*.mp3, music-1.mp3
-      │  npm run assemble
+      │  npm run compose
+      │    1. 배경이 없는 장면은 Workers AI로 그림            → assets/bg-<장면>.jpg
+      │    2. 원고 전체를 edge-tts로 한 번에 합성, 쉼 조정      → work/narration.mp3, words.json
+      │    3. 단어 시각으로 자막 구절과 장면 전환 시각 결정
+      │    4. 장면별 투명 카드 PNG                            → work/card-*.png
+      │    5. Blender VSE 합성·인코딩
       ▼
 out/<slug>/final.mp4, chapters.json, metadata.json
       │  npm run upload
       ▼
-YouTube 영상 + 저장소별 재생목록,  series.json 갱신 (커밋)
+YouTube 영상 + 저장소별 재생목록, series.json 갱신 (커밋)
 ```
-
-1. **입력** `cd news && npm run journal -- pull <날짜>`로 글을 받습니다. 발행한 글만 받아들입니다.
-2. **저장소 세션** 참고 자료의 커밋 근거를 저장소별로 되돌리고, 본문 `##` 소제목을 저장소 이름과
-   변경 파일 이름으로 배정합니다. 배정되지 않은 소제목은 `unassigned`에 남겨 Claude가 정합니다.
-3. **시리즈 판정** `series.json`의 같은 저장소 열린 스레드와 변경 경로 겹침(가중치 2), 키워드
-   겹침(가중치 1)으로 점수를 매겨 2점 이상이면 다음 회차로 잇고, 아니면 새 스레드를 엽니다. 마지막
-   회차 뒤 `staleDays`(기본 30일)가 지난 스레드는 후보에서 뺍니다.
-4. **장면** 세션마다 제목 카드, 본문 소제목당 클립(최대 3개), diff 발췌가 있으면 코드 정지 화면을
-   둡니다. 앞뒤로 오프닝과 엔딩 제목 카드가 붙습니다.
-5. **생성** Claude가 Artlist MCP로 장면 클립, 장면별 보이스오버, 스레드 고정 음악을 만들어
-   `assets/`에 정해진 이름으로 저장합니다. 같은 스레드는 같은 목소리, 음악, 색감을 유지합니다.
-6. **조립** 장면 길이는 보이스오버 길이에 맞춥니다. 클립은 짧으면 반복하고 길면 자릅니다. 제목
-   카드와 코드 화면은 ffmpeg `drawtext`로 그리고, 자막은 내레이션을 문장 단위로 나눠 굽습니다.
-   음악은 낮은 볼륨으로 전체에 깝니다. 챕터 시작 시각을 기록합니다.
-7. **업로드** 제목은 `[저장소] 스레드 #회차 · 부제`, 설명에는 요약, 글 링크, 이전 회차 링크, 챕터
-   타임스탬프, 커밋 링크가 들어갑니다. 저장소마다 `<저장소> 개발 일지` 재생목록을 만들거나 찾아
-   넣고, `series.json`에 회차를 기록합니다.
 
 ## 명령
 
 ```bash
 cd video
 npm test
-npm run plan -- ../devlog/journal/2026-09-24-devlog.md   # out/<slug>/episode.json, script.md
-npm run assemble -- out/2026-09-24-devlog --dry-run       # 빈칸 검사만
-npm run assemble -- out/2026-09-24-devlog                 # final.mp4, metadata.json
-npm run upload -- out/2026-09-24-devlog --dry-run         # 보낼 메타데이터 확인
-npm run upload -- out/2026-09-24-devlog --privacy=private
+npm run plan -- ../devlog/journal/2026-09-26-devlog.md   # out/<slug>/episode.json, script.md
+npm run backgrounds -- out/<slug>                        # 배경만 (없는 장면만, --force로 전부 다시)
+npm run compose -- out/<slug> --scene=release            # 장면 하나만 preview-release.mp4
+npm run compose -- out/<slug> --seconds=15               # 앞 15초만 preview.mp4
+npm run compose -- out/<slug>                            # final.mp4, chapters.json, metadata.json
+npm run upload -- out/<slug> --dry-run                   # 보낼 메타데이터 확인
+npm run upload -- out/<slug> --privacy=private
 ```
 
-`plan`은 이미 영상으로 만든 글이나 이미 있는 `episode.json`을 덮어쓰지 않습니다. 다시 만들려면
-`--force`를 붙입니다. `assemble`은 `episode.json`에 빈칸이 있거나 `assets/`에 파일이 빠지면
-목록을 보여 주고 멈춥니다.
+`compose` 옵션: `--force-voice`(음성 다시 합성), `--no-generate`(배경을 그리지 않고 없으면 단색).
+
+## 단계별 세부
+
+### 1. 배경 (`tools/backgrounds.mjs`)
+
+- 장면의 `background`(회차 폴더 기준 경로)나 `assets/bg-<장면 id>.mp4|png|jpg`가 있으면 그대로 씁니다.
+  이미 만든 영상 클립도 배경이 될 수 있습니다.
+- 없으면 무엇을 그릴지 정합니다. 장면의 `visual`(영문 한 문장)이 있으면 그대로, 없으면 `gpt-oss-20b`가
+  회차의 모든 장면 묘사를 한 번에 씁니다. 장면마다 다른 장소와 비유를 쓰고, 책상·램프·머그 같은
+  상투적 소품은 금지합니다(한 장면씩 물으면 여섯 중 넷이 책상 위 머그였습니다).
+- `flux-2-klein-4b`로 1920x1088을 그립니다. 주제는 오른쪽 3분의 1, 왼쪽은 같은 장면의 그늘로 두어
+  제목이 앉을 자리를 만듭니다. 4b가 90초 안에 답하지 않으면 그 장만 `flux-2-klein-9b`로 그립니다
+  (2026-09-28에 4b가 4분 넘게 멈춘 적이 있습니다). `VIDEO_IMAGE_MODEL`로 기본 모델을 바꿉니다.
+- `llama-3.2-11b-vision-instruct`가 글자나 사람을 찾으면 다시 그립니다(최대 3번). 끝까지 걸리거나
+  그리기에 실패하면 그 장면만 짙은 단색으로 두고 영상은 계속 만듭니다. 이 모델은 계정에서 Meta
+  라이선스 동의가 한 번 필요합니다(2026-09-28 동의함). stock_chatbot이 쓰는 llava-1.5는 그날 503만
+  돌려줬습니다. `VIDEO_BACKGROUND_CHECK=false`면 검사를 건너뜁니다.
+- 인증: 최상위 `.env`의 `CLOUDFLARE_API_TOKEN`(Workers AI 권한)과 `CLOUDFLARE_ACCOUNT_ID`. 없으면
+  `news` 폴더의 wrangler 로그인 토큰을 씁니다(로컬 전용).
+- 기록: `assets/backgrounds.json`에 장면별 묘사, 프롬프트, 실제로 쓴 모델, 시도 횟수가 남습니다.
+
+### 2. 음성 (`tools/speech.py`)
+
+- 원고 전체를 edge-tts로 **한 번에** 합성하고 단어별 발화 시각(WordBoundary)을 받습니다. 장면마다
+  따로 합성하면 경계마다 음색과 호흡이 다시 시작됩니다.
+- edge-tts는 문장 사이와 장면 사이를 똑같이 쉬므로, 합성 뒤 PCM에서 쉼 한가운데만 늘리거나 줄입니다.
+  도입→첫 장면 0.9초, 장면 사이 1.1초, 마무리 앞 1.3초, 문장 끝 0.65초.
+- 말 속도 `EDGE_TTS_RATE`(기본 +12%), 목소리 `EDGE_TTS_VOICE`. +30%는 급하게 들렸습니다.
+- 영어 약어는 `pronunciation.json`의 읽는 법으로 바꿔 보냅니다(RAG → 래그). 자막은 원래 표기를 씁니다.
+- 원고·목소리·속도·쉼 설정이 같으면 다시 합성하지 않습니다. 쉼 값을 바꾸면 `compose.mjs`의
+  `PACING`도 바꿉니다.
+
+### 3. 자막과 장면 시각 (`tools/timeline.mjs`)
+
+- 문장으로 끊고, 30자를 넘는 문장만 쉼표·연결어미 자리에서 균등하게 나눕니다. "…와·과·의" 뒤와 한
+  어절 안에서는 끊지 않습니다.
+- 구절은 첫 단어보다 0.05초 먼저 뜨고(장면 첫 구절은 0.55초) 다음 구절이 뜰 때까지 남습니다.
+- 장면은 첫 구절이 뜨는 순간 바뀝니다. 화면이 먼저 자리를 잡고 말이 시작됩니다.
+
+### 4. 카드 (`tools/engine/cards.mjs`)
+
+배경 위에 얹는 1920x1080 투명 PNG입니다. 글꼴(TrueType)을 직접 읽어 그립니다(`engine/font.mjs`,
+`engine/raster.mjs`, `engine/png.mjs`).
+
+- 왼쪽과 아래에 어둠(스크림)을 깔아 어떤 배경에서도 글자가 읽히게 합니다.
+- 위에서부터: DEVLOG 칩과 날짜, 장 표시(`scene.label` · 저장소), 큰 두 줄 제목(`scene.text`, 둘째 줄
+  강조색), 쪽 번호와 장면 수만큼의 칸 진행바, 설명(`scene.note`)과 요약(`scene.points`, 최대 3개).
+- 긴 장면은 제목만 먼저 세우고(최대 2.2초) 설명을 얹습니다.
+- 강조색: 처음·끝은 금색, 저장소 세션은 파랑·빨강·초록·보라 순서.
+
+### 5. 합성 (`blender/vse.py`)
+
+- 채널 1·2: 배경. 장면 강조색으로 색조를 입히고, 장면 사이에서 0.5초 겹쳐 서서히 넘깁니다.
+  사진 배경은 장면 동안 1.02배에서 1.50배로 확대되며 옆으로 약 22px 흐릅니다(카드·자막은 고정).
+  값은 `DRIFT_SCALE`, `DRIFT_PX`입니다. 영상 배경은 장면보다 짧으면 반복합니다.
+- 채널 3: 카드 PNG. 채널 4: 자막(굵게, 외곽선·그림자, 하단 중앙). 채널 5: 내레이션.
+- 1920x1080 30fps, H.264/AAC. 2분 30초 회차가 약 2분 반, 장면 하나(`--scene`)는 약 30초에 끝납니다.
+
+## episode.json에서 compose가 읽는 칸
+
+| 칸 | 쓰임 |
+| --- | --- |
+| `opening`, `sessions[].scenes[]`, `ending` | 장면 순서 |
+| `scene.narration` | 음성과 자막. 합니다체로, 세션당 네다섯 문장(EDITORIAL.md) |
+| `scene.text` | 화면 큰 제목. `\n`으로 두 줄 |
+| `scene.label` | 장 표시(예: `01 / 공개`) |
+| `scene.note`, `scene.points` | 제목 아래 설명 한 줄, 요약 1~3개 |
+| `scene.visual` | 배경으로 그릴 장면(영문 한 문장). 없으면 자동 |
+| `scene.background` | 쓸 배경 파일(회차 폴더 기준). 있으면 그리지 않음 |
+| `sessions[].repo`, `thread`, `commits` | 장 표시, 챕터, 게시 정보 |
+
+`plan`이 만드는 `prompt`(예전 Artlist 클립 프롬프트)와 `thread.music`은 compose에서 비어 있어도 됩니다.
+배경 음악은 `assets/music-1.mp3`나 `music.mp3`가 있을 때만 씁니다(현재 compose는 내레이션만 넣습니다).
 
 ## series.json
 
@@ -170,12 +144,11 @@ npm run upload -- out/2026-09-24-devlog --privacy=private
 {
   "version": 1,
   "staleDays": 30,
-  "style": { "voice": "내레이션 목소리 설명", "look": "클립 공통 색감과 공간" },
   "threads": {
     "tkddls8848/game": [
       {
-        "id": "game-audio", "name": "오디오 시스템", "status": "open", "music": "Artlist 음악 자산 ID",
-        "paths": ["src/audio", "src/audio/mixer.ts"], "keywords": ["mixer", "믹서"],
+        "id": "game-audio", "name": "오디오 시스템", "status": "open",
+        "paths": ["src/audio"], "keywords": ["mixer", "믹서"],
         "lastDate": "2026-09-24", "lastSummary": "다음 회차 오프닝에서 읽을 두 문장",
         "episodes": [{ "number": 1, "date": "2026-09-22", "slug": "2026-09-22-devlog", "videoId": "...", "subtitle": "...", "summary": "...", "start": 12, "commits": ["abc1234"] }]
       }
@@ -184,70 +157,42 @@ npm run upload -- out/2026-09-24-devlog --privacy=private
 }
 ```
 
-`paths`와 `keywords`는 회차를 기록할 때마다 누적되어 다음 판정의 근거가 됩니다. 스레드를 끝내려면
-`status`를 `closed`로 바꿉니다. 자동 판정이 틀렸을 때는 Claude가 `episode.json`의 `thread`를
-고치는 것으로 바로잡으며, `series.json`은 업로드 뒤에만 바뀝니다.
+`plan`은 같은 저장소의 열린 스레드와 변경 경로 겹침(가중치 2), 키워드 겹침(가중치 1)으로 점수를
+매겨 2점 이상이면 다음 회차로 잇고, 아니면 새 스레드를 엽니다. 마지막 회차 뒤 `staleDays`가 지난
+스레드는 후보에서 뺍니다. `series.json`은 업로드 뒤에만 바뀝니다.
 
 ## YouTube 설정
 
 Google Cloud 프로젝트에서 YouTube Data API v3를 켜고 데스크톱 앱 OAuth 클라이언트를 만듭니다.
-필요한 범위는 `https://www.googleapis.com/auth/youtube`(업로드와 재생목록)입니다.
+범위는 `https://www.googleapis.com/auth/youtube`입니다.
 
 ```bash
 cd video
-cp ../.env.example ../.env # 최초 설정 시에만. 이미 있으면 복사하지 말고 최상위 .env 수정
-npm run auth              # 브라우저 동의 후 YOUTUBE_REFRESH_TOKEN 출력 → 최상위 .env에 추가
+npm run auth    # 브라우저 동의 후 YOUTUBE_REFRESH_TOKEN 출력 → 최상위 .env에 추가
 ```
 
-`.env`는 커밋하지 않습니다. 운영 전에 알아 둘 점:
-
+- 비밀값은 저장소 최상위 `.env`에만 둡니다(`YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`,
+  `YOUTUBE_REFRESH_TOKEN`). 커밋하지 않습니다.
 - 검수받지 않은 OAuth 앱이 올린 영상은 YouTube가 비공개로 잠급니다. 기본 공개 범위가 `private`인
-  이유이며, 공개 전환은 스튜디오에서 직접 하거나 앱 검수를 먼저 받습니다.
-- 업로드 한 번의 할당량 비용이 커서 기본 일일 할당량으로는 하루 몇 편만 올릴 수 있습니다.
-- Artlist 크레딧은 장면 수에 비례합니다. 스킬은 생성 전에 장면 수와 생성 횟수를 보여 주고 승인을
-  받습니다.
+  이유이며, 공개 전환은 스튜디오에서 합니다.
 
-## 로컬 요구 사항
+## 설치
 
-### Gemini TTS 내레이션
+- Node 20 이상, Python 3.11 이상과 `pip install edge-tts`
+- `ffmpeg`, `ffprobe`
+- Blender 5.2 (`BLENDER`로 경로 지정, 기본은 `C:/Program Files/Blender Foundation/Blender 5.2/blender.exe`)
+- 한국어 글꼴 NanumGothic, NanumGothicBold (`VIDEO_FONT`, `VIDEO_FONT_BOLD`로 변경)
+- Workers AI: `news` 폴더에서 `npx wrangler login`, 또는 최상위 `.env`에 `CLOUDFLARE_API_TOKEN`과
+  `CLOUDFLARE_ACCOUNT_ID`
 
-저장소 최상위 `.env`에 다음을 설정합니다. 하위 폴더에는 별도 `.env`를 만들지 않습니다. 키는 커밋하지 않습니다.
+테스트(`npm test`)는 네트워크, Blender, 비밀값 없이 돕니다. 글 파싱, 세션 배정, 시리즈 판정, 자막
+구절 분할, 발음 사전 매핑, 카드·PNG, 배경 프롬프트, 게시 정보를 검사합니다.
 
-```dotenv
-TTS_PROVIDER=gemini
-GEMINI_API_KEY=발급받은_키
-GEMINI_TTS_MODEL=gemini-3.8-flash-tts
-GEMINI_TTS_VOICE=Charon
-```
+## 이전 경로 (지금은 쓰지 않음)
 
-기본 말투는 한국어로 5년차 개발자가 동료에게 시행착오를 회고하는 차분한 대화체입니다.
-`GEMINI_TTS_STYLE`로 말투를 바꿀 수 있고, AI Studio에서 설계한 `voice_...` ID를
-`GEMINI_TTS_VOICE`로 지정할 수 있습니다. 말투 지시는 읽을 대본과 분리해 전송합니다.
-응답 WAV는 보관하고 ffmpeg로 MP3를 만들어 기존 합성 경로에 연결합니다.
+코드는 남아 있지만 매일 제작에는 쓰지 않습니다.
 
-```powershell
-cd video
-node tools/voice.mjs out/2026-09-26-local-sample --provider=gemini --force
-node tools/render.mjs out/2026-09-26-local-sample --frames=720
-```
-
-`--force`는 해당 폴더의 기존 음성을 교체합니다. 생략하면 기존 파일은 재사용합니다.
-음성 길이가 바뀌므로 영상은 다시 렌더링하고, 이전 프레임을 쓰는 `--resume`은 붙이지 않습니다.
-Gemini 오류가 나면 다른 서비스로 자동 전환하지 않고 중단합니다.
-
-[공식 TTS 문서](https://ai.google.dev/gemini-api/docs/generate-content/speech-generation)를 기준으로 구현했습니다.
-미공개 대본에는 활성 Cloud Billing이 연결된 프로젝트를 사용하세요. 키 문자열만으로 과금 상태를
-판별할 수 없습니다. [공식 약관](https://ai.google.dev/gemini-api/terms)에 따르면 무료 서비스의
-입출력은 제품 개선에 이용될 수 있으며, 유료 서비스의 입출력은 제품 개선에 사용하지 않습니다.
-현재 연결은 개발 일지 영상용이며 다른 프로젝트의 게임 대본을 읽거나 전송하지 않습니다.
-
-### 설치
-
-- Node 20 이상, `ffmpeg`와 `ffprobe`
-- 매일 경로: 추가 프로그램 없음(TTS 서비스만). 카드형 레이아웃만 Blender 5가 필요합니다(`BLENDER`로 경로 지정).
-- 한국어 글꼴. 기본은 NanumGothic(Windows는 `C:/Windows/Fonts`, Linux는 `/usr/share/fonts/truetype/nanum`)이며
-  `VIDEO_FONT`, `VIDEO_FONT_BOLD`로 바꿉니다.
-- `VIDEO_MUSIC_VOLUME`(기본 0.12)으로 음악 볼륨을 조절합니다.
-
-테스트는 네트워크, ffmpeg, 비밀값 없이 돕니다. 글 파싱, 세션 배정, 시리즈 판정, 게시 정보,
-자막 시간 배분, ffmpeg 인자 구성을 검사합니다.
+- `npm run assemble`: Artlist MCP로 만든 영상 클립·보이스오버·음악을 ffmpeg로 조립. 회차마다 Artlist
+  크레딧(10초 클립 한 개 약 1,000)이 들어 중단했습니다.
+- `npm run render`: 미니멀 레이아웃(흰 배경, 두 줄 제목)을 자체 렌더러나 Blender(`blender/episode.py`)로
+  그림. 장면별 음성 파일(`npm run voice`, ElevenLabs·Gemini TTS·edge-tts)을 씁니다.
