@@ -8,6 +8,7 @@
     "assemble": "node tools/assemble.mjs",
     "voice": "node tools/voice.mjs",
     "render": "node tools/render.mjs",
+    "compose": "node tools/compose.mjs",
     "upload": "node tools/upload.mjs upload",
     "auth": "node tools/upload.mjs auth"
   },

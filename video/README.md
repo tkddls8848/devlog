@@ -68,6 +68,33 @@ npm run render -- out/<slug> --frames=600    # 앞 25초만 preview.mp4로 미�
 npm run render -- out/<slug>                 # final.mp4, chapters.json, metadata.json
 ```
 
+## 권장 경로: 쇼츠 방식 합성 (`npm run compose`)
+
+stock_chatbot/shorts의 제작 방식을 가로 영상에 옮긴 경로입니다. 1920x1080 30fps.
+
+1. **음성** `tools/speech.py`: 원고 전체를 edge-tts로 한 번에 합성하고 단어별 발화 시각을 받습니다.
+   장면마다 따로 합성하면 경계마다 음색과 호흡이 다시 시작됩니다. 합성 뒤 쉼을 자리마다 조정합니다
+   (도입→첫 장면 0.6초, 장면 사이 0.75초, 마무리 앞 0.9초, 문장 끝 0.45초). 말 속도는 `EDGE_TTS_RATE`
+   (기본 +30%). 원고·목소리·속도가 같으면 다시 합성하지 않습니다(`--force-voice`로 강제).
+2. **자막·장면 시각** `tools/timeline.mjs`: 문장으로 끊고 긴 문장만 쉼표·연결어미에서 균등하게
+   나눕니다. 구절은 첫 단어보다 0.05초(장면 첫 구절은 0.55초) 먼저 뜨고, 장면은 첫 구절과 함께 바뀝니다.
+   발음 사전으로 바꾼 말(RAG→래그)도 자막에는 원래 표기가 나옵니다.
+3. **카드** `engine/cards.mjs`: 배경 위에 얹는 투명 PNG. 왼쪽·아래 어둠, DEVLOG 헤더와 날짜, 장 표시,
+   큰 두 줄 제목(둘째 줄 강조색), 쪽 번호와 칸 진행바, 설명. 제목만 먼저 세우고 설명을 얹습니다.
+4. **합성** `blender/vse.py`: Blender VSE가 배경(장면 강조색으로 색조) + 카드 + 외곽선·그림자 자막 +
+   음성을 합쳐 H.264/AAC로 인코딩합니다.
+
+배경은 장면의 `background`(회차 폴더 기준 경로) 또는 `assets/bg-<장면 id>.mp4|png|jpg`입니다. 없으면
+짙은 단색입니다. 이미 만든 Artlist 클립을 재사용할 수 있고, 새 생성 비용은 들지 않습니다.
+강조색은 처음·끝이 금색, 저장소 세션은 파랑·빨강·초록·보라 순서입니다.
+
+```bash
+npm run compose -- out/<slug> --seconds=15   # 앞 15초만 preview.mp4
+npm run compose -- out/<slug>                # final.mp4, chapters.json, metadata.json
+```
+
+35초 회차가 음성 합성 포함 약 40초에 끝납니다.
+
 ## 파이프라인
 
 ```text
