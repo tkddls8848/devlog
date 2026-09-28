@@ -22,17 +22,23 @@ def tone(strip, row):
     mapping.update()
 
 
+# Barely-there motion: at 1.02 -> 1.10 and 36 px the move itself drew the eye (2026-09-28),
+# so it is a fifth of that. The picture should feel alive, not travel.
+DRIFT_SCALE = (1.02, 1.036)
+DRIFT_PX = 3.6
+
+
 def drift(strip, start, end, index):
     """A still picture slowly pushes in and slides sideways over its scene (the card stays put)."""
     t = strip.transform
     direction = 1 if index % 2 == 0 else -1
-    t.scale_x = t.scale_y = 1.02
-    t.offset_x = -18 * direction
+    t.scale_x = t.scale_y = DRIFT_SCALE[0]
+    t.offset_x = -DRIFT_PX * direction
     t.keyframe_insert("scale_x", frame=start)
     t.keyframe_insert("scale_y", frame=start)
     t.keyframe_insert("offset_x", frame=start)
-    t.scale_x = t.scale_y = 1.10
-    t.offset_x = 18 * direction
+    t.scale_x = t.scale_y = DRIFT_SCALE[1]
+    t.offset_x = DRIFT_PX * direction
     t.keyframe_insert("scale_x", frame=end)
     t.keyframe_insert("scale_y", frame=end)
     t.keyframe_insert("offset_x", frame=end)

@@ -1,6 +1,6 @@
 // 장면마다 배경 이미지를 Cloudflare Workers AI로 그린다(Artlist 크레딧 없음, Workers AI 사용량만).
 // stock_chatbot/shorts의 media.py와 같은 방식이다.
-// - 그림: flux-2-klein-9b, 1920x1088 가로. 왼쪽 절반은 제목이 앉도록 비워 달라고 요청한다.
+// - 그림: flux-2-klein-4b(VIDEO_IMAGE_MODEL로 변경), 1920x1088 가로. 왼쪽 절반은 제목이 앉도록 비워 달라고 요청한다.
 // - 그림 모델은 "글자·사람 금지"를 가끔 무시한다. 비전 모델로 보고 걸리면 다시 그린다(최대 3번).
 //   끝까지 걸리면 그 장면은 배경 없이(짙은 단색) 간다. 배경 때문에 제작을 멈추지 않는다.
 // - 무엇을 그릴지: 장면의 visual(영문 한 문장)이 있으면 그대로, 없으면 원고로 gpt-oss-20b가 쓴다.
@@ -17,15 +17,18 @@ import { sceneOrder } from "./lib.mjs";
 import { loadEnv } from "./voice.mjs";
 
 const VIDEO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const IMAGE_MODEL = "@cf/black-forest-labs/flux-2-klein-9b";
+// Price per 1920x1088 image (Workers AI pricing, 2026-09-28): klein-4b about 210-310 neurons,
+// klein-9b about 1,560 (six of those nearly use up the 10,000 free daily neurons). 4b is the default;
+// VIDEO_IMAGE_MODEL switches.
+export const IMAGE_MODEL = process.env.VIDEO_IMAGE_MODEL || "@cf/black-forest-labs/flux-2-klein-4b";
 // llava-1.5 (what stock_chatbot uses) answered 503 on every call on 2026-09-28; Llama 3.2 Vision
 // answers in ~7 neurons a check. Its license was accepted on the account that day.
 export const VISION_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct";
 export const WRITER_MODEL = "@cf/openai/gpt-oss-20b";
 export const ATTEMPTS = 3;
 
-// 2026-09-28 compared on the 9/26 scenes: klein-9b kept the left half dark as asked and took ~5 s;
-// klein-4b was softer and 23-55 s; flux-1-schnell is square only and refused one prompt as NSFW.
+// 2026-09-28 compared on the 9/26 scenes: klein-9b was the sharpest; klein-4b a little softer at a
+// fifth of the price; flux-1-schnell is square only and refused one prompt as NSFW.
 export const STYLE = "Premium cinematic editorial 3D illustration, soft dusk lighting, charcoal navy #0c1116 with muted gold and slate blue accents, realistic materials, shallow depth of field. Place the main subject in the right third; the left side of the same scene falls off into natural deep shadow for titles added later, with no flat panel, border or split. No text, letters, numbers, labels, logos, screens with writing, watermark or people.";
 
 export const CHECKS = [
@@ -76,25 +79,40 @@ export function credentials(env = process.env) {
   return { token, account };
 }
 
-async function run(creds, model, { json, form }) {
+async function run(creds, model, { json, form, timeout = 120000 }) {
   const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${creds.account}/ai/run/${model}`, {
     method: "POST",
     headers: { authorization: `Bearer ${creds.token}`, ...(json ? { "content-type": "application/json" } : {}) },
     body: json ? JSON.stringify(json) : form,
-    signal: AbortSignal.timeout(120000),
+    signal: AbortSignal.timeout(timeout),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok || body.success === false) throw new Error(`${model} ${response.status}: ${JSON.stringify(body.errors || body).slice(0, 300)}`);
   return body.result;
 }
 
-export async function drawImage(creds, prompt, { model = IMAGE_MODEL, width = 1920, height = 1088 } = {}) {
+export async function drawImage(creds, prompt, { model = IMAGE_MODEL, width = 1920, height = 1088, timeout } = {}) {
   const form = new FormData();
   form.append("prompt", prompt);
   form.append("width", String(width));
   form.append("height", String(height));
-  const result = await run(creds, model, { form });
+  const result = await run(creds, model, { form, timeout });
   return Buffer.from(result.image, "base64");
+}
+
+// klein-4b usually answers in about 30 s but on 2026-09-28 it also sat for more than 4 minutes.
+// Give it 90 s, then draw that picture with the fallback model so a slow queue cannot stall the video.
+export const FALLBACK_MODEL = "@cf/black-forest-labs/flux-2-klein-9b";
+export const PRIMARY_TIMEOUT = 90000;
+
+export async function drawWithFallback(creds, prompt, { model = IMAGE_MODEL, fallback = FALLBACK_MODEL, log = () => {} } = {}) {
+  try {
+    return { image: await drawImage(creds, prompt, { model, timeout: fallback && fallback !== model ? PRIMARY_TIMEOUT : 180000 }), model };
+  } catch (error) {
+    if (!fallback || fallback === model) throw error;
+    log(`${model.split("/").pop()} 실패(${error.name === "TimeoutError" ? "90초 초과" : error.message.slice(0, 80)}), ${fallback.split("/").pop()}로 그립니다`);
+    return { image: await drawImage(creds, prompt, { model: fallback, timeout: 180000 }), model: fallback };
+  }
 }
 
 // Downscale for the vision check; a full frame as a JSON byte array is needlessly large.
@@ -145,12 +163,18 @@ export async function makeBackgrounds(dir, { force = false, log = console.log, c
     const prompt = backgroundPrompt(subject);
     let saved = false;
     for (let attempt = 1; attempt <= ATTEMPTS && !saved; attempt++) {
-      const image = await drawImage(creds, prompt);
-      const found = process.env.VIDEO_BACKGROUND_CHECK === "false" ? [] : await flagged(creds, image);
-      if (found.length) { log(`${scene.id}: ${found.join("·")}이(가) 보여 다시 그립니다 (${attempt}/${ATTEMPTS})`); continue; }
-      writeFileSync(path.join(assets, `bg-${scene.id}.jpg`), image);
-      record[scene.id] = { model: IMAGE_MODEL, subject, prompt, attempts: attempt, at: new Date().toISOString() };
-      saved = true;
+      try {
+        const { image, model } = await drawWithFallback(creds, prompt, { log: (message) => log(`${scene.id}: ${message}`) });
+        const found = process.env.VIDEO_BACKGROUND_CHECK === "false" ? [] : await flagged(creds, image);
+        if (found.length) { log(`${scene.id}: ${found.join("·")}이(가) 보여 다시 그립니다 (${attempt}/${ATTEMPTS})`); continue; }
+        writeFileSync(path.join(assets, `bg-${scene.id}.jpg`), image);
+        record[scene.id] = { model, subject, prompt, attempts: attempt, at: new Date().toISOString() };
+        saved = true;
+      } catch (error) {
+        // One failed picture leaves that scene on a plain background; it does not stop the video.
+        log(`${scene.id}: 배경을 그리지 못했습니다 (${error.message.slice(0, 120)})`);
+        break;
+      }
     }
     (saved ? made : skipped).push(scene.id);
   }
