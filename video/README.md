@@ -8,22 +8,48 @@
 쓰지 않습니다.** 배경은 Cloudflare Workers AI로 그린 이미지이고, 음성은 edge-tts, 합성은 로컬
 Blender입니다. 대본과 자막 기준은 [EDITORIAL.md](EDITORIAL.md)에 있습니다.
 
-## 쓰는 도구와 비용
+## 영상 생성에 쓰는 도구와 모델
 
-| 단계 | 도구 | 비용 |
-| --- | --- | --- |
-| 대본(`episode.json` 편집 칸) | Claude Code가 글과 커밋 근거로 채움 | — |
-| 음성 | edge-tts `ko-KR-InJoonNeural` (`tools/speech.py`) | 무료, API 키 없음(비공식 서비스) |
-| 배경 묘사 | Workers AI `@cf/openai/gpt-oss-20b` | Workers AI 사용량 |
-| 배경 이미지 | Workers AI `@cf/black-forest-labs/flux-2-klein-4b` (느리면 `flux-2-klein-9b`) | 한 장 약 210~310 neurons(9b는 약 1,560) |
-| 글자·사람 검사 | Workers AI `@cf/meta/llama-3.2-11b-vision-instruct` | 검사 한 번 약 7 neurons |
-| 자막 시각, 카드 그림 | 이 폴더의 코드 (`tools/timeline.mjs`, `tools/engine/`) | 없음 |
-| 합성, 인코딩 | Blender 5.2 VSE (`blender/vse.py`) | 로컬, 무료 |
-| 쉼 편집, 길이 측정, 축소 | ffmpeg, ffprobe | 로컬, 무료 |
-| 업로드, 재생목록 | YouTube Data API (`tools/upload.mjs`) | 무료(일일 할당량) |
+2026-09-29 기준, `out/2026-09-26-klein4b` 회차를 만든 구성입니다.
+
+### AI 모델과 외부 서비스
+
+| 역할 | 모델·서비스 | 설정 | 비용 |
+| --- | --- | --- | --- |
+| 내레이션 음성 | edge-tts(Microsoft Edge 읽어 주기) `ko-KR-InJoonNeural` | 속도 +12%(`EDGE_TTS_RATE`), 원고 전체 한 번 합성, 단어 시각(WordBoundary) | 무료, API 키 없음(비공식 서비스) |
+| 배경 묘사(영문 한 문장) | Cloudflare Workers AI `@cf/openai/gpt-oss-20b` | 회차 전체 장면을 한 번에, temperature 0.6 | Workers AI 사용량 |
+| 배경 이미지 | Workers AI `@cf/black-forest-labs/flux-2-klein-4b` | 1920x1088, 90초 안에 답이 없으면 그 장만 `flux-2-klein-9b`(`VIDEO_IMAGE_MODEL`로 변경) | 한 장 약 210~310 neurons(9b 약 1,560) |
+| 배경의 글자·사람 검사 | Workers AI `@cf/meta/llama-3.2-11b-vision-instruct` | 512px 축소본, 걸리면 최대 3번 다시 그림 | 검사 한 번 약 7 neurons |
+| 업로드, 재생목록 | YouTube Data API v3 | OAuth 데스크톱 앱, 기본 `private` | 무료(일일 할당량) |
+
+대본(`episode.json`의 내레이션·화면 문구)은 Claude Code가 발행한 글과 커밋 근거로 씁니다.
+Artlist, ElevenLabs, Gemini TTS 같은 유료 생성 서비스는 이 경로에서 쓰지 않습니다.
 
 Workers AI 무료 한도는 하루 10,000 neurons입니다. 장면 6개 회차의 배경은 4b 기준 약 1,300~1,900
-neurons입니다. 개발 일지 자동 작성(gpt-oss-120b)도 같은 한도를 씁니다.
+neurons입니다. 개발 일지 자동 작성(gpt-oss-120b)과 뉴스 다이제스트(gpt-oss-20b)도 같은 한도를 씁니다.
+
+### 로컬 프로그램과 코드
+
+| 역할 | 도구(검증한 버전) | 비고 |
+| --- | --- | --- |
+| 합성·인코딩 | Blender 5.2.1 LTS, VSE(`blender/vse.py`) | 1920x1080 30fps, H.264/AAC 192k 스테레오 |
+| 쉼 편집, 길이 측정, 썸네일 | ffmpeg / ffprobe 9.0.1 | PCM 디코딩·MP3 인코딩, 검사용 축소 |
+| 음성 합성 실행 | Python 3.13, `edge-tts` 7.2.8 | `tools/speech.py` |
+| 파이프라인 | Node.js 22 | `tools/compose.mjs`, `backgrounds.mjs`, `timeline.mjs` |
+| 카드(제목·진행바·설명) | 자체 코드 `tools/engine/` | TrueType 해석(`font.mjs`), 래스터화(`raster.mjs`), PNG 인코딩(`png.mjs`, Node zlib), 카드(`cards.mjs`) |
+| 글꼴 | NanumGothic, NanumGothicBold | 카드와 자막 |
+| Workers AI 인증 | wrangler 로그인 토큰 또는 `CLOUDFLARE_API_TOKEN` | 로컬 실행 |
+
+### 화면 연출 설정값
+
+| 항목 | 값 | 위치 |
+| --- | --- | --- |
+| 사진 배경 확대 | 1.02배 → 1.20배(장면 동안) | `blender/vse.py` `DRIFT_SCALE` |
+| 사진 배경 옆 이동 | 약 22px(±10.8) | `DRIFT_PX` |
+| 장면 사이 배경 겹침 | 0.5초 | `compose.mjs` `CROSSFADE` |
+| 쉼 | 도입 뒤 0.9초, 장면 사이 1.1초, 마무리 앞 1.3초, 문장 끝 0.65초 | `tools/speech.py` |
+| 자막 | 54px 굵게, 외곽선·그림자, 하단 중앙, 한 구절 최대 30자 | `compose.mjs`, `timeline.mjs` |
+| 강조색 | 처음·끝 금색, 세션은 파랑·빨강·초록·보라 | `engine/cards.mjs` |
 
 ## 흐름
 
@@ -115,7 +141,7 @@ npm run upload -- out/<slug> --privacy=private
 ### 5. 합성 (`blender/vse.py`)
 
 - 채널 1·2: 배경. 장면 강조색으로 색조를 입히고, 장면 사이에서 0.5초 겹쳐 서서히 넘깁니다.
-  사진 배경은 장면 동안 1.02배에서 1.50배로 확대되며 옆으로 약 22px 흐릅니다(카드·자막은 고정).
+  사진 배경은 장면 동안 1.02배에서 1.20배로 확대되며 옆으로 약 22px 흐릅니다(카드·자막은 고정).
   값은 `DRIFT_SCALE`, `DRIFT_PX`입니다. 영상 배경은 장면보다 짧으면 반복합니다.
 - 채널 3: 카드 PNG. 채널 4: 자막(굵게, 외곽선·그림자, 하단 중앙). 채널 5: 내레이션.
 - 1920x1080 30fps, H.264/AAC. 2분 30초 회차가 약 2분 반, 장면 하나(`--scene`)는 약 30초에 끝납니다.
