@@ -73,9 +73,9 @@ async function elevenlabs(text, file, env = process.env) {
   writeFileSync(file, Buffer.from(await response.arrayBuffer()));
 }
 
-// At +0% InJoon reads about 4.5 syllables a second, a slow read-aloud pace. +30% lands near
-// 6 a second, everyday conversation (measured on the 2026-09-26 script).
-export const EDGE_RATE = "+30%";
+// At +0% InJoon reads about 4.5 syllables a second, a slow read-aloud pace; +30% (about 6) felt
+// rushed once the pauses were tightened. +12% with longer pauses is the current balance.
+export const EDGE_RATE = "+12%";
 
 function edge(text, file, env = process.env) {
   const python = env.PYTHON || "python";

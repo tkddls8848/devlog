@@ -24,6 +24,7 @@ import { EDGE_RATE, lexicon, loadEnv } from "./voice.mjs";
 const VIDEO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const WIDTH = 1920, HEIGHT = 1080, FPS = 30;
 export const TAIL = 0.6; // after the last word
+export const PACING = "2026-09-28b";
 export const CROSSFADE = 0.5; // seconds a new background dissolves over the previous one
 export const CAPTION = { size: 54, bottom: 64, width: 1500 };
 const TONE_STRENGTH = 0.5;
@@ -92,7 +93,8 @@ export async function compose(dir, { previewSeconds = 0, forceVoice = false, gen
   const voice = process.env.EDGE_TTS_VOICE || "ko-KR-InJoonNeural";
   const rate = process.env.EDGE_TTS_RATE || EDGE_RATE;
   const audio = path.join(work, "narration.mp3"), wordsFile = path.join(work, "words.json"), stamp = path.join(work, "narration.key");
-  const key = createHash("sha256").update(JSON.stringify([mapped.map((m) => m.speech), voice, rate])).digest("hex");
+  // Bump PACING when speech.py pause values change so cached narration is redone.
+  const key = createHash("sha256").update(JSON.stringify([mapped.map((m) => m.speech), voice, rate, PACING])).digest("hex");
   if (forceVoice || !existsSync(audio) || !existsSync(wordsFile) || !existsSync(stamp) || readFileSync(stamp, "utf8") !== key) {
     const request = path.join(work, "speech-request.json");
     writeFileSync(request, JSON.stringify({ narrations: mapped.map((m) => m.speech), audio, words: wordsFile, voice, rate, ffmpeg: "ffmpeg" }), "utf8");

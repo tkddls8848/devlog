@@ -22,12 +22,13 @@ import sys
 
 import edge_tts
 
-# 쉼(초). 도입→첫 장면은 흐름을 끊지 않을 만큼, 장면 사이는 주제가 바뀌므로 조금 더,
-# 마무리 앞에서 가장 길게. 장면 안 문장 끝은 edge-tts 기본(0.86초)보다 짧게 줄인다.
-OPENING_PAUSE = 0.6
-TOPIC_PAUSE = 0.75
-CLOSING_PAUSE = 0.9
-SENTENCE_PAUSE = 0.45
+# 쉼(초). 도입→첫 장면은 흐름을 끊지 않을 만큼, 장면 사이는 주제가 바뀌므로 더,
+# 마무리 앞에서 가장 길게. 쇼츠(0.6/0.75/0.9/0.45)보다 넉넉하다: 가로 회고 영상은 길이보다
+# 따라가기 쉬운 호흡이 중요하다(2026-09-28, "급해서 집중이 안 된다").
+OPENING_PAUSE = 0.9
+TOPIC_PAUSE = 1.1
+CLOSING_PAUSE = 1.3
+SENTENCE_PAUSE = 0.65
 SENTENCE_END = (".", "!", "?")
 GUARD = 0.12  # 쉼을 줄일 때 말소리 양 끝에 남기는 여유
 FADE = 0.02
