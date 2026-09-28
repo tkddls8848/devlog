@@ -225,6 +225,17 @@ def subtitles(s):
             visible(obj, start, end)
 
 
+def fade(obj, paper, color, keys):
+    """Give the object its own material and key its color between paper (hidden) and color.
+    On a flat paper background this reads as a fade without any transparency."""
+    mat = material(color).copy()
+    obj.data.materials[0] = mat
+    socket = mat.node_tree.nodes["Emission"].inputs[0]
+    for frame, t in keys:
+        socket.default_value = (*mix(paper, color, t), 1)
+        socket.keyframe_insert("default_value", frame=frame)
+
+
 def minimal_scene(s, index, total):
     start, end = s["start"], s["start"] + s["frames"]
     closing = index == total - 1
@@ -235,26 +246,51 @@ def minimal_scene(s, index, total):
     if closing:
         paper, ink, muted, accent = ink, paper, (0.50, 0.52, 0.55), (0.34, 0.52, 1.0)
     visible(rect(16, 9, 0, 0, paper, z=-0.1), start, end)
-    # Fixed editorial grid; the empty space gives the spoken explanation room.
+    # Fixed editorial grid: it stays put across scenes, so only the words appear to change.
     label = text(s.get("label") or f"{index + 1:02d} / DEVLOG", 0.23, -6.65, 3.35, muted)
     page = text(f"{index + 1:02d} / {total:02d}", 0.23, 6.65, 3.35, muted, align="RIGHT")
-    rule = rect(13.3, 0.012, 0, 2.85, muted)
+    rule = rect(13.3, 0.012, 0, 2.85, mix(muted, paper, 0.45))
     for obj in (label, page, rule):
         visible(obj, start, end)
+    # A thin accent line on the rule fills across the whole video: where we are, nothing more.
+    width = 13.3
+    mesh = bpy.data.meshes.new("progress")
+    mesh.from_pydata([(0, -0.02, 0), (width, -0.02, 0), (width, 0.02, 0), (0, 0.02, 0)], [], [(0, 1, 2, 3)])
+    bar = bpy.data.objects.new("progress", mesh)
+    bar.location = (-6.65, 2.85, 0)
+    add(bar, accent, 0.12)
+    visible(bar, start, end)
+    # Linear keys (set through preferences, which works across Blender's action API changes).
+    edit = bpy.context.preferences.edit
+    previous = edit.keyframe_new_interpolation_type
+    edit.keyframe_new_interpolation_type = "LINEAR"
+    bar.scale.x = max(0.001, start / spec["frames"])
+    bar.keyframe_insert("scale", index=0, frame=start)
+    bar.scale.x = max(0.001, end / spec["frames"])
+    bar.keyframe_insert("scale", index=0, frame=end)
+    edit.keyframe_new_interpolation_type = previous
+
+    out = max(start + 20, end - 7)  # words leave a few frames before the cut
     lines = s["title"].split("\n")
     for i, line in enumerate(lines):
-        heading = fit(text(line, 1.13, -6.65, 1.15 - i * 1.48,
-                           accent if i == len(lines) - 1 else ink, bold=True), 13.0)
+        color = accent if i == len(lines) - 1 and len(lines) > 1 else ink
+        heading = fit(text(line, 1.13, -6.65, 1.15 - i * 1.48, color, bold=True), 13.0)
+        at = start + 2 + i * 6  # lines arrive one after another
         visible(heading, start, end)
-        slide_in(heading, start, dy=-0.10, frames=8)
+        slide_in(heading, at, dy=-0.14, frames=12)
+        fade(heading, paper, color, [(at, 0), (at + 12, 1), (out, 1), (end - 1, 0)])
     note = s.get("note") or ""
     if note:
         obj = fit(text(note, 0.29, -6.65, -1.85, muted), 12.8)
+        at = start + 10 + len(lines) * 6
         visible(obj, start, end)
+        fade(obj, paper, muted, [(at, 0), (at + 10, 1), (out, 1), (end - 1, 0)])
     # Captions sit on the same canvas, with no band, box or decorative shapes.
     for cue in s["cues"]:
+        a, b = start + cue["start"], start + cue["end"]
         line = fit(text(cue["text"], 0.34, 0, -3.35, ink, align="CENTER"), 13.2)
-        visible(line, start + cue["start"], start + cue["end"])
+        visible(line, a, b)
+        fade(line, paper, ink, [(a, 0), (a + 4, 1), (max(a + 5, b - 4), 1), (b, 0)])
 
 
 for index, s in enumerate(spec["scenes"]):

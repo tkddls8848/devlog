@@ -31,9 +31,11 @@ export function fonts(env = process.env) {
   return { font: regular.replace(/\\/g, "/"), fontBold: bold.replace(/\\/g, "/") };
 }
 
-// The native renderer draws the minimal layout; the older card layout still needs Blender.
-export function pickEngine(spec, env = process.env) {
-  if (env.VIDEO_ENGINE === "blender" || env.VIDEO_ENGINE === "native") return env.VIDEO_ENGINE;
+// VIDEO_ENGINE wins, then the episode's own style.engine. The native renderer draws the
+// minimal layout; the older card layout always needs Blender.
+export function pickEngine(spec, env = process.env, style = {}) {
+  const chosen = [env.VIDEO_ENGINE, style.engine].find((value) => value === "blender" || value === "native");
+  if (chosen) return chosen;
   return (spec.layout || "minimal") === "minimal" ? "native" : "blender";
 }
 
@@ -98,7 +100,7 @@ export async function render(dir, { previewFrames = 0, resume = false, log = con
   const music = firstExisting(path.join(assets, "music-1.mp3"), path.join(assets, "music.mp3")) || null;
   const output = path.join(dir, previewFrames ? "preview.mp4" : "final.mp4");
   const mux = { fps, voices, music, musicVolume: process.env.VIDEO_MUSIC_VOLUME, seconds: total / fps, output };
-  const engine = pickEngine(spec);
+  const engine = pickEngine(spec, process.env, episode.style);
   log(`${engine === "native" ? "자체 렌더러" : "Blender"}: ${total}프레임 (${(total / fps).toFixed(1)}초, ${width}x${height} ${fps}fps)`);
   const started = Date.now();
   if (engine === "native") {

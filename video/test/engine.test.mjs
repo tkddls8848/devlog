@@ -82,4 +82,6 @@ test("자체 렌더러는 raw RGB를 표준 입력으로 넘기고, 음성 합�
   assert.equal(pickEngine({ layout: "minimal" }, {}), "native");
   assert.equal(pickEngine({ layout: "classic" }, {}), "blender");
   assert.equal(pickEngine({ layout: "minimal" }, { VIDEO_ENGINE: "blender" }), "blender");
+  assert.equal(pickEngine({ layout: "minimal" }, {}, { engine: "blender" }), "blender", "회차 style.engine");
+  assert.equal(pickEngine({ layout: "minimal" }, { VIDEO_ENGINE: "native" }, { engine: "blender" }), "native", "환경 변수가 우선");
 });
