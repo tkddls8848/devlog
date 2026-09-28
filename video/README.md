@@ -85,7 +85,22 @@ stock_chatbot/shorts의 제작 방식을 가로 영상에 옮긴 경로입니다
    음성을 합쳐 H.264/AAC로 인코딩합니다.
 
 배경은 장면의 `background`(회차 폴더 기준 경로) 또는 `assets/bg-<장면 id>.mp4|png|jpg`입니다. 없으면
-짙은 단색입니다. 이미 만든 Artlist 클립을 재사용할 수 있고, 새 생성 비용은 들지 않습니다.
+`tools/backgrounds.mjs`가 Cloudflare Workers AI로 그립니다(Artlist 크레딧 없음, Workers AI 사용량만).
+stock_chatbot/shorts의 `media.py`와 같은 방식입니다.
+
+- 무엇을 그릴지: 장면의 `visual`(영문 한 문장)이 있으면 그대로 씁니다. 없으면 `gpt-oss-20b`가 회차의
+  모든 장면 묘사를 한 번에 씁니다. 장면마다 다른 장소와 비유를 쓰고, 책상·램프·머그 같은 상투적 소품은
+  금지합니다(한 장면씩 물으면 여섯 중 넷이 책상 위 머그였습니다).
+- 그림: `flux-2-klein-9b`, 1920x1088. 주제는 오른쪽, 왼쪽은 같은 장면의 그늘로 어둡게 둡니다.
+- 검사: `llama-3.2-11b-vision-instruct`가 글자와 사람을 찾으면 다시 그립니다(최대 3번). 끝까지 걸리면
+  그 장면은 짙은 단색입니다. llava-1.5는 2026-09-28에 503만 돌려줘 바꿨습니다.
+- 인증: 최상위 `.env`의 `CLOUDFLARE_API_TOKEN`(Workers AI 권한)과 `CLOUDFLARE_ACCOUNT_ID`, 없으면
+  `news` 폴더의 wrangler 로그인 토큰을 씁니다.
+- 기록: `assets/backgrounds.json`에 장면별 묘사·프롬프트·시도 횟수가 남습니다. 있는 배경은 다시 그리지
+  않고, `node tools/backgrounds.mjs out/<slug> --force`로 다시 그립니다. `--no-generate`면 그리지 않습니다.
+
+사진 배경은 장면 동안 천천히 확대되며 옆으로 흐르고(카드와 자막은 고정), 장면 사이 배경은 0.5초
+겹쳐 서서히 넘어갑니다. 이미 만든 Artlist 클립도 배경으로 쓸 수 있습니다.
 강조색은 처음·끝이 금색, 저장소 세션은 파랑·빨강·초록·보라 순서입니다.
 
 ```bash
@@ -93,7 +108,7 @@ npm run compose -- out/<slug> --seconds=15   # 앞 15초만 preview.mp4
 npm run compose -- out/<slug>                # final.mp4, chapters.json, metadata.json
 ```
 
-35초 회차가 음성 합성 포함 약 40초에 끝납니다.
+35초 회차가 배경 6장 생성과 음성 합성을 포함해 약 2분에 끝납니다.
 
 ## 파이프라인
 

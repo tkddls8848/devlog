@@ -4,14 +4,16 @@
 //   3. 장면마다 투명 카드 PNG를 그린다(engine/cards.mjs). 제목만 먼저 세우고 설명을 얹는다.
 //   4. Blender VSE가 배경(영상·사진, 장면 강조색 색조) + 카드 + 외곽선 자막 + 음성을 합성·인코딩한다.
 // 배경: episode.json 장면의 background(회차 폴더 기준 경로) 또는 assets/bg-<장면 id>.mp4|png|jpg.
-//       없으면 짙은 단색.
-// 사용: node tools/compose.mjs out/<slug> [--seconds=N 앞부분만 preview.mp4] [--force-voice]
+//       없으면 Workers AI로 그린다(backgrounds.mjs). --no-generate면 짙은 단색.
+//       사진 배경은 천천히 밀고 흐르며, 장면 사이 배경은 0.5초 겹쳐 서서히 넘어간다.
+// 사용: node tools/compose.mjs out/<slug> [--seconds=N 앞부분만 preview.mp4] [--force-voice] [--no-generate]
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { probeSeconds } from "./assemble.mjs";
+import { makeBackgrounds } from "./backgrounds.mjs";
 import { loadFont } from "./engine/font.mjs";
 import { ACCENT_ORDER, COLORS, RgbaCanvas, drawCard } from "./engine/cards.mjs";
 import { buildMetadata, sceneOrder, shortRepo } from "./lib.mjs";
@@ -22,6 +24,7 @@ import { EDGE_RATE, lexicon, loadEnv } from "./voice.mjs";
 const VIDEO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const WIDTH = 1920, HEIGHT = 1080, FPS = 30;
 export const TAIL = 0.6; // after the last word
+export const CROSSFADE = 0.5; // seconds a new background dissolves over the previous one
 export const CAPTION = { size: 54, bottom: 64, width: 1500 };
 const TONE_STRENGTH = 0.5;
 const BRIGHTNESS = [0.02, -0.03, 0.01, 0];
@@ -68,7 +71,7 @@ function run(bin, args, label) {
   return result.stdout;
 }
 
-export async function compose(dir, { previewSeconds = 0, forceVoice = false, log = console.log } = {}) {
+export async function compose(dir, { previewSeconds = 0, forceVoice = false, generate = true, log = console.log } = {}) {
   dir = path.resolve(dir);
   const episode = JSON.parse(readFileSync(path.join(dir, "episode.json"), "utf8"));
   const problems = renderProblems(episode);
@@ -76,6 +79,12 @@ export async function compose(dir, { previewSeconds = 0, forceVoice = false, log
   const work = path.join(dir, "work");
   mkdirSync(work, { recursive: true });
   const scenes = sceneOrder(episode);
+  // Backgrounds a scene does not have yet are drawn with Workers AI (no Artlist credits).
+  if (generate) {
+    const { made, skipped } = await makeBackgrounds(dir, { log });
+    if (made.length) log(`배경 ${made.length}장을 Workers AI로 그렸습니다.`);
+    if (skipped.length) log(`글자·사람이 계속 보여 단색 배경으로 둔 장면: ${skipped.join(", ")}`);
+  }
   const terms = lexicon();
   const mapped = scenes.map((scene) => ({ narration: scene.narration, ...speechMap(scene.narration, terms) }));
 
@@ -126,7 +135,7 @@ export async function compose(dir, { previewSeconds = 0, forceVoice = false, log
   const output = path.join(dir, previewSeconds ? "preview.mp4" : "final.mp4");
   const manifest = path.join(work, "vse-manifest.json");
   writeFileSync(manifest, JSON.stringify({
-    width: WIDTH, height: HEIGHT, fps: FPS, duration, audio, output,
+    width: WIDTH, height: HEIGHT, fps: FPS, duration, audio, output, crossfade: CROSSFADE,
     max_frames: previewSeconds ? Math.round(previewSeconds * FPS) : 0,
     backgrounds, cards, subtitles,
     // Blender text size is the em size; match the caption's visible height.
@@ -162,7 +171,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const [dir] = argv.filter((arg) => !arg.startsWith("--"));
   const previewSeconds = Number(argv.find((arg) => arg.startsWith("--seconds="))?.split("=")[1]) || 0;
   if (!dir) { console.error("사용법: node tools/compose.mjs out/<slug> [--seconds=N] [--force-voice]"); process.exit(1); }
-  compose(dir, { previewSeconds, forceVoice: argv.includes("--force-voice") })
+  compose(dir, { previewSeconds, forceVoice: argv.includes("--force-voice"), generate: !argv.includes("--no-generate") })
     .then((m) => console.log(`${m.file} (${Math.round(m.seconds)}초)\n챕터:\n${m.chapters.map((c) => `  ${c.start}s ${c.title}`).join("\n")}`))
     .catch((error) => { console.error(error.message); process.exit(1); });
 }
