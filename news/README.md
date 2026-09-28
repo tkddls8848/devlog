@@ -1,20 +1,26 @@
-# news — Cloudflare 뉴스 다이제스트
+# news — Cloudflare Worker `devlog` (뉴스 다이제스트 · 작업 회고 · 아카이브)
 
-뉴스 수집, Workers AI 본문 생성, D1 저장, HTML·RSS 서비스가 모두 Cloudflare
-Worker 안에서 실행됩니다. 매일 생성되는 결과를 GitHub에 커밋하지 않습니다.
+이 폴더가 운영 Worker 전체입니다. 뉴스 다이제스트, 작업 회고(`/devlog/`), 벤더 문서
+아카이브(`/archive/`)의 수집·작성·D1 저장·HTML·RSS 서비스가 모두 여기서 실행됩니다.
+매일 생성되는 결과는 GitHub에 커밋하지 않습니다.
 
 사이트: <https://devlog.tkddls8848.workers.dev/>
 
-## 실행 구조
+## 뉴스 다이제스트 실행 구조
 
 ```text
 매일 07:00 KST Cron Trigger
-  → RSS·Atom·Hacker News 수집
-  → D1의 기존 URL과 비교해 중복 제거
-  → Workers AI binding으로 한국어 본문 생성
-  → 이슈·기사·실행 이력을 D1에 저장
-  → 같은 Worker가 HTML과 /feed.xml을 동적으로 제공
+  → RSS·Atom·Hacker News 수집, D1의 기존 URL과 비교해 중복 제거 (최대 30건)
+  → 피드의 요약·본문 앞부분을 발췌로 읽고, 발췌가 없는 기사(최대 12건)는 페이지를 열어
+    설명문과 첫 문단을 읽음
+  → Workers AI(gpt-oss-20b)가 흐름 3~4개를 골라 2~3분 분량(1,000~1,500자) 줄글을 쓰고,
+    사실마다 기사 번호 [n]을 붙임
+  → [n]은 번호 붙은 "출처" 목록으로 이어지는 링크가 되고, 인용하지 않은 소식은 접어 둠
+  → 이슈·기사·실행 이력을 D1에 저장, 같은 Worker가 HTML과 /feed.xml을 제공
 ```
+
+출처 번호가 없거나 너무 짧은 답은 한 번 더 쓰게 하고, 그래도 안 되면 링크 목록으로 발행합니다.
+작업 회고와 아카이브는 [`devlog/README.md`](../devlog/README.md), [`archive/README.md`](../archive/README.md)를 보세요.
 
 Cloudflare binding을 사용하므로 Worker 런타임에는 `CF_ACCOUNT_ID`, `CF_API_TOKEN`,
 `CF_WORKERS_API_TOKEN`이 필요하지 않습니다. GitHub Actions에도 뉴스레터용 Cloudflare
@@ -23,14 +29,22 @@ secret을 등록하지 않습니다.
 ## 구성
 
 ```text
-worker/index.mjs              fetch·scheduled 진입점
-worker/digest.mjs             수집·중복 제거·Workers AI 생성
-worker/repository.mjs         D1 저장·조회와 기존 이슈 자동 이관
+worker/index.mjs              fetch·scheduled 진입점, 라우팅
+worker/digest.mjs             뉴스 수집·발췌 읽기·Workers AI 줄글·출처 번호
+worker/devlog.mjs             작업 회고 커밋 수집과 자동 작성·발행
+worker/devlog-writer.mjs      작업 기록 본문 작성(저장소별 병렬, gpt-oss-120b)
+worker/devlog-admin.mjs       웹 편집기(로그인, 편집, 미리보기, 맞춤법, AI 다시 쓰기)
+worker/devlog-auth.mjs        편집기 로그인 쿠키
+worker/devlog-spellcheck.mjs  맞춤법 검사(다음 검사기, 실패 시 Workers AI)
+worker/archive.mjs            벤더 문서 수집(archive-dell.mjs는 Dell)
+worker/repository.mjs         D1 저장·조회
 worker/render.mjs             HTML·RSS 렌더링
-migrations/0001_initial.sql   D1 스키마
-tools/feeds.mjs               피드 소스와 후보 주소
-tools/rss.mjs                 RSS·Atom 파서와 URL 정규화
+migrations/0001~0006          D1 스키마
+tools/feeds.mjs, rss.mjs      피드 소스와 RSS·Atom 파서
 tools/sources/hackernews.mjs  Hacker News 수집기
+tools/devlog-journal.mjs      작업 회고 CLI(npm run journal)
+tools/push-vendor-docs.mjs    HPE를 Cloudflare 밖에서 수집해 D1에 넣음(GitHub Actions에서 실행)
+tools/backfill-private.mjs, rename-private-labels.mjs  비공개 작업 소급 반영·별칭 정리
 tools/export-legacy-archive.mjs 기존 아카이브 JSON의 최초 D1 이관 데이터 생성
 wrangler.jsonc                AI·D1·Assets·Cron binding 설정
 ```
@@ -103,7 +117,7 @@ Workers Builds와 중복 배포하지 않습니다.
 - `DB`: D1 binding
 - `ASSETS`: CSS·JS 같은 정적 자산 binding
 - Cron `0 22 * * *`: UTC 22:00, KST 07:00
-- Cron `10 0 * * *`: UTC 00:10, KST 09:10, 개발 기록 초안·참고 자료 생성 (발행은 `npm run journal`, `devlog/README.md` 참고)
+- Cron `10 0 * * *`: UTC 00:10, KST 09:10, 작업 기록 자동 작성·발행 (`DEVLOG_AUTO_PUBLISH=false`면 초안만, `devlog/README.md` 참고)
 - Cron `25 0 * * *`: UTC 00:25, KST 09:25, 벤더 문서 아카이브 수집
 - `CF_AI_MODEL`: 뉴스 다이제스트를 쓰는 Workers AI 모델, 기본 `@cf/openai/gpt-oss-20b`. 2026-09-27 실제 30건으로 비교해 2~3분 줄글과 출처 번호를 가장 잘 지킨 싼 모델이다(회당 약 150 neurons, gpt-oss-120b의 40%).
 - `NEWS_READ_LIMIT`: 피드 요약이 없는 기사 중 페이지를 직접 읽을 최대 건수, 기본 12
@@ -131,6 +145,9 @@ fine-grained personal access token을 사용합니다. `CF_ACCOUNT_ID`, `CF_API_
 - `entries`: 원문 링크, 출처, 정규화 URL; `normalized_url`이 전역 중복을 차단
 - `collection_runs`: 성공·부분 실패·빈 실행·실패 이력
 - `metadata`: 기존 Markdown 이관 상태
+- `devlog_posts`, `devlog_commits`, `devlog_runs`, `devlog_private_aliases`: 작업 회고 글·참고 자료,
+  커밋, 실행 이력, 비공개 프로젝트 별칭(0003~0006)
+- `vendor_documents`, `archive_runs`: 아카이브 문서와 수집 이력(0002)
 
 상태 확인은 `GET /healthz`, RSS는 `GET /feed.xml`에서 제공합니다. 일부 소스가
 실패해도 성공한 소식으로 발행하고 `partial` 이력을 남깁니다. 모든 소스가 실패하면
@@ -138,6 +155,10 @@ fine-grained personal access token을 사용합니다. `CF_ACCOUNT_ID`, `CF_API_
 본문으로 저장합니다.
 
 ### 벤더 문서 수집 진단
+
+HPE 사이트는 Cloudflare Worker의 요청을 HTTP 520으로 막습니다(2026-09-25부터). Worker의 HPE
+수집은 매번 실패로 남고, 실제 수집은 GitHub Actions `hpe-archive.yml`이 `tools/push-vendor-docs.mjs`로
+합니다(`archive/README.md` 참고). 수집기 자체(`shared/vendor-hpe.mjs`)는 같습니다.
 
 HPE는 현재 공식 QuickSpecs 사이트가 연결하는 Resource Library의 공개
 `medialibrary.model.json`에서 활성 영문 QuickSpecs를 날짜순으로 읽습니다.

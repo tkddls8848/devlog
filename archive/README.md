@@ -1,12 +1,14 @@
 # archive — 벤더 문서 아카이브
 
 IBM·Lenovo·HPE·Dell·NetApp·Oracle 제품 문서에서 관측한 갱신을 쌓아 두고, 벤더와 검색어로 거를
-수 있게 보여 주는 Eleventy 사이트입니다.
+수 있게 보여 줍니다.
 
-사이트: <https://tkddls8848.github.io/devlog/archive/>
+사이트: <https://devlog.tkddls8848.workers.dev/archive/>
 
-개발 일지는 별도 사이트이며 이 폴더의 코드와 무관합니다. 내비게이션 링크로만
-이어집니다.
+운영 사이트는 Cloudflare Worker `devlog`가 D1에서 읽어 제공합니다. 운영 수집 코드는
+`news/worker/archive.mjs`(Dell은 `archive-dell.mjs`)와 `shared/vendor-*.mjs`에 있습니다. 이 폴더는
+GitHub Pages 시절의 Eleventy 사이트와 로컬 수집기(`tools/vendor-watch.mjs`)이며 운영 원본이 아닙니다.
+수집기 파싱 테스트는 계속 돕니다.
 
 ## 구성
 
@@ -71,9 +73,20 @@ Info Hub(`infohub.delltechnologies.com`)에도 날짜가 붙은 기술 문서가
 
 ## 자동 갱신
 
-매일 09:25 KST에 Cloudflare Worker `devlog`의 Cron Trigger가 IBM·Lenovo·HPE·Dell·NetApp·Oracle을
-수집해 D1에 저장합니다. 화면은 <https://devlog.tkddls8848.workers.dev/archive/>에서
-제공하며, 수집 결과를 GitHub에 매일 커밋하지 않습니다.
+| 시각(KST) | 실행 | 대상 |
+| --- | --- | --- |
+| 09:25 | Worker Cron `25 0 * * *` (`news/worker/archive.mjs`) | IBM·Lenovo·Dell·NetApp·Oracle (HPE도 시도하지만 실패) |
+| 09:30 | GitHub Actions `.github/workflows/hpe-archive.yml` | HPE |
+
+HPE 사이트는 Cloudflare Worker에서 오는 요청을 HTTP 520으로 막습니다(2026-09-25부터). 그래서
+HPE는 GitHub 러너에서 같은 수집기(`shared/vendor-hpe.mjs`)로 모아 D1 HTTP API로 넣습니다
+(`news/tools/push-vendor-docs.mjs`). 워크플로에는 GitHub Actions secret `CLOUDFLARE_API_TOKEN`(D1 편집)과
+`CLOUDFLARE_ACCOUNT_ID`가 필요합니다. 로컬에서는 `cd news && node tools/push-vendor-docs.mjs`로
+wrangler 로그인을 써서 같은 일을 할 수 있습니다(`--dry-run`이면 SQL 문 수만 보여 줌). 이미 있는
+문서는 건너뜁니다. Worker 쪽 HPE 시도는 여전히 실패로 기록되어 실행 이력이 `partial`로 남습니다.
+
+Dell은 수집은 정상이지만 스펙 시트가 새로 개정되지 않으면 최신 날짜가 한동안 그대로입니다
+(2026-09-27 기준 최신 2026-08-27). 수집 결과는 GitHub에 커밋하지 않습니다.
 
 ## 로컬 실행
 

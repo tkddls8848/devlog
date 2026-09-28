@@ -23,8 +23,8 @@ def tone(strip, row):
 
 
 # Motion history (2026-09-28/29): 1.02 -> 1.10 and 36 px drew the eye; a fifth of that was invisible;
-# 0.3 and 0.6 were still too slow. The zoom is now ten times the 0.6 step; the pan stays.
-DRIFT_SCALE = (1.02, 1.50)
+# 0.3 and 0.6 were still too slow; 1.50 and then 1.356 were too much. 1.20 by the end of a scene.
+DRIFT_SCALE = (1.02, 1.20)
 DRIFT_PX = 10.8
 
 
