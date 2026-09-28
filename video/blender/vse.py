@@ -22,10 +22,10 @@ def tone(strip, row):
     mapping.update()
 
 
-# Barely-there motion: at 1.02 -> 1.10 and 36 px the move itself drew the eye (2026-09-28),
-# so it is a fifth of that. The picture should feel alive, not travel.
-DRIFT_SCALE = (1.02, 1.036)
-DRIFT_PX = 3.6
+# Subtle motion: at 1.02 -> 1.10 and 36 px the move itself drew the eye; a fifth of that was too slow
+# to notice (2026-09-28). Now 0.3 of the original: felt, not watched.
+DRIFT_SCALE = (1.02, 1.044)
+DRIFT_PX = 5.4
 
 
 def drift(strip, start, end, index):
