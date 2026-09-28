@@ -73,9 +73,13 @@ async function elevenlabs(text, file, env = process.env) {
   writeFileSync(file, Buffer.from(await response.arrayBuffer()));
 }
 
+// At +0% InJoon reads about 4.5 syllables a second, a slow read-aloud pace. +30% lands near
+// 6 a second, everyday conversation (measured on the 2026-09-26 script).
+export const EDGE_RATE = "+30%";
+
 function edge(text, file, env = process.env) {
   const python = env.PYTHON || "python";
-  const result = spawnSync(python, ["-m", "edge_tts", "--voice", env.EDGE_TTS_VOICE || "ko-KR-InJoonNeural", "--rate", env.EDGE_TTS_RATE || "+0%", "--text", text, "--write-media", file], { encoding: "utf8" });
+  const result = spawnSync(python, ["-m", "edge_tts", "--voice", env.EDGE_TTS_VOICE || "ko-KR-InJoonNeural", "--rate", env.EDGE_TTS_RATE || EDGE_RATE, "--text", text, "--write-media", file], { encoding: "utf8" });
   if (result.status !== 0) throw new Error(`edge-tts 실패 (pip install edge-tts)\n${result.stderr || result.stdout}`);
 }
 
