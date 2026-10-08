@@ -66,10 +66,9 @@ test("개발 기록 목록은 페이지 번호로 나누고 검색어를 유지�
   assert.doesNotMatch(renderDevlogHome([post(1)], {}, "https://example.com"), /journal-pagination/, "한 페이지면 번호를 그리지 않는다");
 });
 
-test("내비게이션의 뉴스레터·아카이브·RSS는 specsheet 주소로 간다", () => {
+test("내비게이션에는 개발 일지만 있고 뉴스레터·아카이브·RSS 링크는 없다", () => {
   const html = renderNotFound({});
-  assert.match(html, /<a href="https:\/\/specsheet\.tkddls8848\.workers\.dev\/">뉴스레터<\/a>/);
-  assert.match(html, /<a href="https:\/\/specsheet\.tkddls8848\.workers\.dev\/archive\/">아카이브<\/a>/);
-  assert.match(html, /href="https:\/\/specsheet\.tkddls8848\.workers\.dev\/feed\.xml"/);
+  assert.match(html, />개발 일지<\/a>/);
+  assert.doesNotMatch(html, /뉴스레터<\/a>|아카이브<\/a>|feed\.xml|specsheet/);
   assert.match(html, /개발 기록 목록/);
 });

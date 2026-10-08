@@ -19,9 +19,7 @@
     }
   ],
   "vars": {
-    "DEVLOG_URL": "https://devlog.tkddls8848.workers.dev/devlog/",
-    "ARCHIVE_URL": "https://specsheet.tkddls8848.workers.dev/archive/",
-    "NEWS_URL": "https://specsheet.tkddls8848.workers.dev/"
+    "DEVLOG_URL": "https://devlog.tkddls8848.workers.dev/devlog/"
   },
   "assets": {
     "directory": "./_site",
