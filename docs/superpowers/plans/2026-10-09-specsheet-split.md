@@ -884,7 +884,8 @@ EOF
 
 ### Task 6: 데이터 이관(전환 시간대 KST 10:00~06:30)
 
-이 Task는 운영 데이터에 쓰므로 실행 직전 사용자 확인을 받는다. 작업 파일은 스크래치패드 폴더 `$SCRATCH/d1-export/`에 둔다(`$SCRATCH` = 세션 스크래치패드 경로).
+이 Task는 운영 데이터에 쓰므로 실행 직전 사용자 확인을 받는다. 시간대 밖 쓰기도 있다(2026-10-08 15:32 KST에 `archive_runs` 행이 생김 — HPE 수동 실행이나 로컬 `push-vendor-docs`). 전환 중에는 `hpe-archive.yml` 수동 실행과 로컬 `push-vendor-docs.mjs`를 하지 않는다.
+2026-10-09 기준 원본 규모: issues 51, entries 1,465, collection_runs 45, vendor_documents 1,509, archive_runs 59, metadata 3(전체 DB 2.9MB). 작업 파일은 스크래치패드 폴더 `$SCRATCH/d1-export/`에 둔다(`$SCRATCH` = 세션 스크래치패드 경로).
 
 **Files:** 저장소 변경 없음.
 
@@ -928,7 +929,8 @@ Expected: 각 파일 실행 성공. 실패하면 멈추고 원인(대개 export 
 - [ ] **Step 4: 행 수와 최신값 비교**
 
 ```bash
-Q="SELECT 'issues' t, count(*) n, max(published_at) latest FROM issues UNION ALL SELECT 'entries', count(*), max(id) FROM entries UNION ALL SELECT 'collection_runs', count(*), max(started_at) FROM collection_runs UNION ALL SELECT 'vendor_documents', count(*), max(document_date) FROM vendor_documents UNION ALL SELECT 'archive_runs', count(*), max(started_at) FROM archive_runs UNION ALL SELECT 'metadata', count(*), max(key) FROM metadata"
+# D1은 UNION ALL 항이 많으면 "too many terms in compound SELECT"(7500)로 거절하므로 스칼라 서브쿼리 한 행으로 묻는다.
+Q="SELECT (SELECT count(*) FROM issues) issues, (SELECT max(published_at) FROM issues) issues_latest, (SELECT count(*) FROM entries) entries, (SELECT max(id) FROM entries) entries_max_id, (SELECT count(*) FROM collection_runs) collection_runs, (SELECT max(started_at) FROM collection_runs) collection_latest, (SELECT count(*) FROM vendor_documents) vendor_documents, (SELECT max(document_date) FROM vendor_documents) vendor_latest, (SELECT count(*) FROM archive_runs) archive_runs, (SELECT max(started_at) FROM archive_runs) archive_latest, (SELECT count(*) FROM metadata) metadata, (SELECT max(key) FROM metadata) metadata_max_key"
 (cd /c/Users/tkddl/orca/devlog/news && node ../shared/run-with-env.mjs node_modules/wrangler/bin/wrangler.js d1 execute devlog-news --remote --json --command "$Q") > "$SCRATCH/d1-export/source.json"
 $W d1 execute specsheet --remote --json --command "$Q" > "$SCRATCH/d1-export/target.json"
 node -e 'const r=f=>JSON.stringify(require(f)[0].results);const a=r(process.argv[1]),b=r(process.argv[2]);console.log(a);console.log(a===b?"MATCH":"MISMATCH");process.exit(a===b?0:1)' "$SCRATCH/d1-export/source.json" "$SCRATCH/d1-export/target.json"
