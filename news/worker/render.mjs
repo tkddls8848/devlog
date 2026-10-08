@@ -4,12 +4,6 @@ const DAY = new Intl.DateTimeFormat("ko-KR", {
   day: "numeric",
   timeZone: "Asia/Seoul",
 });
-const CLOCK = new Intl.DateTimeFormat("ko-KR", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-  timeZone: "Asia/Seoul",
-});
 
 export const escapeHtml = (value) =>
   String(value ?? "")
@@ -106,8 +100,9 @@ const siteFromEnv = (env) => ({
   title: "devlog news",
   tagline: "IT 업계 뉴스와 엔지니어링 블로그를 하루 한 편으로 묶는 뉴스레터",
   githubUser: "tkddls8848",
-  devlogUrl: env.DEVLOG_URL || "https://tkddls8848.github.io/devlog/",
-  archiveUrl: env.ARCHIVE_URL || "https://tkddls8848.github.io/devlog/archive/",
+  devlogUrl: env.DEVLOG_URL || "/devlog/",
+  archiveUrl: env.ARCHIVE_URL || "https://specsheet.tkddls8848.workers.dev/archive/",
+  newsUrl: env.NEWS_URL || "https://specsheet.tkddls8848.workers.dev/",
 });
 
 export function layout({ env, title, summary, current = "", content, canonical = "", wide = false, scripts = [], robots = "" }) {
@@ -124,7 +119,7 @@ export function layout({ env, title, summary, current = "", content, canonical =
     <meta name="color-scheme" content="light dark" />
     ${robots ? `<meta name="robots" content="${escapeHtml(robots)}" />` : ""}
     ${canonical ? `<link rel="canonical" href="${escapeHtml(canonical)}" />` : ""}
-    <link rel="alternate" type="application/rss+xml" title="${site.title}" href="/feed.xml" />
+    <link rel="alternate" type="application/rss+xml" title="${site.title}" href="${escapeHtml(site.newsUrl)}feed.xml" />
     <link rel="stylesheet" href="/assets/css/theme.css" />
     <link rel="stylesheet" href="/assets/css/main.css" />
     ${isDevlog ? '<link rel="stylesheet" href="/assets/css/devlog.css" />' : ""}
@@ -138,7 +133,7 @@ export function layout({ env, title, summary, current = "", content, canonical =
         <nav class="site-nav" aria-label="주요">
           <a href="${escapeHtml(site.devlogUrl)}"${current === "devlog" ? ' aria-current="page"' : ""}>개발 일지</a>
           <a href="${escapeHtml(site.archiveUrl)}"${current === "archive" ? ' aria-current="page"' : ""}>아카이브</a>
-          <a href="/"${current === "home" ? ' aria-current="page"' : ""}>뉴스레터</a>
+          <a href="${escapeHtml(site.newsUrl)}"${current === "home" ? ' aria-current="page"' : ""}>뉴스레터</a>
         </nav>
         ${themeToggle}
       </div>
@@ -147,7 +142,7 @@ export function layout({ env, title, summary, current = "", content, canonical =
     <footer class="site-footer">
       <div class="site-footer-inner">
         <p class="site-tagline">${site.tagline}</p>
-        <p>© ${new Date().getFullYear()} ${site.githubUser} · <a href="https://github.com/${site.githubUser}">GitHub</a> · <a href="/feed.xml">RSS</a></p>
+        <p>© ${new Date().getFullYear()} ${site.githubUser} · <a href="https://github.com/${site.githubUser}">GitHub</a> · <a href="${escapeHtml(site.newsUrl)}feed.xml">RSS</a></p>
       </div>
     </footer>
     <script src="/assets/js/theme-toggle.js"></script>
@@ -155,88 +150,6 @@ export function layout({ env, title, summary, current = "", content, canonical =
     ${scripts.map((src) => `<script src="${escapeHtml(src)}" defer></script>`).join("")}
   </body>
 </html>`;
-}
-
-export function renderHome(issues, env, origin) {
-  const rows = issues.length
-    ? issues
-        .map(
-          (issue) => `<li>
-      <time datetime="${escapeHtml(issue.published_at)}">${DAY.format(new Date(issue.published_at))}</time>
-      <a href="/issues/${encodeURIComponent(issue.slug)}/">${escapeHtml(issue.title)}</a>
-      ${issue.summary ? `<p>${escapeHtml(issue.summary)}</p>` : ""}
-      <p class="meta">소식 ${Number(issue.entry_count)}건 · ${Number(issue.source_count)}곳</p>
-    </li>`
-        )
-        .join("\n")
-    : '<li class="empty">아직 발행된 뉴스레터가 없습니다.</li>';
-  const content = `<p class="page-intro">IT 업계 뉴스와 엔지니어링 블로그에서 하루치 소식을 모아 한 편으로 묶은 뉴스레터입니다. 수집·생성·저장·서비스는 Cloudflare에서 실행됩니다.</p>
-<ul class="post-list">${rows}</ul>`;
-  return layout({ env, summary: "매일 발행되는 IT 뉴스 다이제스트", current: "home", content, canonical: `${origin}/` });
-}
-
-const sourceItem = (entry, number) =>
-  `<li${number ? ` id="source-${number}" value="${number}"` : ""}><a href="${escapeHtml(entry.url)}" rel="noopener">${escapeHtml(entry.title)}</a><span class="meta">${number ? `${escapeHtml(entry.source)} · ` : ""}<time datetime="${escapeHtml(entry.at)}">${CLOCK.format(new Date(entry.at))}</time>${entry.note ? ` · ${escapeHtml(entry.note)}` : ""}</span></li>`;
-
-function issueSources(issue) {
-  const grouped = (groups) => groups
-    .map(
-      (group) => `<h3>${escapeHtml(group.source)}${group.kind ? ` <span class="meta">${escapeHtml(group.kind)}</span>` : ""}</h3>
-      <ul class="links">${group.entries.map((entry) => sourceItem(entry)).join("")}</ul>`
-    )
-    .join("\n");
-  // Numbers follow the stored entry order, the same order the prompt numbered them.
-  const all = issue.sources.flatMap((group) => group.entries.map((entry) => ({ ...entry, source: group.source })));
-  const cited = new Set([...String(issue.body_markdown || "").matchAll(/\[\[(\d+)\]\]\(/g)].map((m) => Number(m[1])));
-  if (!cited.size) return `<section class="sources"><h2>오늘 읽은 소식</h2>${grouped(issue.sources)}</section>`;
-  const used = all.map((entry, index) => [entry, index + 1]).filter(([, number]) => cited.has(number));
-  const rest = issue.sources
-    .map((group) => ({ ...group, entries: group.entries.filter((entry) => !used.some(([cite]) => cite.url === entry.url)) }))
-    .filter((group) => group.entries.length);
-  const others = rest.reduce((sum, group) => sum + group.entries.length, 0);
-  return `<section class="sources" id="sources"><h2>출처</h2><ol class="links cited">${used.map(([entry, number]) => sourceItem(entry, number)).join("")}</ol>${others ? `<details><summary>함께 모은 소식 ${others}건 펼쳐 보기</summary>${grouped(rest)}</details>` : ""}</section>`;
-}
-
-export function renderIssue(issue, env, origin) {
-  const sources = issueSources(issue);
-  const content = `<article class="post">
-  <header class="post-header">
-    <h1>${escapeHtml(issue.title)}</h1>
-    <p class="post-meta"><time datetime="${escapeHtml(issue.published_at)}">${DAY.format(new Date(issue.published_at))}</time><span>소식 ${Number(issue.entry_count)}건 · 출처 ${Number(issue.source_count)}곳</span>${issue.ai_generated ? '<span class="badge">AI 생성</span>' : ""}</p>
-    ${issue.summary ? `<p class="post-summary">${escapeHtml(issue.summary)}</p>` : ""}
-  </header>
-  ${markdownToHtml(issue.body_markdown)}
-  ${sources}
-  <p class="back"><a href="/">← 뉴스레터</a></p>
-</article>`;
-  return layout({
-    env,
-    title: issue.title,
-    summary: issue.summary,
-    content,
-    canonical: `${origin}/issues/${encodeURIComponent(issue.slug)}/`,
-  });
-}
-
-export function renderArchive(records, env, origin) {
-  const vendors = ["IBM", "Lenovo", "HPE", "Dell", "NetApp", "Oracle"];
-  const counts = Object.fromEntries(vendors.map((vendor) => [vendor, records.filter((record) => record.vendor === vendor).length]));
-  // Every collected vendor keeps its chip, even before its first document lands.
-  const vendorButtons = vendors.map((vendor) => `<button type="button" class="archive-chip" data-vendor="${escapeHtml(vendor)}" aria-pressed="false"><span class="vendor-icon vendor-icon-${vendor.toLowerCase()}" aria-hidden="true">${escapeHtml(vendor)}</span><span>${escapeHtml(vendor)}</span><strong>${counts[vendor]}</strong></button>`).join("");
-  const rows = records.map((record) => `<tr data-vendor="${escapeHtml(record.vendor)}">
-    <td class="col-date"><time datetime="${escapeHtml(record.document_date)}">${escapeHtml(record.document_date)}</time></td>
-    <td class="col-vendor"><span class="vendor-icon vendor-icon-${escapeHtml(record.vendor.toLowerCase())}" role="img" aria-label="${escapeHtml(record.vendor)}">${escapeHtml(record.vendor)}</span></td>
-    <td class="col-doc"><a href="${escapeHtml(record.url)}" rel="noopener">${escapeHtml(record.title)}</a>
-      <span class="meta">${escapeHtml(record.kind)}${record.tag ? ` · ${escapeHtml(record.tag)}` : ""}${record.ref ? ` · <code>${escapeHtml(record.ref)}</code>` : ""}</span>
-      ${record.note ? `<p class="archive-note">${escapeHtml(record.note)}</p>` : ""}</td>
-  </tr>`).join("");
-  const content = `<p class="page-intro">IBM · Lenovo · HPE · Dell · NetApp · Oracle 제품 문서에서 관측한 갱신입니다. Cloudflare Cron이 매일 09:25 KST에 수집하고 D1에 저장합니다.</p>
-  <div class="archive-filters"><input type="search" id="archive-query" placeholder="제목 · 문서번호 검색" aria-label="문서 검색" /><div class="archive-chips" role="group" aria-label="벤더 선택"><button type="button" class="archive-chip is-on" data-vendor="" aria-pressed="true"><span class="vendor-icon vendor-icon-all" aria-hidden="true">ALL</span><span>전체</span><strong>${records.length}</strong></button>${vendorButtons}</div></div>
-  <p class="archive-count" id="archive-count">${records.length}건</p>
-  <div class="archive-table-wrap"><table class="archive-table"><thead><tr><th class="col-date">날짜</th><th class="col-vendor">벤더</th><th class="col-doc">문서</th></tr></thead><tbody id="archive-rows">${rows || '<tr><td colspan="3">아직 수집된 문서가 없습니다.</td></tr>'}</tbody></table></div>
-  <p class="archive-empty" id="archive-empty" hidden>조건에 맞는 문서가 없습니다. 새로 추가한 벤더는 다음 수집(매일 09:25 KST)부터 채워집니다.</p>
-  <script>(()=>{const q=document.getElementById('archive-query'),rows=[...document.querySelectorAll('#archive-rows tr[data-vendor]')],count=document.getElementById('archive-count'),empty=document.getElementById('archive-empty'),chips=[...document.querySelectorAll('.archive-chip')];let vendor='';const apply=()=>{const term=q.value.trim().toLowerCase();let n=0;for(const row of rows){const show=(!vendor||row.dataset.vendor===vendor)&&(!term||row.textContent.toLowerCase().includes(term));row.hidden=!show;if(show)n++}count.textContent=n+'건';if(empty)empty.hidden=n!==0||!rows.length};q?.addEventListener('input',apply);for(const chip of chips)chip.addEventListener('click',()=>{vendor=chip.dataset.vendor;for(const item of chips){const active=item===chip;item.classList.toggle('is-on',active);item.setAttribute('aria-pressed',String(active))}apply()});apply()})()</script>`;
-  return layout({ env, title: "벤더 문서 아카이브", summary: "IBM, Lenovo, HPE, Dell, NetApp, Oracle 제품 문서 아카이브", current: "archive", content, canonical: `${origin}/archive/`, wide: true });
 }
 
 // Page numbers to show: all when few, otherwise first, last and the current neighbourhood.
@@ -321,17 +234,7 @@ export function renderNotFound(env) {
   return layout({
     env,
     title: "찾을 수 없는 주소",
-    content: '<p class="page-intro">이 주소에 해당하는 뉴스레터가 없습니다. <a href="/">발행된 이슈 목록</a>에서 찾아보세요.</p>',
+    current: "devlog",
+    content: '<p class="page-intro">이 주소에 해당하는 글이 없습니다. <a href="/devlog/">개발 기록 목록</a>에서 찾아보세요.</p>',
   });
-}
-
-const escapeXml = escapeHtml;
-
-export function renderFeed(issues, origin) {
-  const items = issues
-    .map(
-      (issue) => `<item><title>${escapeXml(issue.title)}</title><link>${origin}/issues/${encodeURIComponent(issue.slug)}/</link><guid isPermaLink="true">${origin}/issues/${encodeURIComponent(issue.slug)}/</guid><pubDate>${new Date(issue.published_at).toUTCString()}</pubDate><description>${escapeXml(issue.summary)}</description></item>`
-    )
-    .join("");
-  return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>devlog news</title><link>${origin}/</link><description>매일 발행되는 IT 뉴스 다이제스트</description><language>ko</language>${items}</channel></rss>`;
 }

@@ -5,8 +5,7 @@
   "scripts": {
     "test": "node --test",
     "dev": "npm run build && node ../shared/run-with-env.mjs node_modules/wrangler/bin/wrangler.js dev --test-scheduled --env-file ../.env",
-    "build": "node tools/export-legacy-archive.mjs && eleventy",
-    "feeds:check": "node tools/feed-check.mjs",
+    "build": "eleventy",
     "journal": "node tools/devlog-journal.mjs",
     "db:migrate:local": "node ../shared/run-with-env.mjs node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --local",
     "db:migrate:remote": "node ../shared/run-with-env.mjs node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --remote",

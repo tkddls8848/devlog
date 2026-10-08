@@ -3,9 +3,9 @@
   "name": "devlog",
   "main": "./worker/index.mjs",
   "compatibility_date": "2026-08-24",
-  // 매일 07:00 KST. Cron Trigger는 UTC 기준이다.
+  // 매일 09:10 KST 작업 기록. 뉴스·아카이브 Cron은 specsheet Worker로 옮겼다. Cron Trigger는 UTC 기준이다.
   "triggers": {
-    "crons": ["0 22 * * *", "10 0 * * *", "25 0 * * *"]
+    "crons": ["10 0 * * *"]
   },
   "ai": {
     "binding": "AI"
@@ -19,18 +19,14 @@
     }
   ],
   "vars": {
-    "CF_AI_MODEL": "@cf/openai/gpt-oss-20b",
-    "NEWS_WINDOW_HOURS": "24",
-    "NEWS_PER_SOURCE": "3",
-    "NEWS_MAX_ITEMS": "30",
-    "HN_MIN_POINTS": "100",
     "DEVLOG_URL": "https://devlog.tkddls8848.workers.dev/devlog/",
-    "ARCHIVE_URL": "https://devlog.tkddls8848.workers.dev/archive/"
+    "ARCHIVE_URL": "https://specsheet.tkddls8848.workers.dev/archive/",
+    "NEWS_URL": "https://specsheet.tkddls8848.workers.dev/"
   },
   "assets": {
     "directory": "./_site",
     "binding": "ASSETS",
-    // HTML과 RSS는 D1에서 동적으로 만들고 CSS·JS는 정적 자산으로 바로 보낸다.
+    // 작업 회고 HTML과 옮긴 경로의 301은 Worker가 만들고 CSS·JS는 정적 자산으로 바로 보낸다.
     "run_worker_first": ["/", "/issues/*", "/archive*", "/devlog*", "/feed.xml", "/healthz"],
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"

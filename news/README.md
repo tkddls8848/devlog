@@ -1,51 +1,35 @@
-# news — Cloudflare Worker `devlog` (뉴스 다이제스트 · 작업 회고 · 아카이브)
+# news — Cloudflare Worker `devlog` (작업 회고)
 
-이 폴더가 운영 Worker 전체입니다. 뉴스 다이제스트, 작업 회고(`/devlog/`), 벤더 문서
-아카이브(`/archive/`)의 수집·작성·D1 저장·HTML·RSS 서비스가 모두 여기서 실행됩니다.
-매일 생성되는 결과는 GitHub에 커밋하지 않습니다.
+이 폴더가 작업 회고 Worker 전체입니다. 커밋 수집·글 작성·D1 저장·HTML 서비스와 웹 편집기가
+모두 여기서 실행됩니다. 매일 생성되는 결과는 GitHub에 커밋하지 않습니다. 글쓰기 방식은
+[`devlog/README.md`](../devlog/README.md)를 보세요.
 
-사이트: <https://devlog.tkddls8848.workers.dev/>
+사이트: <https://devlog.tkddls8848.workers.dev/devlog/>
 
-## 뉴스 다이제스트 실행 구조
-
-```text
-매일 07:00 KST Cron Trigger
-  → RSS·Atom·Hacker News 수집, D1의 기존 URL과 비교해 중복 제거 (최대 30건)
-  → 피드의 요약·본문 앞부분을 발췌로 읽고, 발췌가 없는 기사(최대 12건)는 페이지를 열어
-    설명문과 첫 문단을 읽음
-  → Workers AI(gpt-oss-20b)가 흐름 3~4개를 골라 2~3분 분량(1,000~1,500자) 줄글을 쓰고,
-    사실마다 기사 번호 [n]을 붙임
-  → [n]은 번호 붙은 "출처" 목록으로 이어지는 링크가 되고, 인용하지 않은 소식은 접어 둠
-  → 이슈·기사·실행 이력을 D1에 저장, 같은 Worker가 HTML과 /feed.xml을 제공
-```
-
-출처 번호가 없거나 너무 짧은 답은 한 번 더 쓰게 하고, 그래도 안 되면 링크 목록으로 발행합니다.
-작업 회고와 아카이브는 [`devlog/README.md`](../devlog/README.md), [`archive/README.md`](../archive/README.md)를 보세요.
+뉴스 다이제스트와 벤더 문서 아카이브는 2026-10에
+[specsheet](https://github.com/tkddls8848/specsheet) 저장소의 Worker `specsheet`와 D1 `specsheet`로
+옮겼습니다. 이 Worker는 옛 경로 `/issues/*`, `/feed.xml`, `/archive`, `/archive/*`를
+<https://specsheet.tkddls8848.workers.dev>의 같은 경로·쿼리로 301 이동하고, `/`는 `/devlog/`로 보냅니다
+(`worker/redirects.mjs`).
 
 Cloudflare binding을 사용하므로 Worker 런타임에는 `CF_ACCOUNT_ID`, `CF_API_TOKEN`,
-`CF_WORKERS_API_TOKEN`이 필요하지 않습니다. GitHub Actions에도 뉴스레터용 Cloudflare
-secret을 등록하지 않습니다.
+`CF_WORKERS_API_TOKEN`이 필요하지 않습니다.
 
 ## 구성
 
 ```text
 worker/index.mjs              fetch·scheduled 진입점, 라우팅
-worker/digest.mjs             뉴스 수집·발췌 읽기·Workers AI 줄글·출처 번호
+worker/redirects.mjs          specsheet로 옮긴 옛 경로의 301
 worker/devlog.mjs             작업 회고 커밋 수집과 자동 작성·발행
 worker/devlog-writer.mjs      작업 기록 본문 작성(저장소별 병렬, gpt-oss-120b)
 worker/devlog-admin.mjs       웹 편집기(로그인, 편집, 미리보기, 맞춤법, AI 다시 쓰기)
 worker/devlog-auth.mjs        편집기 로그인 쿠키
 worker/devlog-spellcheck.mjs  맞춤법 검사(다음 검사기, 실패 시 Workers AI)
-worker/archive.mjs            벤더 문서 수집(archive-dell.mjs는 Dell)
 worker/repository.mjs         D1 저장·조회
 worker/render.mjs             HTML·RSS 렌더링
-migrations/0001~0006          D1 스키마
-tools/feeds.mjs, rss.mjs      피드 소스와 RSS·Atom 파서
-tools/sources/hackernews.mjs  Hacker News 수집기
+migrations/0001~0006          D1 스키마(0001·0002는 옮긴 뉴스·아카이브 테이블)
 tools/devlog-journal.mjs      작업 회고 CLI(npm run journal)
-tools/push-vendor-docs.mjs    HPE를 Cloudflare 밖에서 수집해 D1에 넣음(GitHub Actions에서 실행)
 tools/backfill-private.mjs, rename-private-labels.mjs  비공개 작업 소급 반영·별칭 정리
-tools/export-legacy-archive.mjs 기존 아카이브 JSON의 최초 D1 이관 데이터 생성
 wrangler.jsonc                AI·D1·Assets·Cron binding 설정
 ```
 
@@ -74,7 +58,7 @@ npm run deploy:with-migrations
 최초 배포나 스키마 변경 때만 D1 권한이 있는 관리자 환경에서 이 명령을 실행합니다.
 일반 `npm run deploy`는 정적 테마를 빌드하고 Worker만 배포하며 D1 migration을
 실행하지 않습니다.
-뉴스레터와 개발일지의 기존 Markdown은 D1 이관 후 제거했습니다. 운영 데이터의
+개발일지의 기존 Markdown은 D1 이관 후 제거했습니다. 운영 데이터의
 단일 원본은 D1이며 새 발행 결과도 GitHub에 커밋하지 않습니다.
 
 ### 3. Workers Builds 연결
@@ -104,11 +88,6 @@ Builds 설정에 저장되므로 대시보드 값도 위 표와 정확히 같아
 GitHub의 `.github/workflows/news-publish.yml`과 `news-deploy.yml`은 제거되어
 Workers Builds와 중복 배포하지 않습니다.
 
-빌드 로그에서 `npm run build`가 `eleventy`만 실행하거나 Wrangler를 즉석 설치한다면
-전체 전환 전의 커밋을 재시도한 것입니다. 최신 커밋에서는
-`node tools/export-legacy-archive.mjs && eleventy`가 실행되고 Wrangler는 `npm ci`에서
-설치됩니다. Build history에서 최신 `main` 커밋인지 확인합니다.
-
 ## Binding과 설정값
 
 `wrangler.jsonc`가 설정의 원본입니다.
@@ -116,16 +95,8 @@ Workers Builds와 중복 배포하지 않습니다.
 - `AI`: Workers AI binding
 - `DB`: D1 binding
 - `ASSETS`: CSS·JS 같은 정적 자산 binding
-- Cron `0 22 * * *`: UTC 22:00, KST 07:00
 - Cron `10 0 * * *`: UTC 00:10, KST 09:10, 작업 기록 자동 작성·발행 (`DEVLOG_AUTO_PUBLISH=false`면 초안만, `devlog/README.md` 참고)
-- Cron `25 0 * * *`: UTC 00:25, KST 09:25, 벤더 문서 아카이브 수집
-- `CF_AI_MODEL`: 뉴스 다이제스트를 쓰는 Workers AI 모델, 기본 `@cf/openai/gpt-oss-20b`. 2026-09-27 실제 30건으로 비교해 2~3분 줄글과 출처 번호를 가장 잘 지킨 싼 모델이다(회당 약 150 neurons, gpt-oss-120b의 40%).
-- `NEWS_READ_LIMIT`: 피드 요약이 없는 기사 중 페이지를 직접 읽을 최대 건수, 기본 12
-- `NEWS_WINDOW_HOURS`: 수집 시간 창, 기본 24
-- `NEWS_PER_SOURCE`: 소스별 최대 기사, 기본 3
-- `NEWS_MAX_ITEMS`: 이슈 전체 최대 기사, 기본 30
-- `HN_MIN_POINTS`: Hacker News 최소 점수, 기본 100
-- `DEVLOG_URL`, `ARCHIVE_URL`: 상단 내비게이션 주소 (`ARCHIVE_URL`은 Worker의 `/archive/`)
+- `DEVLOG_URL`, `ARCHIVE_URL`, `NEWS_URL`: 상단 내비게이션 주소 (`ARCHIVE_URL`, `NEWS_URL`은 specsheet Worker)
 
 개발일지의 GitHub API 요청은 익명 호출 제한에 걸리지 않도록 Worker secret
 `GITHUB_TOKEN`을 필수로 사용합니다. 저장소나 `wrangler.jsonc`에 값을 쓰지 말고
@@ -141,63 +112,12 @@ fine-grained personal access token을 사용합니다. `CF_ACCOUNT_ID`, `CF_API_
 
 ## D1 데이터
 
-- `issues`: 제목, 요약, Markdown 본문, 발행 시각
-- `entries`: 원문 링크, 출처, 정규화 URL; `normalized_url`이 전역 중복을 차단
-- `collection_runs`: 성공·부분 실패·빈 실행·실패 이력
-- `metadata`: 기존 Markdown 이관 상태
 - `devlog_posts`, `devlog_commits`, `devlog_runs`, `devlog_private_aliases`: 작업 회고 글·참고 자료,
   커밋, 실행 이력, 비공개 프로젝트 별칭(0003~0006)
-- `vendor_documents`, `archive_runs`: 아카이브 문서와 수집 이력(0002)
+- `issues`, `entries`, `collection_runs`, `metadata`, `vendor_documents`, `archive_runs`(0001·0002):
+  specsheet D1로 옮긴 뉴스·아카이브 테이블. 전환 후 정상 확인이 끝나면 migration으로 지웁니다.
 
-상태 확인은 `GET /healthz`, RSS는 `GET /feed.xml`에서 제공합니다. 일부 소스가
-실패해도 성공한 소식으로 발행하고 `partial` 이력을 남깁니다. 모든 소스가 실패하면
-이슈를 만들지 않고 `failed` 이력을 남깁니다. Workers AI가 실패하면 원문 링크 목록을
-본문으로 저장합니다.
-
-### 벤더 문서 수집 진단
-
-HPE 사이트는 Cloudflare Worker의 요청을 HTTP 520으로 막습니다(2026-09-25부터). Worker의 HPE
-수집은 매번 실패로 남고, 실제 수집은 GitHub Actions `hpe-archive.yml`이 `tools/push-vendor-docs.mjs`로
-합니다(`archive/README.md` 참고). 수집기 자체(`shared/vendor-hpe.mjs`)는 같습니다.
-
-HPE는 현재 공식 QuickSpecs 사이트가 연결하는 Resource Library의 공개
-`medialibrary.model.json`에서 활성 영문 QuickSpecs를 날짜순으로 읽습니다.
-100개씩 페이지를 순회하고 최대 20페이지까지 조회합니다. 날짜·문서 ID가 잘못된
-항목, 페이지 실패·반복·상한 도달은 부분 누락으로 보고합니다. 수집 경로가 바뀌어도
-기존 문서 ID 기반 링크를 유지해 같은 개정본이 URL 변경만으로 중복 저장되지 않게 합니다.
-
-Dell은 D1에 이미 있는 문서와 고정 목록을 우선 확인한 뒤 카탈로그의 서버 후보를
-추가합니다. 실행당 최대 160개, 동시 8개로 제한하며 상한 때문에 생략한 후보도
-기록합니다. 카탈로그가 실패해도 이미 알려진 문서 조회는 계속합니다.
-
-NetApp은 제품별 What's new RSS를, Oracle은 OCI 릴리스 노트 RSS를 읽습니다.
-NetApp의 빈 제품 피드는 정상이고 피드 실패(`feed_error`)·잘못된 항목(`invalid_entry`)만
-부분 누락으로 남깁니다. Oracle은 피드가 비면(`empty_feed`) 실패로 봅니다.
-
-이 수집기들의 진단은 구조화된 Worker 로그에 출력됩니다. 문제가 있으면 기존
-`archive_runs.failed_sources` JSON에도 `source`, `status`, `message`, `counts`,
-`issueCount`, `issues`, `omittedIssueCount`를 저장합니다. 별도 DB 마이그레이션은
-필요하지 않습니다. `/healthz`의 `latestArchiveRun.failed_sources`를 JSON으로
-해석하면 최근 실행의 진단을 확인할 수 있습니다.
-
-| Dell 진단 종류 | 의미 |
-| --- | --- |
-| `blocked` / `authentication_required` | HTTP 403 / 401 |
-| `login_redirect` / `login_page` | 로그인 주소로 이동 / HTTP 200 로그인 HTML |
-| `missing_document` | 이전에 수집했거나 고정 목록에 있는 문서의 404 |
-| `not_found` | 카탈로그로 추정한 후보 주소의 404; 정상적인 미존재로 집계 |
-| `rate_limited` / `http_error` | HTTP 429 / 기타 실패 상태 |
-| `timeout` / `network_error` | 시간 초과 / 통신 실패 |
-| `not_pdf` / `missing_metadata` | PDF가 아닌 응답 / 읽을 수 있는 날짜 없음 |
-| `catalog_error` / `candidate_limit` | 카탈로그 조회·파싱 실패 / 후보 상한으로 생략 |
-| `invalid_redirect` / `unexpected_redirect` / `redirect_limit` | Location 누락 / 예상하지 않은 호스트 / 리다이렉트 상한 |
-| `unsupported_known_url` | 저장된 문서 주소가 지원하는 공개 PDF 경로와 다름 |
-
-`counts`의 전체 건수는 유지하고 `issues`의 상세 샘플은 최대 40개 저장합니다.
-인증 리다이렉트는 따라가지 않으며, 목적지의 쿼리 문자열은 기록하지 않습니다.
-성공 문서와 위 문제가 함께 있으면 벤더 및 전체 실행을 `partial`로 남깁니다.
-모든 벤더가 실패하면 `failed`가 됩니다. 추정 후보의 404만으로는 부분 실패로
-처리하지 않습니다. `empty`는 새로운 저장 문서가 없고 수집 실패도 없는 경우입니다.
+상태 확인은 `GET /healthz`에서 제공하며 `latestDevlogRun`만 돌려줍니다.
 
 ## 로컬 개발
 
@@ -213,8 +133,7 @@ npm run dev
 시험할 수 있습니다.
 
 ```bash
-curl "http://localhost:8787/__scheduled?cron=0+22+*+*+*"
+curl "http://localhost:8787/__scheduled?cron=10+0+*+*+*"
 ```
 
-Workers AI binding은 로컬 개발 중에도 원격 리소스와 사용량을 사용합니다. 피드 후보만
-점검하려면 AI나 D1을 호출하지 않는 `npm run feeds:check`를 사용합니다.
+Workers AI binding은 로컬 개발 중에도 원격 리소스와 사용량을 사용합니다.
