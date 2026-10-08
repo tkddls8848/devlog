@@ -1003,8 +1003,7 @@ Expected: 두 Workers Builds가 각각 성공(대시보드 Build history 확인)
 ```bash
 for p in "/" "/feed.xml?utm=x" "/archive" "/archive/?q=dell" "/issues/x/"; do printf "%s " "$p"; curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" "https://devlog.tkddls8848.workers.dev$p"; done
 curl -s -o /dev/null -w "%{http_code}\n" https://devlog.tkddls8848.workers.dev/devlog/
-for p in /archived /issues/; do printf "%s " "$p"; curl -s -o /dev/null -w "%{http_code}
-" "https://devlog.tkddls8848.workers.dev$p"; done
+for p in /archived /issues/; do printf "%s " "$p"; curl -s -o /dev/null -w "%{http_code}\n" "https://devlog.tkddls8848.workers.dev$p"; done
 curl -s https://devlog.tkddls8848.workers.dev/healthz
 curl -s https://specsheet.tkddls8848.workers.dev/healthz
 ```
