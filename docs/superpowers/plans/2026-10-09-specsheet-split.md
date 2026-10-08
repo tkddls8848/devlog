@@ -893,17 +893,11 @@ EOF
 - Consumes: Task 3의 D1 `specsheet`(스키마만 있음), Task 2·3의 specsheet 코드.
 - Produces: 데이터가 채워진 D1 `specsheet`, Cron 없이 배포된 Worker `specsheet`.
 
-- [ ] **Step 1: specsheet Worker 첫 배포(Cron 없음)**
+순서 주의: Worker를 배포하기 **전에** 데이터를 넣는다. specsheet Worker는 모든 요청에서 `ensureLegacyArchive`를
+실행하므로, `metadata`가 들어오기 전에 요청이 하나라도 닿으면 legacy 문서 624건이 끼어들어 import가
+UNIQUE 충돌로 깨진다. 배포 전에는 DB에 닿는 요청이 없다.
 
-```bash
-cd /c/Users/tkddl/orca/specsheet/news && npm run deploy
-curl -s https://specsheet.tkddls8848.workers.dev/healthz
-```
-Expected: `{"ok":true,"latestRun":null,"latestArchiveRun":null}`.
-
-주의: 첫 요청에서 `ensureLegacyArchive`가 빈 `metadata`를 보고 legacy 문서 624건을 `vendor_documents`에 넣는다. 다음 Step 3에서 지우고 원본으로 채운다.
-
-- [ ] **Step 2: 원본에서 테이블별 export**
+- [ ] **Step 1: 원본에서 테이블별 export**
 
 ```bash
 mkdir -p "$SCRATCH/d1-export" && cd /c/Users/tkddl/orca/devlog/news
@@ -914,7 +908,7 @@ ls -l "$SCRATCH/d1-export"
 ```
 Expected: 6개 파일, 각각 `INSERT INTO` 문 포함.
 
-- [ ] **Step 3: 대상 비우기와 import(외래 키 순서)**
+- [ ] **Step 2: 대상이 비었는지 확인하고 import(외래 키 순서)**
 
 ```bash
 cd /c/Users/tkddl/orca/specsheet/news
@@ -924,9 +918,9 @@ for t in issues entries collection_runs vendor_documents archive_runs metadata; 
   $W d1 execute specsheet --remote --yes --file "$SCRATCH/d1-export/$t.sql" || break
 done
 ```
-Expected: 각 파일 실행 성공. 실패하면 멈추고 원인(대개 export 파일의 `CREATE TABLE`이나 외래 키 순서)을 확인한다. 원본은 건드리지 않았으므로 Step 3부터 다시 하면 된다.
+Expected: 각 파일 실행 성공. 실패하면 멈추고 원인을 확인한 뒤 Step 2를 처음부터 다시 한다(원본은 건드리지 않음).
 
-- [ ] **Step 4: 행 수와 최신값 비교**
+- [ ] **Step 3: 행 수와 최신값 비교**
 
 ```bash
 # D1은 UNION ALL 항이 많으면 "too many terms in compound SELECT"(7500)로 거절하므로 스칼라 서브쿼리 한 행으로 묻는다.
@@ -935,17 +929,28 @@ Q="SELECT (SELECT count(*) FROM issues) issues, (SELECT max(published_at) FROM i
 $W d1 execute specsheet --remote --json --command "$Q" > "$SCRATCH/d1-export/target.json"
 node -e 'const r=f=>JSON.stringify(require(f)[0].results);const a=r(process.argv[1]),b=r(process.argv[2]);console.log(a);console.log(a===b?"MATCH":"MISMATCH");process.exit(a===b?0:1)' "$SCRATCH/d1-export/source.json" "$SCRATCH/d1-export/target.json"
 ```
-Expected: `MATCH`(`entries.id`는 export에 그대로 들어가므로 최대값도 같아야 한다). MISMATCH면 Task 7로 가지 않는다.
+Expected: `MATCH`(`entries.id`는 export에 그대로 들어가므로 최대값도 같아야 한다). MISMATCH면 Step 4로 가지 않는다.
+
+- [ ] **Step 4: specsheet Worker 첫 배포(Cron 없음)**
+
+```bash
+cd /c/Users/tkddl/orca/specsheet/news && npm run deploy
+curl -s https://specsheet.tkddls8848.workers.dev/healthz
+```
+Expected: `latestRun`, `latestArchiveRun`이 원본의 최신 실행과 같다. 다시 Step 3 쿼리를 돌려도 `MATCH`(legacy 재삽입 없음).
 
 - [ ] **Step 5: 화면 비교**
 
 ```bash
-for p in / /archive/ /feed.xml /healthz; do printf "%s " "$p"; curl -s -o /dev/null -w "%{http_code}\n" "https://specsheet.tkddls8848.workers.dev$p"; done
+for p in / /archive/ /feed.xml /healthz; do printf "%s " "$p"; curl -s -o /dev/null -w "%{http_code}
+" "https://specsheet.tkddls8848.workers.dev$p"; done
 SLUG=$(curl -s https://specsheet.tkddls8848.workers.dev/feed.xml | grep -o '/issues/[^/<]*/' | head -1)
-curl -s -o /dev/null -w "%{http_code}\n" "https://specsheet.tkddls8848.workers.dev$SLUG"
-diff <(curl -s https://devlog.tkddls8848.workers.dev/feed.xml | sed 's#https://[^/]*##g') <(curl -s https://specsheet.tkddls8848.workers.dev/feed.xml | sed 's#https://[^/]*##g') && echo FEED-SAME
+curl -s -o /dev/null -w "%{http_code}
+" "https://specsheet.tkddls8848.workers.dev$SLUG"
+# guid 문자열은 옛 피드와 같아야 한다(리더가 같은 글로 본다). isPermaLink 속성만 true→false로 바뀐다.
+diff <(curl -s https://devlog.tkddls8848.workers.dev/feed.xml | grep -o '<guid[^>]*>[^<]*' | sed 's/<guid[^>]*>//') <(curl -s https://specsheet.tkddls8848.workers.dev/feed.xml | grep -o '<guid[^>]*>[^<]*' | sed 's/<guid[^>]*>//') && echo GUID-SAME
 ```
-Expected: 모두 200, `FEED-SAME`.
+Expected: 모두 200, `GUID-SAME`.
 
 ---
 
@@ -998,6 +1003,8 @@ Expected: 두 Workers Builds가 각각 성공(대시보드 Build history 확인)
 ```bash
 for p in "/" "/feed.xml?utm=x" "/archive" "/archive/?q=dell" "/issues/x/"; do printf "%s " "$p"; curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" "https://devlog.tkddls8848.workers.dev$p"; done
 curl -s -o /dev/null -w "%{http_code}\n" https://devlog.tkddls8848.workers.dev/devlog/
+for p in /archived /issues/; do printf "%s " "$p"; curl -s -o /dev/null -w "%{http_code}
+" "https://devlog.tkddls8848.workers.dev$p"; done
 curl -s https://devlog.tkddls8848.workers.dev/healthz
 curl -s https://specsheet.tkddls8848.workers.dev/healthz
 ```
