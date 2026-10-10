@@ -35,7 +35,7 @@ R2는 쓰지 않는다.
 | 경로 | `/`, `/issues/*`, `/feed.xml`, `/archive/`, `/healthz`, 정적 자산 | `/devlog/*`, `/healthz`, 그 외 옛 경로는 301 |
 | Cron | `0 22 * * *` 뉴스, `25 0 * * *` 아카이브 | `10 0 * * *` 작업 회고 |
 | GitHub Actions | `hpe-archive.yml`, `test.yml`(archive, news) | `test.yml`(devlog, news, video) |
-| 비밀값 | GitHub secret `CLOUDFLARE_API_TOKEN`(D1 편집), `CLOUDFLARE_ACCOUNT_ID` | Worker secret `GITHUB_TOKEN`, `DEVLOG_ADMIN_PASSWORD` |
+| 비밀값 | GitHub secret `CLOUDFLARE_WORKER_AI_API_TOKEN`(D1 편집), `CLOUDFLARE_ACCOUNT_ID` | Worker secret `GITHUB_TOKEN`, `DEVLOG_ADMIN_PASSWORD` |
 
 ## 2. specsheet 저장소
 
@@ -131,7 +131,7 @@ specsheet Cron을 끈다. specsheet에서 새로 쌓인 행이 있으면 같은 
 정리(전환 1주 후, 정상 확인 뒤): devlog 저장소에 `news/migrations/0007_drop_news_archive.sql`을 추가해
 `entries`, `collection_runs`, `issues`, `archive_runs`, `vendor_documents`, `metadata`를 DROP하고,
 D1 권한이 있는 환경에서 `npm run db:migrate:remote`로 적용한다. devlog 저장소의 GitHub secret
-`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`도 삭제한다.
+`CLOUDFLARE_WORKER_AI_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`도 삭제한다.
 
 ## 5. 테스트
 
@@ -143,7 +143,7 @@ D1 권한이 있는 환경에서 `npm run db:migrate:remote`로 적용한다. de
 ## 사용자가 직접 해야 하는 일
 
 - `npx wrangler login` (로컬 로그인이 만료됨)
-- specsheet 저장소의 GitHub secret `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` 등록
+- specsheet 저장소의 GitHub secret `CLOUDFLARE_WORKER_AI_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` 등록
 - Cloudflare 대시보드에서 `specsheet` Worker의 Workers Builds 저장소 연결
 
 ## 범위 밖

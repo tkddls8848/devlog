@@ -487,7 +487,7 @@ const DATABASE_NAME = "specsheet";
 
 - [ ] **Step 9: README 작성**
 
-- `README.md`(루트, 새 파일): 제목 `# specsheet`, 한 문단 소개(뉴스 다이제스트와 벤더 문서 아카이브를 Worker `specsheet`와 D1 `specsheet`로 운영, devlog 저장소에서 2026-10 분리), 폴더 표(`news/` = 운영 Worker 전체, `archive/` = 옛 Eleventy 사이트와 수집기 테스트, `shared/` = 공통 수집기·테마), 매일 돌아가는 일 표(07:00 뉴스, 09:25 아카이브, 09:30 HPE Actions), 비밀값 표(GitHub `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`), 작업 회고 링크 `https://devlog.tkddls8848.workers.dev/devlog/`. devlog 저장소 `README.md`의 같은 절 문장을 재사용한다.
+- `README.md`(루트, 새 파일): 제목 `# specsheet`, 한 문단 소개(뉴스 다이제스트와 벤더 문서 아카이브를 Worker `specsheet`와 D1 `specsheet`로 운영, devlog 저장소에서 2026-10 분리), 폴더 표(`news/` = 운영 Worker 전체, `archive/` = 옛 Eleventy 사이트와 수집기 테스트, `shared/` = 공통 수집기·테마), 매일 돌아가는 일 표(07:00 뉴스, 09:25 아카이브, 09:30 HPE Actions), 비밀값 표(GitHub `CLOUDFLARE_WORKER_AI_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`), 작업 회고 링크 `https://devlog.tkddls8848.workers.dev/devlog/`. devlog 저장소 `README.md`의 같은 절 문장을 재사용한다.
 - `news/README.md`: 제목을 `# news — Cloudflare Worker \`specsheet\` (뉴스 다이제스트 · 아카이브)`로, 사이트 주소를 specsheet로, "작업 회고" 문장·`devlog*.mjs` 구성 행·`devlog-journal`·`backfill-private` 행·Cron `10 0` 행·`GITHUB_TOKEN` 절·D1 데이터의 `devlog_*` 줄을 삭제하고, D1 이름 `devlog-news` → `specsheet`, `0001~0006` → `0001~0002`로 고친다. Workers Builds watch path에 `archive/src/_data/**`를 더한다.
 - `archive/README.md`: 사이트 주소를 `https://specsheet.tkddls8848.workers.dev/archive/`로, "Cloudflare Worker `devlog`"를 "`specsheet`"로.
 
@@ -857,7 +857,7 @@ Expected: 출력 없음.
 
 - [ ] **Step 9: README 갱신**
 
-- 루트 `README.md`: 첫 문단을 "작업 회고와 영상 제작 도구. 뉴스 다이제스트와 벤더 문서 아카이브는 2026-10에 [specsheet](https://github.com/tkddls8848/specsheet) 저장소로 옮겼다."로. 폴더 표에서 `archive/` 행 삭제, `news/` 행 설명을 "작업 회고 Worker `devlog` 코드 전체(폴더 이름은 Workers Builds 설정 때문에 유지)"로. 매일 돌아가는 일 표는 09:10 행만. GitHub Actions 목록에서 `hpe-archive.yml` 삭제. 비밀값 표에서 `CLOUDFLARE_API_TOKEN` 행 삭제. 로컬 실행에서 `archive` 줄 삭제.
+- 루트 `README.md`: 첫 문단을 "작업 회고와 영상 제작 도구. 뉴스 다이제스트와 벤더 문서 아카이브는 2026-10에 [specsheet](https://github.com/tkddls8848/specsheet) 저장소로 옮겼다."로. 폴더 표에서 `archive/` 행 삭제, `news/` 행 설명을 "작업 회고 Worker `devlog` 코드 전체(폴더 이름은 Workers Builds 설정 때문에 유지)"로. 매일 돌아가는 일 표는 09:10 행만. GitHub Actions 목록에서 `hpe-archive.yml` 삭제. 비밀값 표에서 `CLOUDFLARE_WORKER_AI_API_TOKEN` 행 삭제. 로컬 실행에서 `archive` 줄 삭제.
 - `news/README.md`: 제목 `# news — Cloudflare Worker \`devlog\` (작업 회고)`. "뉴스 다이제스트 실행 구조", "벤더 문서 수집 진단" 절 삭제, 구성 목록에서 digest·archive·feeds·rss·hackernews·push-vendor-docs·export-legacy-archive 행 삭제, Cron은 `10 0`만, vars는 `DEVLOG_URL`, `ARCHIVE_URL`, `NEWS_URL`만, D1 데이터 절은 `devlog_*`만 남기고 "옛 경로(`/`, `/issues/*`, `/feed.xml`, `/archive*`)는 specsheet로 301" 한 줄 추가. Build watch path에서 `shared/**`는 유지.
 - `devlog/README.md`: 아카이브·뉴스 링크가 있으면 specsheet 주소로.
 
@@ -957,7 +957,7 @@ Expected: 모두 200, `GUID-SAME`.
 ### Task 7: 동시 전환과 첫 실행 확인
 
 **사용자가 먼저 할 일:**
-1. GitHub `tkddls8848/specsheet` → Settings → Secrets → Actions에 `CLOUDFLARE_API_TOKEN`(D1 편집), `CLOUDFLARE_ACCOUNT_ID` 등록(devlog 저장소와 같은 값).
+1. GitHub `tkddls8848/specsheet` → Settings → Secrets → Actions에 `CLOUDFLARE_WORKER_AI_API_TOKEN`(D1 편집), `CLOUDFLARE_ACCOUNT_ID` 등록(devlog 저장소와 같은 값).
 2. Cloudflare 대시보드 `specsheet → Settings → Builds`에서 저장소 `tkddls8848/specsheet` 연결: Root directory `news`, Build `npm ci && npm run build`, Deploy `npx wrangler deploy`, branch `main`, watch path `news/**`, `shared/**`, `archive/src/_data/**`.
 
 **Files:**
@@ -1079,6 +1079,6 @@ specsheet로 옮긴 뉴스·아카이브 테이블을 devlog-news에서 지운�
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 EOF
 git push origin main
-gh secret delete CLOUDFLARE_API_TOKEN -R tkddls8848/devlog
+gh secret delete CLOUDFLARE_WORKER_AI_API_TOKEN -R tkddls8848/devlog
 gh secret delete CLOUDFLARE_ACCOUNT_ID -R tkddls8848/devlog
 ```
