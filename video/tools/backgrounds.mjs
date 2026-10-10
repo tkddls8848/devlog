@@ -5,7 +5,7 @@
 //   끝까지 걸리면 그 장면은 배경 없이(짙은 단색) 간다. 배경 때문에 제작을 멈추지 않는다.
 // - 무엇을 그릴지: 장면의 visual(영문 한 문장)이 있으면 그대로, 없으면 원고로 gpt-oss-20b가 쓴다.
 // 검사 모델: Llama 3.2 Vision(계정에서 라이선스 동의가 한 번 필요하다).
-// 인증: CLOUDFLARE_API_TOKEN(Workers AI 권한)과 CLOUDFLARE_ACCOUNT_ID, 없으면 로컬 wrangler 로그인.
+// 인증: CLOUDFLARE_WORKER_AI_API_TOKEN(Workers AI 권한)과 CLOUDFLARE_ACCOUNT_ID, 없으면 로컬 wrangler 로그인.
 // 결과: assets/bg-<장면 id>.jpg, assets/backgrounds.json(프롬프트와 모델 기록). 있는 파일은 다시 그리지 않는다.
 // 사용: node tools/backgrounds.mjs out/<slug> [--force]
 import { spawnSync } from "node:child_process";
@@ -65,7 +65,7 @@ export function parseSubjects(text, count) {
 
 // Workers AI over the REST API, with either an API token or the local wrangler login.
 export function credentials(env = process.env) {
-  if (env.CLOUDFLARE_API_TOKEN && env.CLOUDFLARE_ACCOUNT_ID) return { token: env.CLOUDFLARE_API_TOKEN, account: env.CLOUDFLARE_ACCOUNT_ID };
+  if (env.CLOUDFLARE_WORKER_AI_API_TOKEN && env.CLOUDFLARE_ACCOUNT_ID) return { token: env.CLOUDFLARE_WORKER_AI_API_TOKEN, account: env.CLOUDFLARE_ACCOUNT_ID };
   const news = path.join(VIDEO_ROOT, "..", "news");
   const wrangler = path.join(news, "node_modules", "wrangler", "bin", "wrangler.js");
   // whoami refreshes an expired login and prints the account id.
@@ -75,7 +75,7 @@ export function credentials(env = process.env) {
   const alt = path.join(os.homedir(), ".wrangler", "config", "default.toml");
   const file = [config, alt].find((f) => existsSync(f));
   const token = file && readFileSync(file, "utf8").match(/^oauth_token\s*=\s*"([^"]+)"/m)?.[1];
-  if (!token || !account) throw new Error("Workers AI 인증이 없습니다. 최상위 .env에 CLOUDFLARE_API_TOKEN(Workers AI 권한)과 CLOUDFLARE_ACCOUNT_ID를 넣거나 news 폴더에서 npx wrangler login을 하세요.");
+  if (!token || !account) throw new Error("Workers AI 인증이 없습니다. 최상위 .env에 CLOUDFLARE_WORKER_AI_API_TOKEN(Workers AI 권한)과 CLOUDFLARE_ACCOUNT_ID를 넣거나 news 폴더에서 npx wrangler login을 하세요.");
   return { token, account };
 }
 

@@ -28,5 +28,5 @@ test("그림 프롬프트는 묘사 뒤에 공통 화풍과 글자·사람 금�
 });
 
 test("API 토큰과 계정 ID가 있으면 wrangler 로그인을 보지 않는다", () => {
-  assert.deepEqual(credentials({ CLOUDFLARE_API_TOKEN: "t", CLOUDFLARE_ACCOUNT_ID: "a" }), { token: "t", account: "a" });
+  assert.deepEqual(credentials({ CLOUDFLARE_WORKER_AI_API_TOKEN: "t", CLOUDFLARE_ACCOUNT_ID: "a" }), { token: "t", account: "a" });
 });

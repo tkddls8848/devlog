@@ -38,7 +38,7 @@ neurons입니다. 개발 일지 자동 작성(gpt-oss-120b)과 뉴스 다이제�
 | 파이프라인 | Node.js 22 | `tools/compose.mjs`, `backgrounds.mjs`, `timeline.mjs` |
 | 카드(제목·진행바·설명) | 자체 코드 `tools/engine/` | TrueType 해석(`font.mjs`), 래스터화(`raster.mjs`), PNG 인코딩(`png.mjs`, Node zlib), 카드(`cards.mjs`) |
 | 글꼴 | NanumGothic, NanumGothicBold | 카드와 자막 |
-| Workers AI 인증 | wrangler 로그인 토큰 또는 `CLOUDFLARE_API_TOKEN` | 로컬 실행 |
+| Workers AI 인증 | wrangler 로그인 토큰 또는 `CLOUDFLARE_WORKER_AI_API_TOKEN` | 로컬 실행 |
 
 ### 화면 연출 설정값
 
@@ -105,7 +105,7 @@ npm run upload -- out/<slug> --privacy=private
   그리기에 실패하면 그 장면만 짙은 단색으로 두고 영상은 계속 만듭니다. 이 모델은 계정에서 Meta
   라이선스 동의가 한 번 필요합니다(2026-09-28 동의함). stock_chatbot이 쓰는 llava-1.5는 그날 503만
   돌려줬습니다. `VIDEO_BACKGROUND_CHECK=false`면 검사를 건너뜁니다.
-- 인증: 최상위 `.env`의 `CLOUDFLARE_API_TOKEN`(Workers AI 권한)과 `CLOUDFLARE_ACCOUNT_ID`. 없으면
+- 인증: 최상위 `.env`의 `CLOUDFLARE_WORKER_AI_API_TOKEN`(Workers AI 권한)과 `CLOUDFLARE_ACCOUNT_ID`. 없으면
   `news` 폴더의 wrangler 로그인 토큰을 씁니다(로컬 전용).
 - 기록: `assets/backgrounds.json`에 장면별 묘사, 프롬프트, 실제로 쓴 모델, 시도 횟수가 남습니다.
 
@@ -208,7 +208,7 @@ npm run auth    # 브라우저 동의 후 YOUTUBE_REFRESH_TOKEN 출력 → 최�
 - `ffmpeg`, `ffprobe`
 - Blender 5.2 (`BLENDER`로 경로 지정, 기본은 `C:/Program Files/Blender Foundation/Blender 5.2/blender.exe`)
 - 한국어 글꼴 NanumGothic, NanumGothicBold (`VIDEO_FONT`, `VIDEO_FONT_BOLD`로 변경)
-- Workers AI: `news` 폴더에서 `npx wrangler login`, 또는 최상위 `.env`에 `CLOUDFLARE_API_TOKEN`과
+- Workers AI: `news` 폴더에서 `npx wrangler login`, 또는 최상위 `.env`에 `CLOUDFLARE_WORKER_AI_API_TOKEN`과
   `CLOUDFLARE_ACCOUNT_ID`
 
 테스트(`npm test`)는 네트워크, Blender, 비밀값 없이 돕니다. 글 파싱, 세션 배정, 시리즈 판정, 자막
