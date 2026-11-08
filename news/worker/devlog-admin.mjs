@@ -196,7 +196,7 @@ export async function handleDevlogAdmin(request, env, store, now = new Date()) {
 
   if (path === "/devlog/admin/login") {
     if (method === "GET") {
-      if (await isAdmin(request, env)) return redirect(safeNext(url.searchParams.get("next")));
+      if (await isAdmin(request, env, now.getTime())) return redirect(safeNext(url.searchParams.get("next")));
       return page(renderLogin(env, { next: url.searchParams.get("next") || "" }));
     }
     const form = await request.formData();
@@ -211,7 +211,7 @@ export async function handleDevlogAdmin(request, env, store, now = new Date()) {
 
   if (path === "/devlog/admin/logout" && method === "POST") return redirect("/devlog/", { "set-cookie": clearedCookie() });
 
-  if (!(await isAdmin(request, env))) {
+  if (!(await isAdmin(request, env, now.getTime()))) {
     if (method === "GET") return redirect(`/devlog/admin/login?next=${encodeURIComponent(url.pathname)}`);
     return page("로그인이 필요합니다.", 401);
   }

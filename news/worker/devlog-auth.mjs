@@ -54,7 +54,7 @@ export const readCookie = (request, name = COOKIE) => {
   return "";
 };
 
-export const isAdmin = (request, env) => sessionValid(env, readCookie(request));
+export const isAdmin = (request, env, now = Date.now()) => sessionValid(env, readCookie(request), now);
 
 // SameSite=Strict keeps the cookie off cross-site requests; Path limits it to the devlog.
 export const sessionCookie = (token) => `${COOKIE}=${token}; Path=/devlog; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_SECONDS}`;
