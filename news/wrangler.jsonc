@@ -19,7 +19,9 @@
     }
   ],
   "vars": {
-    "DEVLOG_URL": "https://devlog.tkddls8848.workers.dev/devlog/"
+    "DEVLOG_URL": "https://devlog.tkddls8848.workers.dev/devlog/",
+    // 2026-10-11~11-08 토큰 이름 불일치로 빠진 비공개 작업을 11-09 실행에서 소급한다. 그 뒤 지운다.
+    "DEVLOG_PRIVATE_LOOKBACK_DAYS": "30"
   },
   "assets": {
     "directory": "./_site",
