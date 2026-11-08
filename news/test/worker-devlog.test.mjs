@@ -131,7 +131,7 @@ test("긴 입력은 제한하고 생략한 근거가 있음을 모델에 알린�
   assert.match(prompt, /생략된 커밋의 내용은 추정하지 않습니다/);
 });
 
-test("개발일지는 GITHUB_TOKEN을 Bearer 인증으로 보낸다", async () => {
+test("개발일지는 GITHUB_PAT_TOKEN을 Bearer 인증으로 보낸다", async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];
   globalThis.fetch = async (url, init) => {
@@ -140,7 +140,7 @@ test("개발일지는 GITHUB_TOKEN을 Bearer 인증으로 보낸다", async () =
   };
   try {
     const runs = [];
-    const result = await runDevlog({ env: { GITHUB_TOKEN: "test-token" }, store: storeFor(runs), now: new Date("2026-08-25T00:10:00Z") });
+    const result = await runDevlog({ env: { GITHUB_PAT_TOKEN: "test-token" }, store: storeFor(runs), now: new Date("2026-08-25T00:10:00Z") });
     assert.equal(result.status, "empty");
     assert.equal(requests.length, 2);
     assert.equal(requests[0].init.headers.Authorization, "Bearer test-token");
@@ -150,7 +150,7 @@ test("개발일지는 GITHUB_TOKEN을 Bearer 인증으로 보낸다", async () =
   }
 });
 
-test("GITHUB_TOKEN이 없으면 익명 호출하지 않고 실패 이력을 남긴다", async () => {
+test("GITHUB_PAT_TOKEN이 없으면 익명 호출하지 않고 실패 이력을 남긴다", async () => {
   const originalFetch = globalThis.fetch;
   let called = false;
   globalThis.fetch = async () => { called = true; throw new Error("호출되면 안 됩니다."); };
@@ -158,11 +158,27 @@ test("GITHUB_TOKEN이 없으면 익명 호출하지 않고 실패 이력을 남�
     const runs = [];
     await assert.rejects(
       runDevlog({ env: {}, store: storeFor(runs), now: new Date("2026-08-25T00:10:00Z") }),
-      /GITHUB_TOKEN/
+      /GITHUB_PAT_TOKEN/
     );
     assert.equal(called, false);
     assert.equal(runs[0].status, "failed");
-    assert.match(runs[0].error, /GITHUB_TOKEN/);
+    assert.match(runs[0].error, /GITHUB_PAT_TOKEN/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("옛 이름 GITHUB_TOKEN만 있어도 Bearer 인증으로 보낸다", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, init) => {
+    requests.push({ url, init });
+    return { ok: true, json: async () => [] };
+  };
+  try {
+    const runs = [];
+    await runDevlog({ env: { GITHUB_TOKEN: "legacy-token" }, store: storeFor(runs), now: new Date("2026-08-25T00:10:00Z") });
+    assert.equal(requests[0].init.headers.Authorization, "Bearer legacy-token");
   } finally {
     globalThis.fetch = originalFetch;
   }

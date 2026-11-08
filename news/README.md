@@ -99,11 +99,11 @@ Workers Builds와 중복 배포하지 않습니다.
 - `DEVLOG_URL`, `ARCHIVE_URL`, `NEWS_URL`: 상단 내비게이션 주소 (`ARCHIVE_URL`, `NEWS_URL`은 specsheet Worker)
 
 개발일지의 GitHub API 요청은 익명 호출 제한에 걸리지 않도록 Worker secret
-`GITHUB_TOKEN`을 필수로 사용합니다. 저장소나 `wrangler.jsonc`에 값을 쓰지 말고
+`GITHUB_PAT_TOKEN`을 필수로 사용합니다(옛 이름 `GITHUB_TOKEN`도 대체로 읽습니다). 저장소나 `wrangler.jsonc`에 값을 쓰지 말고
 `news` 디렉터리에서 다음 명령으로 등록합니다.
 
 ```bash
-npx wrangler secret put GITHUB_TOKEN
+npx wrangler secret put GITHUB_PAT_TOKEN
 ```
 
 공개 저장소의 이벤트와 커밋만 읽으므로 별도의 배포용 토큰이 아니라 GitHub 읽기 전용

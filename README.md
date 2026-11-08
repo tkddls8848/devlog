@@ -42,7 +42,7 @@
 
 | 어디에 | 이름 | 쓰임 |
 | --- | --- | --- |
-| Cloudflare Worker secret | `GITHUB_TOKEN` | 작업 기록용 커밋 수집(공개 이벤트, 본인 비공개 저장소 읽기) |
+| Cloudflare Worker secret | `GITHUB_PAT_TOKEN` | 작업 기록용 커밋 수집(공개 이벤트, 본인 비공개 저장소 읽기) |
 | Cloudflare Worker secret | `DEVLOG_ADMIN_PASSWORD` | 작업 회고 웹 편집기 로그인 |
 | `news/wrangler.jsonc` vars | `DEVLOG_URL`, `ARCHIVE_URL`, `NEWS_URL` | 상단 내비게이션 주소 |
 | 저장소 최상위 `.env` | YouTube OAuth, TTS 설정 등 | 로컬 도구(영상, journal CLI) |

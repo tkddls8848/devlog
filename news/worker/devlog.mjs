@@ -5,10 +5,12 @@ import { privateAlias, privateWorkSummary, publicationGroups } from "../../share
 const USER = "tkddls8848";
 const BLOG_REPO = `${USER}/devlog`;
 const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" });
+// The secret was renamed to GITHUB_PAT_TOKEN on 2026-10-10; keep the old name as a fallback.
+const githubToken = (env) => env.GITHUB_PAT_TOKEN || env.GITHUB_TOKEN;
 const ignored = [/^merge\s/i, /^revert\s/i, /^(chore|ci)(\(deps\))?:/i, /^bump\s/i, /^(wip|test|tmp|temp|initial commit)$/i, /\[skip ci\]/i];
 
 async function github(path, token) {
-  if (!token) throw new Error("Worker secret GITHUB_TOKEN이 등록되지 않았습니다.");
+  if (!token) throw new Error("Worker secret GITHUB_PAT_TOKEN이 등록되지 않았습니다.");
   const headers = {
     Accept: "application/vnd.github+json",
     Authorization: `Bearer ${token}`,
@@ -42,7 +44,7 @@ function normalize(item, range) {
 }
 
 async function collect(env, published, now) {
-  const token = env.GITHUB_TOKEN;
+  const token = githubToken(env);
   const events = [];
   for (let page = 1; page <= 3; page++) {
     const batch = await github(`/users/${USER}/events/public?per_page=100&page=${page}`, token);
@@ -131,7 +133,7 @@ export async function runDevlog({ env, store, now = new Date() }) {
     }
     // Bound extra GitHub requests per run; missing details never block the draft.
     for (const commit of [...commits].filter((c) => c.visibility !== "private").sort((a, b) => b.day.localeCompare(a.day)).slice(0, 12)) {
-      try { commit.details = commitDetails(await github(`/repos/${commit.repo}/commits/${commit.sha}`, env.GITHUB_TOKEN)); }
+      try { commit.details = commitDetails(await github(`/repos/${commit.repo}/commits/${commit.sha}`, githubToken(env))); }
       catch (error) { console.warn(`커밋 상세 조회 생략: ${commit.repo}/${commit.sha}`, error.message); }
     }
     const days = new Map();
